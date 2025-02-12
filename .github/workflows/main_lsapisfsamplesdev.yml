@@ -1,7 +1,7 @@
 # Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
 # More GitHub Actions for Azure: https://github.com/Azure/actions
 
-name: Build and deploy ASP.Net Core app to Azure Web App - LSAPISFSamplesDev
+name: Build and deploy ASP.Net Core app to Azure Web App - lsapisfsamplesdev
 
 on:
   push:
@@ -54,15 +54,15 @@ jobs:
       - name: Login to Azure
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_097E17AC385B4A0DAF0539CE7787BB89 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_D1B4A51BB7594C8AB41C9694D2425594 }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_1728694B0E29463DBFF198B24D854C7D }}
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_AC0817FDAF8045979ACDFAE2F36FC7C1 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_80CC14C840744269A2D1782AA40DBDD2 }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_9B3D552B0E034C729EB8A9EF293DB8C6 }}
 
       - name: Deploy to Azure Web App
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
-          app-name: 'LSAPISFSamplesDev'
+          app-name: 'lsapisfsamplesdev'
           slot-name: 'Production'
           package: .
           
