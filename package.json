@@ -1,0 +1,15 @@
+{
+    "name": "lsapisfsamples",
+    "version": "0.0.0",
+    "description": "lsapisfsamples",
+    "private": true,
+    "scripts": {
+    },
+    "main": "index.html",
+    "author": {
+      "name": ""
+    },
+    "dependencies": {
+    }
+  }
+  
