@@ -1,0 +1,13 @@
+/js
+├── /services
+│   ├── apiService.js        // Contient la fonction apiService()
+│   ├── errorHandler.js      // Contient showError(), handleHttpError(), handleNetworkError()
+├── /controllers
+│   ├── loginController.js   // Contient la fonction login()
+│   └── displayController.js // Gère l'affichage des données sur display.html
+├── /models
+│   └── dataModel.js         // Si vous avez des modèles de données spécifiques
+├── /utils
+│   ├── helpers.js           // Fonctions utilitaires
+│   └── validators.js        // Fonctions de validation
+├── main.js                  // Point d'entrée principal
