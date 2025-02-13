@@ -5,19 +5,30 @@
     <title>LeadSuccess API for Salesforce Samples</title>
     <meta charset="utf-8" />
     <link href="css/styles.css" rel="stylesheet">
-	<link href="css/opensans.css" rel="stylesheet">
-	<script src="js/main.js" defer></script>
+	<!-- <script src="js/index.js" defer></script> -->
+	<!-- <script src="js/api/apiService.js" defer></script> -->
+    <!-- <script type="module" src="js/main.js" defer></script> -->
+    
 
-    <meta name="viewport"
-        content="user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, width=device-width, target-densitydpi=device-dpi" />
-    <!--
-        Customize the content security policy in the meta tag below as needed. Add 'unsafe-inline' to default-src to enable inline JavaScript.
-        For details, see http://go.microsoft.com/fwlink/?LinkID=617521
-    -->
-    <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self' data: gap: https://ssl.gstatic.com 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; media-src 'self' data: http://*.convey.de https://*.convey.de; connect-src blob: http://*.convey.de https://*.convey.de">
+    <!-- Fonts -->
+    <!-- <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300..700&family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet"> -->
+
+
+    <!-- <meta name="viewport"
+        content="user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, width=device-width, target-densitydpi=device-dpi" 
+    /> -->
+    <meta
+		http-equiv="Content-Security-Policy" 
+		content="default-src 'self' data: gap: https://ssl.gstatic.com 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; media-src 'self' data: https://*.convey.de http://*.convey.de; connect-src blob: http://*.convey.de https://*.convey.de" />
+ 
 
 </head>
+    <script type="module">
+        import { login } from "./login.js";
+        window.login = login; // Expose la fonction au scope global
+    </script>
 
 <body>
 
@@ -30,11 +41,11 @@
 
 
     <div class="sub-header">
-        <h1 class="head-line">Salesforce API Manager
-        </h1>
-        <h2>You can find the API documentation
+        <h1 class="head-line">Salesforce API Manager</h1>
+
+        <h3>API documentation available 
             <a href="docs/LeadSuccess_API_for SalesForce.pdf" download>here</a>
-        </h2>
+        </h3>
     </div>
 
 
@@ -43,16 +54,27 @@
         <div class="login-container">
             <div class="card">
                 <h2>API Connection</h2>
+                <label for="serverName">Server name</label>
                 <input type="text" id="serverName" placeholder="Enter server-name">
-                <input type="text" id="apiName" placeholder="Enter api-name">
+                <label for="apiName">API name</label>
+                <input type="text" id="apiName" placeholder="Enter api-name"> 
+
+                <label for="userName">User</label>
                 <input type="text" id="userName" placeholder="Enter user">
-                <input type="text" id="password" placeholder="Enter password">
-                <button onclick="login()">Login</button>
-                <div id="errorMessage" class="error-message"></div>
+                <label for="password">Password</label>
+                <input type="password" id="password" placeholder="Enter password">
+                <button id="loginButton">Login</button>
+
+                <!-- <button  onclick="login()">Login 2</button> -->
+                <div id="errorMessage" class="error-message">
+                    ⚠️ Invalid credentials. Please try again.
+                </div>
             </div>
         </div>
     </main>
 
+    <script src="login.js" defer></script>
+     <!-- <script type="module" src="main.js"></script> -->
 </body>
 
 </html>

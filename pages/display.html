@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Salesforce API Manager - Data Display</title>
+    <!-- DataTables CSS -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+      <!-- Header Area -->
+      <header class="header">
+        <div>
+            <img src="/images/leadsuccess_white.svg" />
+        </div>
+    </header>
+
+
+    <div class="sub-header">
+        <h1 class="head-line">Salesforce API Manager</h1>
+
+        <h3>API documentation available 
+            <a href="docs/LeadSuccess_API_for SalesForce.pdf" download>here</a>
+        </h3>
+    </div>
+
+    <!-- Main Area -->
+    <main>
+        <h1>API Data Results</h1>
+
+        <!-- Select Input -->
+        <label for="dataSelect">Select an Entry:</label>
+        <select id="dataSelect">
+
+        </select>
+
+        <select id="entitySelect" class="form-control"></select>
+        <table id="dataTable" class="display" style="width:100%"></table>
+      
+        <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+        <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+        <script src="apiService.js"></script>
+        <script src="display.js"></script>
+    </main>
+
+</body>
+</html>
