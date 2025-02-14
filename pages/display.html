@@ -1,47 +1,66 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Salesforce API Manager - Data Display</title>
-    <!-- DataTables CSS -->
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.css">
-    <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-      <!-- Header Area -->
-      <header class="header">
-        <div>
-            <img src="/images/leadsuccess_white.svg" />
+<html>
+    <head>
+        <title>Lead Success API for Salesforce Samples - Display Data </title>
+        <meta
+            charset="utf-8"
+            http-equiv="Content-Security-Policy"
+            content="default-src 'self' data: gap: https://ssl.gstatic.com 'unsafe-eval' 'unsafe-inline'; 
+                    style-src 'self' 'unsafe-inline'; 
+                    media-src 'self' data: https://*.convey.de http://*.convey.de; 
+                    connect-src blob: http://*.convey.de https://*.convey.de ws://127.0.0.1:5504;"
+            name="viewport"
+            content="user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, width=device-width, target-densitydpi=device-dpi"
+        />
+        <link href="../css/display.css" rel="stylesheet">
+        <link rel="icon" type="image/x-icon" href="../images/api-sf.ico">
+    </head>
+
+    <body>
+        <!-- Header Area -->
+        <header class="header">
+            <div>
+                <img src="../images/leadsuccess_white.svg" />
+            </div>
+            <div>
+                <button id="logoutButton" class="logout-button">Logout</button>
+            </div>
+        </header>
+
+
+        <div class="sub-header">
+            <h1 class="head-line">Salesforce API Manager</h1>
+
+            <h3>API documentation available 
+                <a href="docs/LeadSuccess_API_for SalesForce.pdf" download>here</a>
+            </h3>
         </div>
-    </header>
+
+        <!-- Main Area -->
+         <main>
+            <select id="apiSelector">
+                <option value="" class="option">Select an entity</option>
+            </select>
 
 
-    <div class="sub-header">
-        <h1 class="head-line">Salesforce API Manager</h1>
+           <!-- Display data to the table -->
+            <div class="table-responsive">
+                <table>
+                    <thead id="tableHead"></thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
 
-        <h3>API documentation available 
-            <a href="docs/LeadSuccess_API_for SalesForce.pdf" download>here</a>
-        </h3>
-    </div>
+            <!-- Pagination -->
+            <div class="pagination">
+                <button id="prevButton">Back</button>
+                <span id="pageInfo">Page 1</span>
+                <button id="nextButton">Next</button>
+            </div>
 
-    <!-- Main Area -->
-    <main>
-        <h1>API Data Results</h1>
+         </main>
 
-        <!-- Select Input -->
-        <label for="dataSelect">Select an Entry:</label>
-        <select id="dataSelect">
+        <script src="../js/controllers/displayController.js" type="module" defer></script>
+    </body>
 
-        </select>
-
-        <select id="entitySelect" class="form-control"></select>
-        <table id="dataTable" class="display" style="width:100%"></table>
-      
-        <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
-        <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
-        <script src="apiService.js"></script>
-        <script src="display.js"></script>
-    </main>
-
-</body>
 </html>

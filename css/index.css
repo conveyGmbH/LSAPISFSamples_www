@@ -78,11 +78,11 @@ main {
     display: flex;
     align-items: center;
     justify-content: center;
-    flex-direction: column; /
+    flex-direction: column; 
 }
 
 .login-container {
-    max-width: 480px;    
+    max-width: 380px;    
     animation: fadeIn 0.5s ease-in;
 }
 
@@ -103,7 +103,7 @@ main {
 
 .card input {
     width: 100%;
-    padding: 0.875rem;
+    padding: 0.675rem;
     margin-bottom: 1.25rem;
     border: 1px solid #ddd;
     border-radius: 6px;
@@ -135,6 +135,8 @@ main {
     opacity: 0.9;
     transform: translateY(-1px);
 }
+
+
 
 .error-message {
     color: #d93025;

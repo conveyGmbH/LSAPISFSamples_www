@@ -1,46 +1,98 @@
-// services/apiService.js
+export default class ApiService {
+  constructor(serverName, apiName) {
+    this.serverName = serverName;
+    this.apiName = apiName;
+    this.credentials = sessionStorage.getItem("credentials") || null;
+  }
 
-import { handleHttpError, handleNetworkError } from './errorHandler.js';
-
-export async function apiService(uri, method = 'GET', data = null) {
-    const headers = new Headers();
-    headers.append('Accept', 'application/json');
-    headers.append('Content-Type', 'application/json');
-
-    // Retrieve credentials
-    const userName = document.getElementById('userName')?.value;
-    const password = document.getElementById('password')?.value;
-    const encoded = window.btoa(`${userName}:${password}`);
-    headers.append('Authorization', 'Basic ' + encoded);
-
-    const options = {
-        method: method,
-        headers: headers,
-        credentials: 'same-origin',
-    };
-
-    if (data) {
-        options.body = JSON.stringify(data);
-    }
+  async request(method, endpoint, data = null) {
+    const errorElement = document.getElementById("errorMessage");
+    if (errorElement) errorElement.style.display = "none";
 
     try {
-        const response = await fetch('https://lstest.convey.de/apisftest/', options);
-        if (response.ok) {
-            const jsonData = await response.json();
-            return jsonData;
-        } else {
-            // Attempt to parse error details
-            let errorData;
-            try {
-                errorData = await response.json();
-            } catch (e) {
-                errorData = null;
-            }
-            handleHttpError(response.status, errorData);
-            throw new Error(`HTTP error ${response.status}`);
-        }
+      if (!this.credentials) {
+        throw new Error("No credentials found");
+      }
+
+      const headers = new Headers({
+        Accept: "application/json",
+        Authorization: `Basic ${this.credentials}`,
+      });
+
+      if (method !== "GET") {
+        headers.append("Content-Type", "application/json");
+      }
+
+      const config = {
+        method,
+        headers,
+        credentials: "same-origin",
+      };
+
+      if (data) {
+        config.body = JSON.stringify(data);
+      }
+
+      const url = `https://${this.serverName}/${this.apiName}/${endpoint}`;
+
+      const response = await fetch(url, config);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        this.handleHttpError(response.status, errorData);
+        return null;
+      }
+
+      return await response.json();
     } catch (error) {
-        handleNetworkError(error);
-        throw error;
+      this.handleNetworkError(error);
+      return null;
     }
+  }
+
+  logout() {
+    sessionStorage.removeItem("credentials");
+    this.credentials = null;
+    window.location.href = "/index.html";
+  }
+
+  handleHttpError(status, errorData = {}) {
+    const messages = {
+      400: "Invalid request",
+      401: "Authentication failed",
+      403: "Access denied",
+      404: "Resource not found",
+      500: "Internal server error",
+      503: "Service temporarily unavailable",
+    };
+
+    let message = messages[status] || `HTTP error (${status})`;
+
+    if (errorData && errorData.error && errorData.error.message) {
+      message = errorData.error.message.value || JSON.stringify(errorData);
+    }
+    this.showError(message, true);
+
+    console.log(errorData);
+  }
+
+  handleNetworkError(error) {
+    const message = error.message.includes("Failed to fetch")
+      ? "Network error: Check your connection"
+      : "Unexpected error";
+    this.showError(message);
+  }
+
+  showError(message, shake = false) {
+    const errorElement = document.getElementById("errorMessage");
+    if (!errorElement) return;
+
+    errorElement.innerHTML = `<div class="error-content">⚠️ ${message}</div>`;
+    errorElement.style.display = "block";
+
+    if (shake) {
+      errorElement.classList.add("error-shake");
+      setTimeout(() => errorElement.classList.remove("error-shake"), 500);
+    }
+  }
 }

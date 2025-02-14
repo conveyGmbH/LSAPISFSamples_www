@@ -1,80 +1,66 @@
 ﻿<!DOCTYPE html>
 <html>
 
-<head>
-    <title>LeadSuccess API for Salesforce Samples</title>
-    <meta charset="utf-8" />
-    <link href="css/styles.css" rel="stylesheet">
-	<!-- <script src="js/index.js" defer></script> -->
-	<!-- <script src="js/api/apiService.js" defer></script> -->
-    <!-- <script type="module" src="js/main.js" defer></script> -->
-    
+    <head>
+        <title>LeadSuccess API for Salesforce Samples</title>
+        <meta
+            charset="utf-8"
+            http-equiv="Content-Security-Policy"
+            content="default-src 'self' data: gap: https://ssl.gstatic.com 'unsafe-eval' 'unsafe-inline'; 
+                    style-src 'self' 'unsafe-inline'; 
+                    media-src 'self' data: https://*.convey.de http://*.convey.de; 
+                    connect-src blob: http://*.convey.de https://*.convey.de ws://127.0.0.1:5504;"
+            name="viewport"
+            content="user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, width=device-width, target-densitydpi=device-dpi"
+        />
+        <link href="css/index.css" rel="stylesheet">
+        <link rel="icon" type="image/x-icon" href="/images/api-sf.ico">
 
-    <!-- Fonts -->
-    <!-- <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300..700&family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet"> -->
+    </head>
 
 
-    <!-- <meta name="viewport"
-        content="user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, width=device-width, target-densitydpi=device-dpi" 
-    /> -->
-    <meta
-		http-equiv="Content-Security-Policy" 
-		content="default-src 'self' data: gap: https://ssl.gstatic.com 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; media-src 'self' data: https://*.convey.de http://*.convey.de; connect-src blob: http://*.convey.de https://*.convey.de" />
- 
+    <body>
+        <header class="header">
+            <div>
+                <img src="/images/leadsuccess_white.svg" />
+            </div>
+        </header>
 
-</head>
-    <script type="module">
-        import { login } from "./login.js";
-        window.login = login; // Expose la fonction au scope global
-    </script>
 
-<body>
+        <div class="sub-header">
+            <h1 class="head-line">Salesforce API Manager</h1>
 
-    <!-- Header Area -->
-    <header class="header">
-        <div>
-            <img src="/images/leadsuccess_white.svg" />
+            <h3>API documentation available 
+                <a href="docs/LeadSuccess_API_for SalesForce.pdf" download>here</a>
+            </h3>
         </div>
-    </header>
 
 
-    <div class="sub-header">
-        <h1 class="head-line">Salesforce API Manager</h1>
+        <!-- Main Area -->
+        <main>
+            <div class="login-container">
+                <div class="card">
+                    <h2>API Connection</h2>
+                    <label for="serverName">Server name</label>
+                    <input type="text" id="serverName" placeholder="Enter server-name">
+                    <label for="apiName">API name</label>
+                    <input type="text" id="apiName" placeholder="Enter api-name"> 
 
-        <h3>API documentation available 
-            <a href="docs/LeadSuccess_API_for SalesForce.pdf" download>here</a>
-        </h3>
-    </div>
-
-
-    <!-- Main Area -->
-    <main>
-        <div class="login-container">
-            <div class="card">
-                <h2>API Connection</h2>
-                <label for="serverName">Server name</label>
-                <input type="text" id="serverName" placeholder="Enter server-name">
-                <label for="apiName">API name</label>
-                <input type="text" id="apiName" placeholder="Enter api-name"> 
-
-                <label for="userName">User</label>
-                <input type="text" id="userName" placeholder="Enter user">
-                <label for="password">Password</label>
-                <input type="password" id="password" placeholder="Enter password">
-                <button id="loginButton">Login</button>
-
-                <!-- <button  onclick="login()">Login 2</button> -->
-                <div id="errorMessage" class="error-message">
-                    ⚠️ Invalid credentials. Please try again.
+                    <label for="userName">User</label>
+                    <input type="text" id="userName" placeholder="Enter user">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" placeholder="Enter password">
+                    <button id="loginButton">Login</button>
+                    <div id="errorMessage" class="error-message">
+                        ⚠️ Invalid credentials. Please try again.
+                    </div>
                 </div>
             </div>
-        </div>
-    </main>
+        </main>
 
-    <script src="login.js" defer></script>
-     <!-- <script type="module" src="main.js"></script> -->
-</body>
+        <script src="js/controllers/loginController.js" type="module" defer></script>
+        <!-- <script src="index.js" defer></script> -->
+
+    </body>
 
 </html>
