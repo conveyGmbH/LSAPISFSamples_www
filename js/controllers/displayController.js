@@ -1,76 +1,194 @@
-// controllers/displayController.js
+import ApiService from '../services/apiService.js';
 
-import { apiService } from '../services/apiService.js';
-import { handleNetworkError } from '../services/errorHandler.js';
+// Retrieve server information from sessionStorage
+const serverName = sessionStorage.getItem('serverName');
+const apiName = sessionStorage.getItem('apiName');
+const credentials = sessionStorage.getItem('credentials');
 
-export function initializeDisplay() {
-    try {
-        const data = JSON.parse(sessionStorage.getItem('apiData'));
-
-        if (data && data.d) {
-            // Fill the select element
-            const select = document.getElementById('dataSelect');
-
-            if (data.d.EntitySets) {
-                // If the response contains a list of entity sets
-                data.d.EntitySets.forEach(item => {
-                    const option = document.createElement('option');
-                    option.value = item;
-                    option.textContent = item;
-                    select.appendChild(option);
-                });
-
-                // Load data when an option is selected
-                select.addEventListener('change', async () => {
-                    const selectedEntity = select.value;
-                    await loadEntityData(selectedEntity);
-                });
-            } else if (data.d.results) {
-                // If the response contains results directly
-                populateDataTable(data.d.results);
-            }
-        } else {
-            throw new Error('No data found in sessionStorage.');
-        }
-    } catch (error) {
-        console.error('Error loading data:', error);
-        // Display an error message to the user if needed
-    }
+if (!serverName || !apiName || !credentials) {
+  // If information is missing, redirect to the login page
+  window.location.href = '/index.html';
 }
 
-async function loadEntityData(entityName) {
-    const uri = `${window.appConfig.apiBaseUrl}${entityName}?$format=json`;
-    try {
-        const data = await apiService(uri);
-        if (data && data.d && data.d.results) {
-            populateDataTable(data.d.results);
-        } else {
-            console.error('No results found for the selected entity.');
-        }
-    } catch (error) {
-        handleNetworkError(error);
+// Create an instance of ApiService
+const apiService = new ApiService(serverName, apiName);
+
+// Pagination variables
+let currentPage = 1;
+let totalPages = 1;
+let currentData = [];
+const perPage = 20; // Number of items per page
+
+// Function to load the list of entities into the selector
+async function populateApiSelector() {
+  try {
+    const response = await apiService.request('GET', '?$format=json');
+    if (response && response.d && response.d.EntitySets) {
+      const entities = response.d.EntitySets;
+      const selector = document.getElementById('apiSelector');
+
+      // List of desired entities
+      const desiredEntities = ['LS_Country', 'LS_User', 'LS_Event'];
+
+      // Filter entities
+      const filteredEntities = entities.filter(entity => desiredEntities.includes(entity));
+
+      // Clear the selector
+      selector.innerHTML = '';
+
+      // Fill the selector with entities
+      filteredEntities.forEach(entity => {
+        const option = document.createElement('option');
+        option.value = entity;
+        option.textContent = entity;
+        selector.appendChild(option);
+      });
+
+      // Load data for the first entity
+      updateData();
+    } else {
+      console.error('Unable to retrieve entity list from the API.');
+      apiService.showError('Unable to load the list of entities.');
     }
+  } catch (error) {
+    console.error('Error retrieving entity list:', error);
+    apiService.showError('Error loading the list of entities.');
+  }
 }
 
-function populateDataTable(results) {
-    // Destroy existing DataTable if it exists
-    if ($.fn.dataTable.isDataTable('#dataTable')) {
-        $('#dataTable').DataTable().destroy();
-        $('#dataTable tbody').empty();
-    }
+// Function to fetch data for the selected entity
+async function fetchData(entityName) {
+  if (!entityName) {
+    console.error('No entity name provided.');
+    return [];
+  }
 
-    // Initialize DataTable with new data
-    $('#dataTable').DataTable({
-        data: results,
-        columns: [
-            { data: 'Id', title: 'Id' },
-            { data: 'FirstName', title: 'First Name' },
-            { data: 'LastName', title: 'Last Name' },
-            // Add more columns based on your data
-        ],
-        pageLength: 10,
-        language: {
-            url: '//cdn.datatables.net/plug-ins/1.11.5/i18n/en-gb.json'
-        }
+  try {
+    const endpoint = `${entityName}?$format=json`;
+    const response = await apiService.request('GET', endpoint);
+    if (response && response.d && response.d.results) {
+      return response.d.results;
+    } else {
+      console.error('No data returned by the API.');
+      return [];
+    }
+  } catch (error) {
+    console.error('Error fetching data:', error);
+    return [];
+  }
+}
+
+// Function to display paginated data
+function displayData(pageData) {
+  const tableHead = document.getElementById('tableHead');
+  const tableBody = document.getElementById('tableBody');
+
+  if (!tableHead || !tableBody) {
+    console.error('Table elements not found in the DOM.');
+    return;
+  }
+
+  // Clear previous content
+  tableHead.innerHTML = '';
+  tableBody.innerHTML = '';
+
+  if (pageData && pageData.length > 0) {
+    // Create table headers and exclude '__metadata'
+    const headers = Object.keys(pageData[0]).filter(header => header !== '__metadata');
+    const headerRow = document.createElement('tr');
+
+    headers.forEach(header => {
+      const th = document.createElement('th');
+      th.textContent = header;
+      headerRow.appendChild(th);
     });
+
+    tableHead.appendChild(headerRow);
+
+    // Create table rows
+    pageData.forEach(item => {
+      const row = document.createElement('tr');
+
+      headers.forEach(header => {
+        const td = document.createElement('td');
+        td.textContent = item[header] || 'N/A';
+        row.appendChild(td);
+      });
+
+      tableBody.appendChild(row);
+    });
+  } else {
+    // Display a message if no data
+    tableBody.innerHTML = "<tr><td colspan='100%'>No data available</td></tr>";
+  }
 }
+
+// Function to handle pagination
+function handlePagination() {
+  const startIndex = (currentPage - 1) * perPage;
+  const endIndex = currentPage * perPage;
+
+  const pageData = currentData.slice(startIndex, endIndex);
+  displayData(pageData);
+
+  // Update pagination info
+  document.getElementById('pageInfo').textContent = `Page ${currentPage} of ${totalPages}`;
+
+  // Enable or disable pagination buttons
+  document.getElementById('prevButton').disabled = currentPage === 1;
+  document.getElementById('nextButton').disabled = currentPage === totalPages;
+}
+
+// Function to update data when the entity changes
+async function updateData() {
+  const selectedEntity = document.getElementById('apiSelector').value;
+  const data = await fetchData(selectedEntity);
+
+  if (data && data.length > 0) {
+    currentData = data;
+    totalPages = Math.ceil(currentData.length / perPage);
+    currentPage = 1;
+    handlePagination();
+  } else {
+    currentData = [];
+    totalPages = 1;
+    currentPage = 1;
+    displayData([]);
+    document.getElementById('pageInfo').textContent = 'Page 1 of 1';
+    document.getElementById('prevButton').disabled = true;
+    document.getElementById('nextButton').disabled = true;
+  }
+}
+
+// Initialization function
+function init() {
+  populateApiSelector();
+
+  // Event listeners
+  document.getElementById('apiSelector').addEventListener('change', updateData);
+
+  document.getElementById('prevButton').addEventListener('click', () => {
+    if (currentPage > 1) {
+      currentPage--;
+      handlePagination();
+    }
+  });
+
+  document.getElementById('nextButton').addEventListener('click', () => {
+    if (currentPage < totalPages) {
+      currentPage++;
+      handlePagination();
+    }
+  });
+
+  // Logout button
+  const logoutButton = document.getElementById('logoutButton');
+  if (logoutButton) {
+    logoutButton.addEventListener('click', () => {
+      apiService.logout();
+    });
+  }
+}
+
+// Execute initialization on DOM content loaded
+document.addEventListener('DOMContentLoaded', init);

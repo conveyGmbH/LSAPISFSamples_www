@@ -1,0 +1,247 @@
+/* Config */
+:root {
+    --primary-color: #d9613f;
+    --secondary-color: #2e2e2e;
+    --accent-color: #f3f6f9;
+    --background-color: rgb(215, 229, 241);
+}
+
+*,
+*::before,
+*::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: "Open Sans", serif;
+    font-optical-sizing: auto;
+    font-weight: 400;
+    font-style: normal;
+    font-variation-settings:
+      "wdth" 100;
+
+    background-color: var(--background-color);
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh; 
+}
+
+
+/* Header Content */
+header {
+    position: fixed;
+    top: 0;
+    width: 100%;
+    background: linear-gradient(135deg, var(--primary-color) 0%, #f88363 100%);
+    color: white;
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    z-index: 1000;
+    display: flex; 
+    align-items: center;
+    justify-content: space-between;
+}
+
+#logoutButton{
+    background: inherit; 
+    color: white;
+    padding: 1rem;
+    width: 100%;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+
+.sub-header {
+    margin-top: 6rem !important;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.sub-header h1 {
+    margin-bottom: 0.5rem;
+}
+
+.sub-header h3 {
+    margin-top: 0;
+}
+
+.sub-header a {
+    color: var(--primary-color);
+    text-decoration: none;
+    font-weight: bold;
+}
+
+.sub-header a:hover {
+    text-decoration: underline;
+}
+
+
+.table-wrapper {
+    max-height: 400px; 
+    overflow-y: auto;
+    position: relative;
+}
+
+#apiSelector{
+    margin-top: 3rem;
+    margin-bottom: 1rem;
+    width: 15rem;
+    height: 2rem;
+}
+
+/* Table */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'Open Sans', Arial, sans-serif;
+    background-color: #fdfdfd;
+}
+
+th {
+    background-color: #a0b0c0;
+    color: #000;
+    text-transform: uppercase;
+    font-size: 14px;
+    padding: 12px 15px;
+    text-align: left;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    border-right: 0.5px solid #fff; 
+}
+
+td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+tbody tr:nth-child(even) {
+    background-color: #f2f2f2;
+}
+
+tbody tr:hover {
+    background-color: #e9e9e9;
+}
+
+/* Pagination */
+.pagination {
+    margin-top: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.pagination button {
+    padding: 10px 20px;
+    margin: 0 5px;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background-color 0.3s, transform 0.2s;
+}
+
+.pagination button:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+.pagination button:hover:not(:disabled) {
+    background-color: #d74b2a;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+#pageInfo {
+    font-size: 16px;
+    margin: 0 15px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    table, th, td {
+        font-size: 14px;
+    }
+
+    th, td {
+        padding: 8px;
+    }
+
+    .pagination button {
+        padding: 8px 12px;
+        margin: 0 5px;
+    }
+
+    #pageInfo {
+        font-size: 14px;
+    }
+}
+
+/* Pagination */
+.pagination {
+    margin-top: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.pagination button {
+    padding: 10px 20px;
+    margin: 0 5px;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background-color 0.3s, transform 0.2s;
+}
+
+.pagination button:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+.pagination button:hover:not(:disabled) {
+    background-color: #d74b2a;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+#pageInfo {
+    font-size: 16px;
+    margin: 0 15px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    table, th, td {
+        font-size: 14px;
+    }
+
+    th, td {
+        padding: 8px;
+    }
+
+    .pagination button {
+        padding: 8px 12px;
+        margin: 0 5px;
+    }
+
+    #pageInfo {
+        font-size: 14px;
+    }
+}
