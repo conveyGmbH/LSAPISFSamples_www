@@ -50,14 +50,70 @@ export default class ApiService {
     }
   }
 
+
+  // Method to fetch the next set of rows using the __next URL
+  async fetchNextRows(nextUrl) {
+    const errorElement = document.getElementById("errorMessage");
+    if (errorElement) errorElement.style.display = "none";
+
+    try {
+      const headers = new Headers({
+        Accept: "application/json",
+        Authorization: `Basic ${this.credentials}`,
+      });
+
+      const config = {
+        method: "GET",
+        headers,
+        credentials: "same-origin",
+      };
+
+      const response = await fetch(nextUrl, config);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        this.handleHttpError(response.status, errorData);
+        return null;
+      }
+
+      return await response.json();
+    } catch (error) {
+      this.handleNetworkError(error);
+      return null;
+    }
+  }
+
+
+    // Helper function to get the next URL
+    getNextUrl(json) {
+      let url = "";
+      if (json && json.d) {
+        const next = json.d.__next;
+        if (next && typeof next === "string") {
+          const viewNamePos = next.lastIndexOf("/");
+          if (viewNamePos >= 0) {
+            url = `https://${this.serverName}/${this.apiName}` + next.substring(viewNamePos);
+          }
+        }
+      }
+      return url;
+    }
+
+
+  // Logout
   logout() {
     sessionStorage.removeItem("credentials");
     this.credentials = null;
     window.location.href = "/index.html";
   }
 
+
+  // Helper function Handler HttpError 
   handleHttpError(status, errorData = {}) {
     const messages = {
+      2: "success",
+      4: "wrong or missing parameters",
+      5: "for server-side errors",
       400: "Invalid request",
       401: "Authentication failed",
       403: "Access denied",
