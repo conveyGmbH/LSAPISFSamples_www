@@ -14,10 +14,8 @@ if (!serverName || !apiName || !credentials) {
 const apiService = new ApiService(serverName, apiName);
 
 // Pagination variables
-let currentPage = 1;
-let totalPages = 1;
-let currentData = [];
-const perPage = 20; // Number of items per page
+let nextUrl = null; // URL for the next set of rows
+let currentData = []; // Store current data
 
 // Function to load the list of entities into the selector
 async function populateApiSelector() {
@@ -63,11 +61,14 @@ async function fetchData(entityName) {
     return [];
   }
 
+  let data = [];
   try {
-    const endpoint = `${entityName}?$format=json`;
-    const response = await apiService.request('GET', endpoint);
+    let endpoint = `${entityName}?$format=json`;
+    let response = await apiService.request('GET', endpoint);
     if (response && response.d && response.d.results) {
-      return response.d.results;
+      data = response.d.results;
+      nextUrl = apiService.getNextUrl(response);
+      return data;
     } else {
       console.error('No data returned by the API.');
       return [];
@@ -78,8 +79,39 @@ async function fetchData(entityName) {
   }
 }
 
-// Function to display paginated data
-function displayData(pageData) {
+// Function to fetch the next set of rows
+async function fetchNextData() {
+  if (!nextUrl) {
+    console.error('No next URL provided.');
+    return [];
+  }
+
+  try {
+    const response = await apiService.fetchNextRows(nextUrl);
+    if (response && response.d && response.d.results) {
+      nextUrl = apiService.getNextUrl(response);
+      return response.d.results;
+    } else {
+      console.error('No data returned by the API.');
+      return [];
+    }
+  } catch (error) {
+    console.error('Error fetching next set of data:', error);
+    return [];
+  }
+}
+
+// Function to format date
+function formatDate(timestamp) {
+  const date = new Date(parseInt(timestamp.replace(/\/Date\((\d+)\)\//, '$1')));
+  return date.toLocaleDateString('fr-FR'); // Format date in DD/MM/YYYY
+}
+
+
+// Function to display data
+function displayData(data) {
+  console.log('Displaying data:', data); // Log data for debugging
+
   const tableHead = document.getElementById('tableHead');
   const tableBody = document.getElementById('tableBody');
 
@@ -88,55 +120,60 @@ function displayData(pageData) {
     return;
   }
 
-  // Clear previous content
-  tableHead.innerHTML = '';
-  tableBody.innerHTML = '';
+  if (!data || data.length === 0) {
+    console.error('No data available to display.');
+    tableBody.innerHTML = "<tr><td colspan='100%'>No data available</td></tr>";
+    return;
+  }
 
-  if (pageData && pageData.length > 0) {
-    // Create table headers and exclude '__metadata'
-    const headers = Object.keys(pageData[0]).filter(header => header !== '__metadata');
+
+
+  // Clear previous content if it's the first set of data
+  if (currentData.length) {
+    const headers = Object.keys(data[0]).filter(header => header !== '__metadata' && header !== 'MitarbeiterViewId');
     const headerRow = document.createElement('tr');
 
     headers.forEach(header => {
       const th = document.createElement('th');
       th.textContent = header;
+      th.style.position = 'sticky'; // Ajout important
+      th.style.top = '0';
       headerRow.appendChild(th);
     });
 
+    tableHead.innerHTML = ''; // Reset complet
     tableHead.appendChild(headerRow);
-
-    // Create table rows
-    pageData.forEach(item => {
-      const row = document.createElement('tr');
-
-      headers.forEach(header => {
-        const td = document.createElement('td');
-        td.textContent = item[header] || 'N/A';
-        row.appendChild(td);
-      });
-
-      tableBody.appendChild(row);
-    });
-  } else {
-    // Display a message if no data
-    tableBody.innerHTML = "<tr><td colspan='100%'>No data available</td></tr>";
   }
-}
 
-// Function to handle pagination
-function handlePagination() {
-  const startIndex = (currentPage - 1) * perPage;
-  const endIndex = currentPage * perPage;
+  // Clear table body before adding new rows
+  tableBody.innerHTML = '';
 
-  const pageData = currentData.slice(startIndex, endIndex);
-  displayData(pageData);
+  // Create table rows
+  data.forEach(item => {
+    const row = document.createElement('tr');
 
-  // Update pagination info
-  document.getElementById('pageInfo').textContent = `Page ${currentPage} of ${totalPages}`;
+    Object.keys(item).filter(header => header !== '__metadata' && header !== 'MitarbeiterViewId').forEach(header => {
+      const td = document.createElement('td');
+      if (header.includes('Date')) {
+        td.textContent = formatDate(item[header]);
+      } else {
+        td.textContent = item[header] || 'N/A';
+      }
+      row.appendChild(td);
+    });
 
-  // Enable or disable pagination buttons
-  document.getElementById('prevButton').disabled = currentPage === 1;
-  document.getElementById('nextButton').disabled = currentPage === totalPages;
+    tableBody.appendChild(row);
+  });
+
+  // Update current data
+  currentData = currentData.concat(data);
+
+  // Enable/disable next button
+  document.getElementById('nextButton').disabled = !nextUrl;
+
+
+    // Initialize search functionality
+    initSearch();
 }
 
 // Function to update data when the entity changes
@@ -146,38 +183,67 @@ async function updateData() {
 
   if (data && data.length > 0) {
     currentData = data;
-    totalPages = Math.ceil(currentData.length / perPage);
-    currentPage = 1;
-    handlePagination();
+    displayData(data);
   } else {
     currentData = [];
-    totalPages = 1;
-    currentPage = 1;
     displayData([]);
-    document.getElementById('pageInfo').textContent = 'Page 1 of 1';
-    document.getElementById('prevButton').disabled = true;
     document.getElementById('nextButton').disabled = true;
   }
 }
 
-// Initialization function
+// Function to initialize search functionality
+function initSearch() {
+  const searchInput = document.getElementById('search');
+  const tableRows = document.querySelectorAll('tbody tr');
+  const noDataMessage = document.getElementById('noDataMessage')
+  
+
+  if (!searchInput || !tableRows) {
+    console.error('Search elements not found in the DOM.');
+    return;
+  }
+
+  searchInput.addEventListener('input', () => {
+    const searchValue = searchInput.value.toLowerCase();
+    let found = false;
+
+    tableRows.forEach((row, i) => {
+      const rowText = row.textContent.toLowerCase();
+      const isVisible = rowText.indexOf(searchValue) >= 0;
+      row.classList.toggle('hide', !isVisible);
+      if (isVisible) {
+        found = true;
+      }
+      row.style.setProperty('--delay', i / 25 + 's');
+    });
+
+    document.querySelectorAll('tbody tr:not(.hide)').forEach((visibleRow, i) => {
+      visibleRow.style.backgroundColor = (i % 2 === 0) ? 'transparent' : '#0000000b';
+    });
+
+    if (!found) {
+      
+        noDataMessage.textContent = 'No results found.';
+      } else {
+        noDataMessage.textContent = '';      
+    }
+  });
+
+  
+}
+
+
+// Initialize the application
 function init() {
   populateApiSelector();
 
   // Event listeners
   document.getElementById('apiSelector').addEventListener('change', updateData);
 
-  document.getElementById('prevButton').addEventListener('click', () => {
-    if (currentPage > 1) {
-      currentPage--;
-      handlePagination();
-    }
-  });
-
-  document.getElementById('nextButton').addEventListener('click', () => {
-    if (currentPage < totalPages) {
-      currentPage++;
-      handlePagination();
+  document.getElementById('nextButton').addEventListener('click', async () => {
+    const nextData = await fetchNextData();
+    if (nextData && nextData.length > 0) {
+      displayData(nextData);
     }
   });
 
@@ -189,6 +255,8 @@ function init() {
     });
   }
 }
+
+
 
 // Execute initialization on DOM content loaded
 document.addEventListener('DOMContentLoaded', init);
