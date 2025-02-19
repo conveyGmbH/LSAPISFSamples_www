@@ -226,11 +226,12 @@ table, th, td {
 }
 
 thead th{
-    position: sticky;
+    /* position: sticky;
     top: 0;
-    left: 0;
+    left: 0; */
     background-color: var(--background-color);
     color: var(--primary-color);
+    cursor: pointer;
 }
 
 tbody tr:nth-child(even) {
@@ -276,48 +277,46 @@ tbody tr:hover {
     background-color: #ccc !important;
 }
 
-@media (max-width: 1000px) {
-    td:not(:first-of-type) {
-        min-width: 12.1rem;
-    }
+
+/* Sort */
+td:not(:first-of-type) {
+    min-width: 12.1rem;
 }
 
-@media (max-width: 768px) {
-    .table__header {
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        align-items: stretch;
-        height: max-content;
-    }
-    .table__header .input-group  {
-        width: 100%;
-        height: 2.5rem;
-        margin: 1rem 0;
-    }
-
-    .table__header .input-group:hover {
-        width: 100%;
-    }
-
-    .table__header .input-group input {
-        width: 100%;
-    }
-    .table__header .additional-views{
-        text-align: center;
-    }
+thead th span.icon-arrow {
+    display: inline-block;
+    width: 1.3rem;
+    height: 1.3rem;
+    border-radius: 50%;
+    border: 1.4px solid transparent;
+    
+    text-align: center;
+    font-size: 1rem;
+    
+    margin-left: .5rem;
+    transition: .2s ease-in-out;
 }
 
+thead th:hover span.icon-arrow{
+    border: 1.4px solid #6c00bd;
+}
 
+thead th:hover {
+    color: #6c00bd;
+}
 
+thead th.active span.icon-arrow{
+    background-color: #6c00bd;
+    color: #fff;
+}
 
+thead th.asc span.icon-arrow{
+    transform: rotate(180deg);
+}
 
-
-
-
-
-
-
+thead th.active,tbody td.active {
+    color: #6c00bd;
+}
 
 
 
@@ -358,14 +357,38 @@ tbody tr:hover {
     text-align: center;
 }
 
-/* Scrollbar styles */
-::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
+
+
+
+
+@media (max-width: 1000px) {
+    td:not(:first-of-type) {
+        min-width: 12.1rem;
+    }
 }
 
-::-webkit-scrollbar-track {
-    background: var(--background-color);
-    border-radius: 6px;
-}
+@media (max-width: 768px) {
+    .table__header {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        align-items: stretch;
+        height: max-content;
+    }
+    .table__header .input-group  {
+        width: 100%;
+        height: 2.5rem;
+        margin: 1rem 0;
+    }
 
+    .table__header .input-group:hover {
+        width: 100%;
+    }
+
+    .table__header .input-group input {
+        width: 100%;
+    }
+    .table__header .additional-views{
+        text-align: center;
+    }
+}

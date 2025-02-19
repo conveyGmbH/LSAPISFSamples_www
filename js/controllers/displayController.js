@@ -21,8 +21,10 @@ let currentData = []; // Store current data
 async function populateApiSelector() {
   try {
     const response = await apiService.request('GET', '?$format=json');
+    console.log("response", response)
     if (response && response.d && response.d.EntitySets) {
       const entities = response.d.EntitySets;
+      console.log("enties", entities)
       const selector = document.getElementById('apiSelector');
 
       // List of desired entities
@@ -130,18 +132,19 @@ function displayData(data) {
 
   // Clear previous content if it's the first set of data
   if (currentData.length) {
-    const headers = Object.keys(data[0]).filter(header => header !== '__metadata' && header !== 'MitarbeiterViewId');
+    const headers = Object.keys(data[0]).filter(header => header !== '__metadata' && header !== 'MitarbeiterViewId' && header !== 'LGNTINITLandViewId');
     const headerRow = document.createElement('tr');
 
-    headers.forEach(header => {
+    headers.forEach((header, index) => {
       const th = document.createElement('th');
-      th.textContent = header;
-      th.style.position = 'sticky'; // Ajout important
+      th.innerHTML = `${header} <span class="icon-arrow">&UpArrow;</span>`;
+      th.style.position = 'sticky'; 
       th.style.top = '0';
+      th.addEventListener('click', () => sortTable(index, th));
       headerRow.appendChild(th);
     });
 
-    tableHead.innerHTML = ''; // Reset complet
+    tableHead.innerHTML = ''; 
     tableHead.appendChild(headerRow);
   }
 
@@ -152,7 +155,7 @@ function displayData(data) {
   data.forEach(item => {
     const row = document.createElement('tr');
 
-    Object.keys(item).filter(header => header !== '__metadata' && header !== 'MitarbeiterViewId').forEach(header => {
+    Object.keys(item).filter(header => header !== '__metadata' && header !== 'MitarbeiterViewId' && header !== 'LGNTINITLandViewId').forEach(header => {
       const td = document.createElement('td');
       if (header.includes('Date')) {
         td.textContent = formatDate(item[header]);
@@ -175,6 +178,22 @@ function displayData(data) {
     // Initialize search functionality
     initSearch();
 }
+
+// Function to sort table by column
+function sortTable(index, th) {
+  let sortAsc = !th.classList.contains('asc');
+  const tableRows = document.querySelectorAll('tbody tr');
+
+  [...tableRows].sort((a, b) => {
+    let firstRow = a.querySelectorAll('td')[index].textContent.toLowerCase();
+    let secondRow = b.querySelectorAll('td')[index].textContent.toLowerCase();
+    return sortAsc ? (firstRow > secondRow ? 1 : -1) : (firstRow < secondRow ? 1 : -1);
+  }).map(sortedRow => document.querySelector('tbody').appendChild(sortedRow));
+
+  th.classList.toggle('asc', sortAsc);
+  th.classList.toggle('desc', !sortAsc);
+}
+
 
 // Function to update data when the entity changes
 async function updateData() {
@@ -222,7 +241,6 @@ function initSearch() {
     });
 
     if (!found) {
-      
         noDataMessage.textContent = 'No results found.';
       } else {
         noDataMessage.textContent = '';      
