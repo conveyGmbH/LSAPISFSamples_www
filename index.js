@@ -5,4 +5,3 @@
 //  userName = conveyapisf1
 //  password = leadsuccess
 
-console.log("index running");
