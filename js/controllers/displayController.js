@@ -13,18 +13,12 @@ if (!serverName || !apiName || !credentials) {
 // Create an instance of ApiService
 const apiService = new ApiService(serverName, apiName);
 
-// Pagination variables
-let nextUrl = null; // URL for the next set of rows
-let currentData = []; // Store current data
-
 // Function to load the list of entities into the selector
 async function populateApiSelector() {
   try {
     const response = await apiService.request('GET', '?$format=json');
-    console.log("response", response)
     if (response && response.d && response.d.EntitySets) {
       const entities = response.d.EntitySets;
-      console.log("enties", entities)
       const selector = document.getElementById('apiSelector');
 
       // List of desired entities
@@ -34,7 +28,7 @@ async function populateApiSelector() {
       const filteredEntities = entities.filter(entity => desiredEntities.includes(entity));
 
       // Clear the selector
-      selector.innerHTML = '';
+      selector.innerHTML = '<option value="">Select an entity</option>';
 
       // Fill the selector with entities
       filteredEntities.forEach(entity => {
@@ -44,7 +38,10 @@ async function populateApiSelector() {
         selector.appendChild(option);
       });
 
-      // Load data for the first entity
+      // Set change event listener
+      selector.addEventListener('change', updateData);
+
+      // No entity selected initially
       updateData();
     } else {
       console.error('Unable to retrieve entity list from the API.');
@@ -56,21 +53,177 @@ async function populateApiSelector() {
   }
 }
 
-// Function to fetch data for the selected entity
-async function fetchData(entityName) {
-  if (!entityName) {
-    console.error('No entity name provided.');
+// Function to update data when the entity changes
+async function updateData() {
+  const selectedEntity = document.getElementById('apiSelector').value;
+
+  // Clear previous filter inputs
+  const filterInputs = document.getElementById('filterInputs');
+  filterInputs.innerHTML = '';
+  filterInputs.style.display = 'none'; // Hide the filter inputs by default
+
+  // Clear table and messages
+  clearTable();
+  const noDataMessage = document.getElementById('noDataMessage');
+  noDataMessage.textContent = '';
+
+  if (selectedEntity === 'LS_User' || selectedEntity === 'LS_Event') {
+    displayFilterInputs(selectedEntity);
+    noDataMessage.textContent = 'Please enter the required values and click "Apply Filters".';
+  } else if (selectedEntity) {
+    // Remove stored filters
+    localStorage.removeItem(`${selectedEntity}_Filters`);
+    // Fetch and display data without filters for other entities
+    const data = await fetchData(`${selectedEntity}?$format=json`);
+    if (data && data.length > 0) {
+      displayData(data);
+    } else {
+      displayData([]);
+      noDataMessage.textContent = 'No data available.';
+    }
+  } else {
+    // No entity selected
+    noDataMessage.textContent = 'Please select an entity.';
+  }
+}
+
+// Function to display filter inputs for LS_User and LS_Event
+function displayFilterInputs(entity) {
+  const filterInputs = document.getElementById('filterInputs');
+  filterInputs.style.display = 'flex'; // Show the filter inputs
+
+  let fields = [];
+  if (entity === 'LS_User') {
+    fields = ['Id', 'FirstName', 'LastName', 'EventId'];
+  } else if (entity === 'LS_Event') {
+    fields = ['Id', 'Subject', 'StartDate', 'EndDate'];
+  }
+
+  // Retrieve stored filters if any
+  const storedFilters = JSON.parse(localStorage.getItem(`${entity}_Filters`)) || {};
+
+  // Create input fields for the filters
+  fields.forEach(field => {
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.placeholder = field;
+    input.id = `filter-${field}`;
+    input.classList.add('filter-input');
+    // Set the input value from stored filters if available
+    if (storedFilters[field]) {
+      input.value = storedFilters[field];
+    }
+    filterInputs.appendChild(input);
+  });
+
+  // Create a button to apply filters
+  const applyButton = document.createElement('button');
+  applyButton.textContent = 'Apply Filters';
+  applyButton.classList.add('apply-button');
+  applyButton.addEventListener('click', () => applyFilters(entity, fields));
+  filterInputs.appendChild(applyButton);
+
+
+
+  // Create a button to reset filters
+  const resetButton = document.createElement('button');
+  resetButton.textContent = 'Reset Filters';
+  resetButton.classList.add('reset-button');
+  resetButton.addEventListener('click', () => resetFilters(entity, fields));
+  filterInputs.appendChild(resetButton);
+
+
+}
+
+// Function to apply filters and fetch data
+async function applyFilters(entity, fields) {
+  const filters = {};
+
+  // Get values from input fields
+  fields.forEach(field => {
+    const value = document.getElementById(`filter-${field}`).value.trim();
+    if (value) {
+      filters[field] = value;
+    }
+  });
+
+  if (Object.keys(filters).length === 0) {
+    alert('Please enter at least one filter.');
+    return;
+  }
+
+  // Store the filters in localStorage
+  localStorage.setItem(`${entity}_Filters`, JSON.stringify(filters));
+
+  // Build the OData filter query
+  const filterStrings = Object.entries(filters).map(([key, value]) => {
+    if (key.includes('Date')) {
+      // For date fields, format the date appropriately
+      const date = new Date(value);
+      if (!isNaN(date.getTime())) {
+        const isoDate = date.toISOString();
+        return `${key} eq datetime'${isoDate}'`;
+      } else {
+        alert(`Invalid date format for ${key}. Please use YYYY-MM-DD format.`);
+        return '';
+      }
+    } else {
+      return `${key} eq '${value}'`;
+    }
+  }).filter(str => str !== '');
+
+  if (filterStrings.length === 0) {
+    alert('Please enter valid filter values.');
+    return;
+  }
+
+  const filterQuery = `&$filter=${filterStrings.join(' and ')}`;
+
+  const endpoint = `${entity}?$format=json${filterQuery}`;
+
+  // Fetch data with filters
+  const data = await fetchData(endpoint);
+
+  if (data && data.length > 0) {
+    displayData(data);
+  } else {
+    displayData([]);
+    const noDataMessage = document.getElementById('noDataMessage');
+    noDataMessage.textContent = 'No data found with the provided filters.';
+  }
+}
+
+
+// reset filters
+function resetFilters(entity, fields) {
+  // Remove filters from localStorage
+  localStorage.removeItem(`${entity}_Filters`);
+  // Clear input fields
+  fields.forEach(field => {
+    const input = document.getElementById(`filter-${field}`);
+    if (input) {
+      input.value = '';
+    }
+  });
+  // Clear data display
+  clearTable();
+  const noDataMessage = document.getElementById('noDataMessage');
+  noDataMessage.textContent = 'Filters have been reset. Please enter new values and click "Apply Filters".';
+}
+
+
+
+// Function to fetch data for the selected entity or with a custom endpoint
+async function fetchData(endpoint) {
+  if (!endpoint) {
+    console.error('No endpoint provided.');
     return [];
   }
 
-  let data = [];
   try {
-    let endpoint = `${entityName}?$format=json`;
-    let response = await apiService.request('GET', endpoint);
+    const response = await apiService.request('GET', endpoint);
     if (response && response.d && response.d.results) {
-      data = response.d.results;
-      nextUrl = apiService.getNextUrl(response);
-      return data;
+      return response.d.results;
     } else {
       console.error('No data returned by the API.');
       return [];
@@ -81,72 +234,45 @@ async function fetchData(entityName) {
   }
 }
 
-// Function to fetch the next set of rows
-async function fetchNextData() {
-  if (!nextUrl) {
-    console.error('No next URL provided.');
-    return [];
-  }
-
-  try {
-    const response = await apiService.fetchNextRows(nextUrl);
-    if (response && response.d && response.d.results) {
-      nextUrl = apiService.getNextUrl(response);
-      return response.d.results;
-    } else {
-      console.error('No data returned by the API.');
-      return [];
-    }
-  } catch (error) {
-    console.error('Error fetching next set of data:', error);
-    return [];
-  }
-}
-
-// Function to format date
-function formatDate(timestamp) {
-  const date = new Date(parseInt(timestamp.replace(/\/Date\((\d+)\)\//, '$1')));
-  return date.toLocaleDateString('fr-FR'); // Format date in DD/MM/YYYY
-}
-
-
 // Function to display data
 function displayData(data) {
-  console.log('Displaying data:', data); // Log data for debugging
-
   const tableHead = document.getElementById('tableHead');
   const tableBody = document.getElementById('tableBody');
+  const noDataMessage = document.getElementById('noDataMessage');
 
   if (!tableHead || !tableBody) {
     console.error('Table elements not found in the DOM.');
     return;
   }
 
+  // Clear previous content
+  tableHead.innerHTML = '';
+  tableBody.innerHTML = '';
+
   if (!data || data.length === 0) {
-    console.error('No data available to display.');
-    tableBody.innerHTML = "<tr><td colspan='100%'>No data available</td></tr>";
+    noDataMessage.textContent = 'No data available.';
     return;
   }
 
+  noDataMessage.textContent = '';
 
+  // Create table headers and exclude '__metadata' and any unwanted columns
+  const headers = Object.keys(data[0]).filter(header => {
+    return header !== '__metadata' && header !== 'MitarbeiterViewId';
+  });
 
-  // Clear previous content if it's the first set of data
-  if (currentData.length) {
-    const headers = Object.keys(data[0]).filter(header => header !== '__metadata' && header !== 'MitarbeiterViewId' && header !== 'LGNTINITLandViewId');
-    const headerRow = document.createElement('tr');
+  const headerRow = document.createElement('tr');
 
-    headers.forEach((header, index) => {
-      const th = document.createElement('th');
-      th.innerHTML = `${header} <span class="icon-arrow">&UpArrow;</span>`;
-      th.style.position = 'sticky'; 
-      th.style.top = '0';
-      th.addEventListener('click', () => sortTable(index, th));
-      headerRow.appendChild(th);
-    });
+  headers.forEach((header, index) => {
+    const th = document.createElement('th');
+    th.innerHTML = `${header} <span class="icon-arrow">&UpArrow;</span>`;
+    th.style.position = 'sticky';
+    th.style.top = '0';
+    th.addEventListener('click', () => sortTable(index, th));
+    headerRow.appendChild(th);
+  });
 
-    tableHead.innerHTML = ''; 
-    tableHead.appendChild(headerRow);
-  }
+  tableHead.appendChild(headerRow);
 
   // Clear table body before adding new rows
   tableBody.innerHTML = '';
@@ -155,7 +281,7 @@ function displayData(data) {
   data.forEach(item => {
     const row = document.createElement('tr');
 
-    Object.keys(item).filter(header => header !== '__metadata' && header !== 'MitarbeiterViewId' && header !== 'LGNTINITLandViewId').forEach(header => {
+    headers.forEach(header => {
       const td = document.createElement('td');
       if (header.includes('Date')) {
         td.textContent = formatDate(item[header]);
@@ -168,15 +294,19 @@ function displayData(data) {
     tableBody.appendChild(row);
   });
 
-  // Update current data
-  currentData = currentData.concat(data);
+  // Initialize search functionality
+  initSearch();
+}
 
-  // Enable/disable next button
-  document.getElementById('nextButton').disabled = !nextUrl;
-
-
-    // Initialize search functionality
-    initSearch();
+// Function to format date
+function formatDate(timestamp) {
+  const match = /\/Date\((\d+)\)\//.exec(timestamp);
+  if (match) {
+    const date = new Date(parseInt(match[1], 10));
+    return date.toLocaleDateString('en-GB'); // Use desired format
+  } else {
+    return timestamp;
+  }
 }
 
 // Function to sort table by column
@@ -194,28 +324,11 @@ function sortTable(index, th) {
   th.classList.toggle('desc', !sortAsc);
 }
 
-
-// Function to update data when the entity changes
-async function updateData() {
-  const selectedEntity = document.getElementById('apiSelector').value;
-  const data = await fetchData(selectedEntity);
-
-  if (data && data.length > 0) {
-    currentData = data;
-    displayData(data);
-  } else {
-    currentData = [];
-    displayData([]);
-    document.getElementById('nextButton').disabled = true;
-  }
-}
-
 // Function to initialize search functionality
 function initSearch() {
   const searchInput = document.getElementById('search');
   const tableRows = document.querySelectorAll('tbody tr');
-  const noDataMessage = document.getElementById('noDataMessage')
-  
+  const noDataMessage = document.getElementById('noDataMessage');
 
   if (!searchInput || !tableRows) {
     console.error('Search elements not found in the DOM.');
@@ -241,29 +354,26 @@ function initSearch() {
     });
 
     if (!found) {
-        noDataMessage.textContent = 'No results found.';
-      } else {
-        noDataMessage.textContent = '';      
+      noDataMessage.textContent = 'No results found.';
+    } else {
+      noDataMessage.textContent = '';
     }
   });
-
-  
 }
 
+// Function to clear table and messages
+function clearTable() {
+  const tableHead = document.getElementById('tableHead');
+  const tableBody = document.getElementById('tableBody');
+  if (tableHead) tableHead.innerHTML = '';
+  if (tableBody) tableBody.innerHTML = '';
+  const noDataMessage = document.getElementById('noDataMessage');
+  if (noDataMessage) noDataMessage.textContent = '';
+}
 
 // Initialize the application
 function init() {
   populateApiSelector();
-
-  // Event listeners
-  document.getElementById('apiSelector').addEventListener('change', updateData);
-
-  document.getElementById('nextButton').addEventListener('click', async () => {
-    const nextData = await fetchNextData();
-    if (nextData && nextData.length > 0) {
-      displayData(nextData);
-    }
-  });
 
   // Logout button
   const logoutButton = document.getElementById('logoutButton');
@@ -274,7 +384,4 @@ function init() {
   }
 }
 
-
-
-// Execute initialization on DOM content loaded
 document.addEventListener('DOMContentLoaded', init);

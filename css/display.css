@@ -198,6 +198,7 @@ main.table {
     border-radius: .6rem;
     overflow: auto;
     overflow: overlay;
+    
 }
 
 .table__body::-webkit-scrollbar{
@@ -317,6 +318,66 @@ thead th.asc span.icon-arrow{
 thead th.active,tbody td.active {
     color: #6c00bd;
 }
+
+
+/* Styles for filter inputs */
+
+.section__filter{
+    margin: 1rem;
+    padding: 1rem;
+    display: flex;
+    justify-content: center;
+}
+
+ #filterInputs{
+    padding: 1rem 0;
+}
+
+.filter-inputs {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 1rem;
+    height: 1rem;
+}
+
+.filter-inputs .filter-input {
+    padding: 0.5rem;
+    border-radius: 4px;
+}
+
+.filter-group input{
+    /* background-color:#f1f1f1; */
+    padding: 0.6rem 1.2rem;
+    border: none;
+    outline: none;
+    background-color: #ccc;
+    border-radius: 6px;
+    width: max-content;
+    margin: 1rem;
+}
+
+
+.filter-inputs button {
+    background-color: var(--primary-color);
+    color: var(--white);
+    border: none;
+    padding: 0.6rem 1.2rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.filter-inputs button:hover {
+    background-color: #c55535;
+}
+
+
+
+
+
 
 
 
