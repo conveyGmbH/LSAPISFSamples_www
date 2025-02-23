@@ -1,0 +1,13 @@
+
+serverName = lstest.convey.de
+apiName = apitest
+userName = conveyapiapp1
+password = leadsuccess
+
+
+
+// Sales force
+serverName = lstest.convey.de
+apiName = apisftest
+userName = conveyapisf1
+password = leadsuccess

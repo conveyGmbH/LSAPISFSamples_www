@@ -11,7 +11,7 @@
         <meta name="viewport" 
             content="user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, width=device-width" />
 
-        <link href="../css/display.css" rel="stylesheet">
+        <link href="../css/displayLsLead.css" rel="stylesheet">
         <link rel="icon" type="image/x-icon" href="../images/api-sf.ico">
     </head>
     <body>
@@ -27,42 +27,33 @@
 
 
         <div class="sub-header">
-            <h1 class="head-line">Salesforce API Manager</h1>
+            <h1 class="head-line">Salesforce API Manager</h1>           
 
             <h3>API documentation available 
                 <a href="docs/LeadSuccess_API_for SalesForce.pdf" download>here</a>
             </h3>
         </div>
 
+        <h2 class="head-line">LS Lead </h2>
+
          <main class="table">
 
             <section class="table__header">
 
-                <div class="view-selector">
+                <!-- <div class="view-selector">
                     <select id="apiSelector">
                         <option value="" class="option">Select an entity</option>
                     </select>
-                </div>
+                </div> -->
     
                 <div class="input-group">
                     <input type="search" id="search" placeholder="Search Data.."/>
                     <img src="/images/search.png" alt="">
                 </div>
-             
 
-                <!-- Actions -->
-                <div class="actions">
-                    <button id="viewLeadsButton" class="action-button" disabled>View Leads</button>
-                    <button id="viewLeadReportsButton" class="action-button" disabled>View Lead Reports</button>
-                </div>
-
-                
             </section>
-
-            <!-- Filter Inputs will be inserted here -->
             <div id="filterInputs" class="filter-inputs" style="display: none;"></div>
-
-
+                
 
             <section class="table__body">
                 <table>
@@ -70,22 +61,23 @@
                     <tbody id="tableBody"></tbody>
                 </table>
                 <p id="noDataMessage"></p>
-                
             </section>
          </main>
 
-         
 
          <div class="pagination">
             <button id="nextButton">Next</button>
           </div>
 
+        <div class="actions">
+            <button id="backButton" class="action-button">Back</button>
+        </div>
+
 
           <div id="errorMessage" class="error-message"></div>
 
 
-        <script src="../js/controllers/displayController.js" type="module" defer></script>
-        
+          <script src="../js/controllers/displayLsLeadController.js" type="module" defer></script>        
     </body>
 
 </html>
