@@ -1,9 +1,12 @@
 import ApiService from '../services/apiService.js';
+import { parseDate, escapeODataValue, initSearch, formatDateForOData } from '../utils/helper.js';
+
 
 // Retrieve server information from sessionStorage
 const serverName = sessionStorage.getItem('serverName');
 const apiName = sessionStorage.getItem('apiName');
 const credentials = sessionStorage.getItem('credentials');
+
 
 if (!serverName || !apiName || !credentials) {
   // If information is missing, redirect to the login page
@@ -12,6 +15,9 @@ if (!serverName || !apiName || !credentials) {
 
 // Create an instance of ApiService
 const apiService = new ApiService(serverName, apiName);
+
+// Global variable to store selected EventId
+let selectedEventId = null;
 
 // Function to load the list of entities into the selector
 async function populateApiSelector() {
@@ -109,10 +115,17 @@ function displayFilterInputs(entity) {
     input.placeholder = field;
     input.id = `filter-${field}`;
     input.classList.add('filter-input');
+
     // Set the input value from stored filters if available
     if (storedFilters[field]) {
       input.value = storedFilters[field];
     }
+
+    // For date fields, set input type to date
+    if (field === 'StartDate' || field === 'EndDate') {
+      input.type = 'date'; // This provides a date picker in modern browsers
+    }
+
     filterInputs.appendChild(input);
   });
 
@@ -124,75 +137,134 @@ function displayFilterInputs(entity) {
   filterInputs.appendChild(applyButton);
 
 
-
-  // Create a button to reset filters
+   // Create a button to reset filters
   const resetButton = document.createElement('button');
   resetButton.textContent = 'Reset Filters';
   resetButton.classList.add('reset-button');
   resetButton.addEventListener('click', () => resetFilters(entity, fields));
   filterInputs.appendChild(resetButton);
-
-
 }
+
+
 
 // Function to apply filters and fetch data
 async function applyFilters(entity, fields) {
   const filters = {};
 
-  // Get values from input fields
-  fields.forEach(field => {
+  fields.forEach((field) => {
     const value = document.getElementById(`filter-${field}`).value.trim();
     if (value) {
       filters[field] = value;
     }
   });
 
+  // Vérification des champs obligatoires
+  if (entity === "LS_User") {
+    if (!filters["Id"] || !filters["EventId"]) {
+      alert("Please enter values for Id and EventId.");
+      return;
+    }
+    // Ajouter une validation du format de 'EventId' si nécessaire
+  } else if (entity === "LS_Event") {
+    if (!filters["Id"] || !filters["Subject"]) {
+      alert("Please enter values for Id and Subject.");
+      return;
+    }
+  }
+
+  // Vérifier s'il y a au moins un filtre
   if (Object.keys(filters).length === 0) {
-    alert('Please enter at least one filter.');
+    alert("Please enter at least one filter.");
     return;
   }
 
-  // Store the filters in localStorage
+  // Stocker les filtres dans le localStorage
   localStorage.setItem(`${entity}_Filters`, JSON.stringify(filters));
 
-  // Build the OData filter query
-  const filterStrings = Object.entries(filters).map(([key, value]) => {
-    if (key.includes('Date')) {
-      // For date fields, format the date appropriately
-      const date = new Date(value);
-      if (!isNaN(date.getTime())) {
-        const isoDate = date.toISOString();
-        return `${key} eq datetime'${isoDate}'`;
-      } else {
-        alert(`Invalid date format for ${key}. Please use YYYY-MM-DD format.`);
-        return '';
-      }
-    } else {
-      return `${key} eq '${value}'`;
-    }
-  }).filter(str => str !== '');
+  // Construire le filtre OData avec les entrées de l'utilisateur encodées
+  const filterParts = [];
 
-  if (filterStrings.length === 0) {
-    alert('Please enter valid filter values.');
+  if (entity === "LS_User") {
+    // Use 'startswith' for 'Id', 'FirstName', 'LastName'
+    filterParts.push(`startswith(Id,'${encodeURIComponent(filters["Id"])}') eq true`);
+
+    if (filters["FirstName"]) {
+      filterParts.push(
+        `startswith(FirstName,'${encodeURIComponent(filters["FirstName"])}' eq true)`
+      );
+    }
+
+    if (filters["LastName"]) {
+      filterParts.push(
+        `startswith(LastName,'${encodeURIComponent(filters["LastName"])}' eq true)`
+      );
+    }
+
+    // 'EventId' is mandatory and requires exact match
+    filterParts.push(`EventId eq '${encodeURIComponent(filters["EventId"])}'`);
+  } 
+  
+  else if (entity === "LS_Event") {
+    // Use 'startswith' for 'Id' and 'Subject'
+    filterParts.push(`Id eq '${escapeODataValue(filters["Id"])}'`);
+
+    const escapedSubject = escapeODataValue(filters["Subject"]);
+    filterParts.push(`startswith(Subject,'${escapedSubject}') eq true`);
+
+    // Optional StartDate and EndDate
+    if (filters["StartDate"]) {
+      const startDate = parseDate(filters["StartDate"]);
+      if (!startDate) {
+        alert(
+          "Invalid date format for StartDate. Please use YYYY-MM-DD format."
+        );
+        return;
+      }
+
+      // Format the date for OData query
+      filterParts.push(`StartDate eq datetime'${formatDateForOData(startDate)}T00:00:00'`);
+     }
+
+    if (filters["EndDate"]) {
+      const endDate = parseDate(filters["EndDate"]);
+      if (!endDate) {
+        alert("Invalid date format for EndDate. Please use YYYY-MM-DD format.");
+        return;
+      }
+
+      // Format the date for OData query
+      filterParts.push(`EndDate eq datetime'${formatDateForOData(endDate)}T00:00:00'`);    
+    }
+  }
+
+  if (filterParts.length === 0) {
+    alert("Please enter valid filter values.");
     return;
   }
 
-  const filterQuery = `&$filter=${filterStrings.join(' and ')}`;
+  // Combine the filter parts with 'and'
+  const filterQuery = filterParts.join(' and ');
 
-  const endpoint = `${entity}?$format=json${filterQuery}`;
+  console.log('Generated filter query:', filterQuery);
 
-  // Fetch data with filters
-  const data = await fetchData(endpoint);
+  // Build the encoded URL
+  const endpoint = `${entity}?$format=json&$filter=${encodeURIComponent(filterQuery)}`;
+  try {
+    // Fetch data with filters
+    const data = await fetchData(endpoint);
 
-  if (data && data.length > 0) {
-    displayData(data);
-  } else {
-    displayData([]);
-    const noDataMessage = document.getElementById('noDataMessage');
-    noDataMessage.textContent = 'No data found with the provided filters.';
+    if (data && data.length > 0) {
+      displayData(data);
+    } else {
+      displayData([]);
+      const noDataMessage = document.getElementById("noDataMessage");
+      noDataMessage.textContent = "No data found with the provided filters.";
+    }
+  } catch (error) {
+    console.error("Error applying filters:", error);
+    alert("An error occurred while fetching data. Please try again later.");
   }
 }
-
 
 // reset filters
 function resetFilters(entity, fields) {
@@ -213,6 +285,8 @@ function resetFilters(entity, fields) {
 
 
 
+
+
 // Function to fetch data for the selected entity or with a custom endpoint
 async function fetchData(endpoint) {
   if (!endpoint) {
@@ -230,7 +304,7 @@ async function fetchData(endpoint) {
     }
   } catch (error) {
     console.error('Error fetching data:', error);
-    return [];
+    throw error; // Re-throw the error to be caught in applyFilters
   }
 }
 
@@ -295,8 +369,12 @@ function displayData(data) {
   });
 
   // Initialize search functionality
-  initSearch();
+  initSearch('search', 'tbody', 'noDataMessage');
+
+  // Add row selection handler if needed
+  addRowSelectionHandler
 }
+
 
 // Function to format date
 function formatDate(timestamp) {
@@ -318,50 +396,13 @@ function sortTable(index, th) {
     let firstRow = a.querySelectorAll('td')[index].textContent.toLowerCase();
     let secondRow = b.querySelectorAll('td')[index].textContent.toLowerCase();
     return sortAsc ? (firstRow > secondRow ? 1 : -1) : (firstRow < secondRow ? 1 : -1);
-  }).map(sortedRow => document.querySelector('tbody').appendChild(sortedRow));
+  }).forEach(sortedRow => document.querySelector('tbody').appendChild(sortedRow));
 
   th.classList.toggle('asc', sortAsc);
   th.classList.toggle('desc', !sortAsc);
 }
 
-// Function to initialize search functionality
-function initSearch() {
-  const searchInput = document.getElementById('search');
-  const tableRows = document.querySelectorAll('tbody tr');
-  const noDataMessage = document.getElementById('noDataMessage');
 
-  if (!searchInput || !tableRows) {
-    console.error('Search elements not found in the DOM.');
-    return;
-  }
-
-  searchInput.addEventListener('input', () => {
-    const searchValue = searchInput.value.toLowerCase();
-    let found = false;
-
-    tableRows.forEach((row, i) => {
-      const rowText = row.textContent.toLowerCase();
-      const isVisible = rowText.indexOf(searchValue) >= 0;
-      row.classList.toggle('hide', !isVisible);
-      if (isVisible) {
-        found = true;
-      }
-      row.style.setProperty('--delay', i / 25 + 's');
-    });
-
-    document.querySelectorAll('tbody tr:not(.hide)').forEach((visibleRow, i) => {
-      visibleRow.style.backgroundColor = (i % 2 === 0) ? 'transparent' : '#0000000b';
-    });
-
-    if (!found) {
-      noDataMessage.textContent = 'No results found.';
-    } else {
-      noDataMessage.textContent = '';
-    }
-  });
-}
-
-// Function to clear table and messages
 function clearTable() {
   const tableHead = document.getElementById('tableHead');
   const tableBody = document.getElementById('tableBody');
@@ -370,6 +411,45 @@ function clearTable() {
   const noDataMessage = document.getElementById('noDataMessage');
   if (noDataMessage) noDataMessage.textContent = '';
 }
+
+function addRowSelectionHandler() {
+  const tableRows = document.querySelectorAll('tbody tr');
+  const viewLeadsButton = document.getElementById('viewLeadsButton');
+  const viewLeadReportsButton = document.getElementById('viewLeadReportsButton');
+
+  tableRows.forEach(row => {
+    row.addEventListener('click', () => {
+      // Remove 'selected' class from other rows
+      tableRows.forEach(r => r.classList.remove('selected'));
+      // Add 'selected' class to the clicked row
+      row.classList.add('selected');
+
+      // Get the Id from the selected row
+      const headers = document.querySelectorAll('thead th');
+      let idIndex = -1;
+
+      headers.forEach((th, index) => {
+        console.log(`Header ${index}: "${th.textContent.trim()}"`);
+        // Adjust the condition to match your column name
+        if (th.textContent.trim() === 'EventId') {
+          idIndex = index;
+        }
+      });
+
+      if (idIndex !== -1) {
+        selectedEventId = row.querySelectorAll('td')[idIndex].textContent.trim();
+        console.log('Selected EventId:', selectedEventId);
+        // Enable the buttons
+        viewLeadsButton.disabled = false;
+        viewLeadReportsButton.disabled = false;
+        console.log('Buttons enabled');
+      } else {
+        console.error('Id column not found in the table headers.');
+      }
+    });
+  });
+}
+
 
 // Initialize the application
 function init() {

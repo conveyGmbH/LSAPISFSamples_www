@@ -1,63 +1,59 @@
 import ApiService from "../services/apiService.js";
 
+document.addEventListener("DOMContentLoaded", init);
 
-// Login function
+function init() {
+  document.getElementById("loginButton").addEventListener("click", login);
+}
+
 async function login() {
-  console.log('Login function called!');
-  const errorElement = document.getElementById('errorMessage');
-  if (errorElement) errorElement.style.display = 'none';
+  console.log("Login function called!");
+  const errorElement = document.getElementById("errorMessage");
+  if (errorElement) errorElement.style.display = "none";
+
+  const serverName = getInputValue("serverName");
+  const apiName = getInputValue("apiName");
+  const userName = getInputValue("userName");
+  const password = getInputValue("password");
+
+  if (!serverName || !apiName || !userName || !password) {
+    return displayError("Please fill in all fields.");
+  }
 
   try {
-    const serverName = document.getElementById('serverName').value.trim();
-    const apiName = document.getElementById('apiName').value.trim();
-    const userName = document.getElementById('userName').value.trim();
-    const password = document.getElementById('password').value.trim();
-
-    if (!serverName || !apiName || !userName || !password) {
-      // Show an error message if any fields are empty
-      if (errorElement) {
-        errorElement.textContent = 'Please fill in all fields.';
-        errorElement.style.display = 'block';
-      }
-      return;
-    }
-
-    // Encode credentials in Base64
     const credentials = btoa(`${userName}:${password}`);
-    sessionStorage.setItem('credentials', credentials);
-    sessionStorage.setItem('serverName', serverName);
-    sessionStorage.setItem('apiName', apiName);
-
-    // Create an instance of ApiService
+    saveSessionData(serverName, apiName, credentials);
     const apiService = new ApiService(serverName, apiName);
-
-    // Check connection by making a test request
-    const response = await apiService.request('GET', '');
+    const response = await apiService.request("GET", "");
 
     if (response) {
-      // Clear input fields after successful connection
-      document.getElementById('serverName').value = '';
-      document.getElementById('apiName').value = '';
-      document.getElementById('userName').value = '';
-      document.getElementById('password').value = '';
-
-      // Successful connection, redirect to display page
-      window.location.href = '/pages/display.html';
-    } else {
-      // Error is already handled in ApiService
+      clearInputs(["serverName", "apiName", "userName", "password"]);
+      window.location.href = "/pages/display.html";
     }
   } catch (error) {
-    console.error('Error during connection:', error);
-    // Optionally, display an error message to the user
-    if (errorElement) {
-      errorElement.textContent = 'Error during connection. Please try again.';
-      errorElement.style.display = 'block';
-    }
+    console.error("Error during connection:", error);
+    displayError("Error during connection. Please try again.");
   }
 }
 
-// Add event listener to the login button
-document.getElementById('loginButton').addEventListener('click', login);
+function getInputValue(id) {
+  return document.getElementById(id).value.trim();
+}
 
-// Export the function to be globally accessible if needed
-export { login };
+function saveSessionData(serverName, apiName, credentials) {
+  sessionStorage.setItem("serverName", serverName);
+  sessionStorage.setItem("apiName", apiName);
+  sessionStorage.setItem("credentials", credentials);
+}
+
+function clearInputs(ids) {
+  ids.forEach(id => document.getElementById(id).value = "");
+}
+
+function displayError(message) {
+  const errorElement = document.getElementById("errorMessage");
+  if (errorElement) {
+    errorElement.textContent = message;
+    errorElement.style.display = "block";
+  }
+}
