@@ -69,6 +69,7 @@ export default class ApiService {
       };
 
       const response = await fetch(nextUrl, config);
+      console.log("object", response);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -86,9 +87,11 @@ export default class ApiService {
 
     // Helper function to get the next URL
     getNextUrl(json) {
+      console.log("json", json);
       let url = "";
       if (json && json.d) {
-        const next = json.d.__next;
+        const next = json.d.__next || (json.d.results && json.d.__next);        
+        console.log("next", next);
         if (next && typeof next === "string") {
           const viewNamePos = next.lastIndexOf("/");
           if (viewNamePos >= 0) {
