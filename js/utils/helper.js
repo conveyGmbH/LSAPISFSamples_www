@@ -1,6 +1,5 @@
 // helpers.js
 
-// Function to format date
 export function formatDate(input) {
     let date;
     if (typeof input === 'string' && input.includes('/Date(')) {
@@ -72,20 +71,21 @@ export function escapeODataValue(value) {
   
 // Function to reset filters
 export function resetFilters(entity, fields) {
-  // Remove filters from localStorage
   localStorage.removeItem(`${entity}_Filters`);
-  // Clear input fields
   fields.forEach(field => {
     const input = document.getElementById(`filter-${field}`);
     if (input) {
       input.value = '';
     }
   });
-  // Clear data display
   clearTable();
   const noDataMessage = document.getElementById('noDataMessage');
   noDataMessage.textContent = 'Filters have been reset. Please enter new values and click "Apply Filters".';
 }
+
+
+
+
 
 
 // Function to initialize search functionality
