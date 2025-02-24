@@ -86,22 +86,22 @@ export default class ApiService {
 
 
     // Helper function to get the next URL
-    getNextUrl(json) {
-      console.log("json", json);
-      let url = "";
-      if (json && json.d) {
-        const next = json.d.__next || (json.d.results && json.d.__next);        
-        console.log("next", next);
-        if (next && typeof next === "string") {
-          const viewNamePos = next.lastIndexOf("/");
-          if (viewNamePos >= 0) {
-            url = `https://${this.serverName}/${this.apiName}` + next.substring(viewNamePos);
-          }
-        }
-      }
-      return url;
-    }
+    // getNextUrl(json) {
+    //   const next = json.d.__next;
+    //   let url = "";
+    //   if (next && typeof next === "string") {
+    //     url = `https://${this.serverName}/${this.apiName}` + next; // Direct concatenation
+    //   }
+    //   console.log("Next URL:", url);
+    //   return url;
+    // }
 
+    getNextUrl(json) {
+      if (json && json.d && json.d.__next && typeof json.d.__next === "string") {
+          return json.d.__next; // Return the full URL directly
+      }
+      return "";
+  }
 
   // Logout
   logout() {

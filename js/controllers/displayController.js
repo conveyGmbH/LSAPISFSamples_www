@@ -1,5 +1,5 @@
 import ApiService from '../services/apiService.js';
-import {formatDate, parseDate, escapeODataValue, initSearch, formatDateForOData } from '../utils/helper.js';
+import {clearTable, formatDate, parseDate, escapeODataValue, initSearch, formatDateForOData } from '../utils/helper.js';
 
 
 // Retrieve server information from sessionStorage
@@ -18,79 +18,7 @@ let selectedEventId = null;
 let nextUrl = '';
 
 
-async function populateApiSelector() {
-  try {
-    const response = await apiService.request('GET', '?$format=json');
-    if (response && response.d && response.d.EntitySets) {
-      const entities = response.d.EntitySets;
-      const selector = document.getElementById('apiSelector');
 
-      // List of desired entities
-      const desiredEntities = ['LS_Country', 'LS_User', 'LS_Event'];
-
-      const filteredEntities = entities.filter(entity => desiredEntities.includes(entity));
-
-      selector.innerHTML = '<option value="">Select an entity</option>';
-
-
-      // Fill the selector with entities
-      filteredEntities.forEach(entity => {
-        const option = document.createElement('option');
-        option.value = entity;
-        option.textContent = entity;
-        selector.appendChild(option);
-      });
-
-      // Set change event listener
-      selector.addEventListener('change', updateData);
-
-      // No entity selected initially
-      updateData();
-    } else {
-      console.error('Unable to retrieve entity list from the API.');
-      apiService.showError('Unable to load the list of entities.');
-    }
-  } catch (error) {
-    console.error('Error retrieving entity list:', error);
-    apiService.showError('Error loading the list of entities.');
-  }
-}
-
-async function updateData() {
-  
-  const selectedEntity = document.getElementById('apiSelector').value;
-
-  const filterInputs = document.getElementById('filterInputs');
-  filterInputs.innerHTML = '';
-  filterInputs.style.display = 'none'; 
-
-  clearTable();
-
-  const noDataMessage = document.getElementById('noDataMessage');
-  noDataMessage.textContent = '';
-
-  if (selectedEntity === 'LS_User' || selectedEntity === 'LS_Event') {
-    displayFilterInputs(selectedEntity);
-    noDataMessage.textContent = 'Please enter the required values and click "Apply Filters".';
-  } else if (selectedEntity) {
-
-    localStorage.removeItem(`${selectedEntity}_Filters`);
-
-    const data = await fetchData(`${selectedEntity}?$format=json`);
-    if (data && data.length > 0) {
-      displayData(data);
-    } else {
-      displayData([]);
-      noDataMessage.textContent = 'No data available.';
-    }
-  } else {
-    noDataMessage.textContent = 'Please select an entity.';
-  }
-}
-
-
-
-// Function to display filter inputs for LS_User and LS_Event
 function displayFilterInputs(entity) {
   const filterInputs = document.getElementById('filterInputs');
   filterInputs.style.display = 'flex'; // Show the filter inputs
@@ -118,7 +46,7 @@ function displayFilterInputs(entity) {
 
     // For date fields, set input type to date
     if (field === 'StartDate' || field === 'EndDate') {
-      input.type = 'date'; // This provides a date picker in modern browsers
+      input.type = 'date'; 
     }
 
     filterInputs.appendChild(input);
@@ -141,6 +69,76 @@ function displayFilterInputs(entity) {
 }
 
 
+async function populateApiSelector() {
+  try {
+    const response = await apiService.request('GET', '?$format=json');
+
+    if (response && response.d && response.d.EntitySets) {
+      const entities = response.d.EntitySets;
+
+      const selector = document.getElementById('apiSelector');
+
+      const desiredEntities = ['LS_Country', 'LS_User', 'LS_Event'];
+      const filteredEntities = entities.filter(entity => desiredEntities.includes(entity));
+
+      selector.innerHTML = '<option value="">Select an entity</option>';
+
+      filteredEntities.forEach(entity => {
+        const option = document.createElement('option');
+        option.value = entity;
+        option.textContent = entity;
+        selector.appendChild(option);
+      });
+
+      selector.addEventListener('change', updateData);
+
+      if (filteredEntities.length > 0) {
+        selector.value = filteredEntities[0]; 
+        updateData(); 
+      }
+    } else {
+      console.error('Unable to retrieve entity list from the API.');
+      apiService.showError('Unable to load the list of entities.');
+    }
+  } catch (error) {
+    console.error('Error retrieving entity list:', error);
+    apiService.showError('Error loading the list of entities.');
+  }
+}
+
+async function updateData() {
+  const selectedEntity = document.getElementById('apiSelector').value;
+
+  const filterInputs = document.getElementById('filterInputs');
+  filterInputs.innerHTML = '';
+  filterInputs.style.display = 'none';
+
+  clearTable();
+
+  const noDataMessage = document.getElementById('noDataMessage');
+  noDataMessage.textContent = '';
+
+
+  if (selectedEntity) {
+    // Afficher les filtres uniquement si l'utilisateur veut les utiliser
+    if (selectedEntity === 'LS_User' || selectedEntity === 'LS_Event') {
+      displayFilterInputs(selectedEntity);
+    }
+  
+    localStorage.removeItem(`${selectedEntity}_Filters`);
+    const data = await fetchData(`${selectedEntity}?$format=json`);
+    
+    if (data && data.length > 0) {
+      displayData(data);
+    } else {
+      displayData([]);
+      noDataMessage.textContent = 'No data available.';
+    }
+  } else {
+    noDataMessage.textContent = 'Please select an entity.';
+  }
+
+}
 
 // Function to apply filters and fetch data
 async function applyFilters(entity, fields) {
@@ -254,6 +252,7 @@ function resetFilters(entity, fields) {
 
 
 
+
 // Function to fetch data for the selected entity or with a custom endpoint
 async function fetchData(endpoint) {
   if (!endpoint) {
@@ -263,7 +262,6 @@ async function fetchData(endpoint) {
 
   try {
     const response = await apiService.request('GET', endpoint);
-    console.log("Response:", response);
     if (response && response.d && response.d.results) {
       return response.d.results;
     } else {
@@ -276,10 +274,15 @@ async function fetchData(endpoint) {
   }
 }
 
+
+
 function displayData(data, append = false) {
   const tableHead = document.getElementById('tableHead');
   const tableBody = document.getElementById('tableBody');
   const noDataMessage = document.getElementById('noDataMessage');
+
+
+  const isRelevantHeader = header => !['__metadata', 'MitarbeiterViewId', 'LGNTINITLandViewId', 'VeranstaltungViewId', 'KontaktViewId'].includes(header);
 
 
   if(!append) {
@@ -300,18 +303,13 @@ function displayData(data, append = false) {
     return;
   }
 
-  if(!append){
-  
+  if(!append){  
 
-  const headers = Object.keys(data[0]).filter(header => {
-    return header !== '__metadata' && header !== 'MitarbeiterViewId' && header !== 'LGNTINITLandViewId' && header !== 'VeranstaltungViewId' && header !== 'KontaktViewId';
-  });
-
+  const headers = Object.keys(data[0]).filter(isRelevantHeader);
   const headerRow = document.createElement('tr');
 
   headers.forEach((header, index) => {
     const th = document.createElement('th');
-
 
     const headerText = document.createTextNode(header);
     th.appendChild(headerText);
@@ -336,152 +334,95 @@ function displayData(data, append = false) {
   // Create table rows
   data.forEach(item => {
     const row = document.createElement('tr');
-    const headers = Object.keys(item).filter(header => header !== '__metadata' && header !== 'MitarbeiterViewId' && header !== 'LGNTINITLandViewId' && header !== 'VeranstaltungViewId' && header !== 'KontaktViewId');
+    const headers = Object.keys(item).filter(isRelevantHeader);
     headers.forEach(header => {
       const td = document.createElement('td');
-      if (header.includes('Date')) {
-        td.textContent = formatDate(item[header]);
-      } else {
-        td.textContent = item[header] || 'N/A';
-      }
+      td.textContent = header.includes('Date') ? formatDate(item[header]) : item[header] || 'N/A';
       row.appendChild(td);
-    });
+  });
 
     tableBody.appendChild(row);
   });
-
 
   initSearch('search', 'tbody', 'noDataMessage');
 
   addRowSelectionHandler();
 
-
   nextUrl = apiService.getNextUrl(data);
-  console.log("Next URL:", nextUrl);
-  const nextButton = document.getElementById('nextButton');
-  nextButton.disabled = !nextUrl;
+  document.getElementById('nextButton').disabled = !nextUrl;
 }
 
 
 function addRowSelectionHandler() {
-  const tableRows = document.querySelectorAll('tbody tr');
+  const tbody = document.querySelector('tbody');
   const viewLeadsButton = document.getElementById('viewLeadsButton');
-
-viewLeadsButton.addEventListener('click', () => {
-  if (selectedEventId) {
-   
-    sessionStorage.setItem('selectedEventId', selectedEventId);
-    window.location.href = 'displayLsLead.html';
-  } else {
-    alert('Please select an event first.');
-  }
-});
-
-
-
-
   const viewLeadReportsButton = document.getElementById('viewLeadReportsButton');
 
-  tableRows.forEach(row => {
-    row.addEventListener('click', () => {
-      tableRows.forEach(r => r.classList.remove('selected'));
-      row.classList.add('selected');
 
-      // Get the Id from the selected row
-      const headers = document.querySelectorAll('thead th');
-      let idIndex = -1;
+  const headers = Array.from(document.querySelectorAll('thead th'));
+  const eventIdIndex = headers.findIndex(th => {
+    const headerText = th.childNodes[0].textContent.trim();
+    return headerText === 'Id' || headerText === 'EventId';
+  }); 
 
-      headers.forEach((th, index) => {
-        const headerText = th.childNodes[0].textContent.trim();
-        if (headerText === 'Id' || headerText === 'EventId') {
-          idIndex = index;
-        }
-      });
 
-      if (idIndex !== -1) {
-        selectedEventId = row.querySelectorAll('td')[idIndex].textContent.trim();
-        viewLeadsButton.disabled = false;
-        viewLeadReportsButton.disabled = false;
-        console.log('Buttons enabled');
-      } else {
-        console.error('Id column not found in the table headers.');
+  headers.forEach((th, index) => {
+    const headerText = th.textContent.trim();
+    if (headerText === 'Id' || headerText === 'EventId') {
+      eventIdIndex = index;
+    }
+  });
+
+  tbody.addEventListener('click', (event) => {
+    const row = event.target.closest('tr');
+    if (!row) return;
+
+    if (row.classList.contains('selected')) {
+        selectedEventId = row.cells[eventIdIndex].textContent.trim();
+        console.log("selectedEventId", selectedEventId);
+        sessionStorage.setItem('selectedEventId', selectedEventId);
+        row.classList.remove('selected');
+        sessionStorage.removeItem('selectedEventId');
+    } else {
+      const previouslySelected = tbody.querySelector('tr.selected');
+      if (previouslySelected) {
+        previouslySelected.classList.remove('selected');
       }
-    });
+
+      row.classList.add('selected');
+      sessionStorage.setItem('selectedEventId', selectedEventId);
+    }
+
+    const isSelected = tbody.querySelector('tr.selected') !== null;
+    viewLeadsButton.disabled = !isSelected;
+    viewLeadReportsButton.disabled = !isSelected;
   });
 }
 
 
 
-
-
-// Fonction pour charger les lignes suivantes lors du clic sur le bouton "Next"
+// Function to sort the table by column index
 async function loadNextRows() {
   if (!nextUrl) {
-    console.error('No next URL found.');
-    return;
-  };
+      console.error('No next URL found.');
+      return;
+  }
 
-  const data = await apiService.fetchNextRows(nextUrl);
-  console.log("fetchNextRows:", data);
+  try {
+      const data = await apiService.fetchNextRows(nextUrl);
 
-  if (data && data.d && data.d.results) {
-    displayData(data.d.results, true);
-  } else {
-    alert('No more data to load.');
+      if (data && data.d && data.d.results.length > 0) {
+          displayData(data.d.results, true);
+          nextUrl = apiService.getNextUrl(data); 
+          document.getElementById('nextButton').disabled = !nextUrl;
+      } else {
+          alert('No more data to load.');
+          nextUrl = ''; 
+      }
+  } catch (error) {
+      console.error("Erreur lors du chargement des lignes suivantes:", error);
   }
 }
-
-
-function clearTable() {
-  const tableHead = document.getElementById('tableHead');
-  const tableBody = document.getElementById('tableBody');
-  if (tableHead) tableHead.innerHTML = '';
-  if (tableBody) tableBody.innerHTML = '';
-  const noDataMessage = document.getElementById('noDataMessage');
-  if (noDataMessage) noDataMessage.textContent = '';
-}
-
-
-// Initialize the application
-function init() {
-  populateApiSelector();
-
-
-  // Charger les données de `LS_Country` par défaut
-  fetchData('LS_Country?$format=json').then(data => {
-    if (data && data.d && data.d.results) {
-      displayData(data.d.results);
-    }
-  }
-  );
-  
-
-  // Logout button
-  const logoutButton = document.getElementById('logoutButton');
-  if (logoutButton) {
-    logoutButton.addEventListener('click', () => {
-      apiService.logout();
-    });
-  }
-
-
-
-
-  const paginationDiv = document.querySelector('.pagination');
-  let nextButton = document.getElementById('nextButton');
-  if (!nextButton) {
-    nextButton = document.createElement('button');
-    nextButton.id = 'nextButton';
-    nextButton.textContent = 'Next';
-    nextButton.classList.add('pagination-button');
-    nextButton.disabled = true;  
-    nextButton.addEventListener('click', loadNextRows);
-    paginationDiv.appendChild(nextButton);
-  }
-
-}
-
-
 
 function restoreSelectedRow() {
   const tbody = document.querySelector('tbody');
@@ -501,6 +442,61 @@ function restoreSelectedRow() {
   document.getElementById('viewLeadReportsButton').disabled = !isSelected;
 }
 
+// Initialize the application
+function init() {
+  populateApiSelector();
+
+  fetchData("LS_Country?$format=json").then((data) => {
+    if (data && data.d && data.d.results) {
+      displayData(data.d.results);
+    }
+  });
+
+  // Logout button
+  const logoutButton = document.getElementById("logoutButton");
+  if (logoutButton) {
+    logoutButton.addEventListener("click", () => {
+      apiService.logout();
+    });
+  }
+
+  // Setup event listeners for buttons
+  document.getElementById("viewLeadsButton").addEventListener("click", () => {
+    if (selectedEventId) {
+      sessionStorage.setItem("selectedEventId", selectedEventId);
+      window.location.href = "displayLsLead.html";
+    } else {
+      alert("Please select an event first.");
+    }
+  });
+
+  document
+    .getElementById("viewLeadReportsButton")
+    .addEventListener("click", () => {
+      if (selectedEventId) {
+        sessionStorage.setItem("selectedEventId", selectedEventId);
+        window.location.href = "displayLsLeadReport.html";
+      } else {
+        alert("Please select an event first.");
+      }
+    });
+
+  const paginationDiv = document.querySelector(".pagination");
+  let nextButton = document.getElementById("nextButton");
+  if (!nextButton) {
+    nextButton = document.createElement("button");
+    nextButton.id = "nextButton";
+    nextButton.textContent = "Next";
+    nextButton.classList.add("pagination-button");
+    nextButton.disabled = true;
+    nextButton.addEventListener("click", loadNextRows);
+    paginationDiv.appendChild(nextButton);
+  }
+
+  // Restore selected row when navigating back
+  restoreSelectedRow();
+}
+
 
 document.addEventListener('DOMContentLoaded', init);
 
@@ -514,8 +510,4 @@ document.addEventListener('DOMContentLoaded', () => {
     window.location.href = 'index.html';
   });
 
-  const viewLeadsButton = document.getElementById('viewLeadsButton');
-  const viewLeadReportsButton = document.getElementById('viewLeadReportsButton');
-  viewLeadsButton.disabled = true;
-  viewLeadReportsButton.disabled = true;
 });

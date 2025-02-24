@@ -12,7 +12,7 @@ if (!serverName || !apiName || !credentials) {
 
 const apiService = new ApiService(serverName, apiName);
 
-async function fetchLsLeadData() {
+async function fetchLsLeadReportData() {
   const eventId = sessionStorage.getItem('selectedEventId');
   if (!eventId) {
     alert('No EventId provided.');
@@ -20,7 +20,7 @@ async function fetchLsLeadData() {
     return;
   }
 
-  const endpoint = `LS_Lead?$format=json&$filter=EventId eq '${encodeURIComponent(eventId)}'`;
+  const endpoint = `LS_LeadReport?$format=json&$filter=EventId eq '${encodeURIComponent(eventId)}'`;
 
   try {
     const data = await apiService.request('GET', endpoint);
@@ -52,7 +52,7 @@ function displayData(data) {
 
   noDataMessage.textContent = '';
 
-  const headers = Object.keys(data[0]).filter(header => header !== '__metadata' && header !== 'KontaktViewId');
+  const headers = Object.keys(data[0]).filter(header => header !== '__metadata' && header !== 'KontaktViewId ');
 
   const headerRow = document.createElement('tr');
   
@@ -93,7 +93,7 @@ function displayData(data) {
 }
 
 function init() {
-  fetchLsLeadData();
+  fetchLsLeadReportData();
 
   const backButton = document.getElementById('backButton');
   backButton.addEventListener('click', () => {
