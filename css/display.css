@@ -274,6 +274,7 @@ tbody tr.hide {
 
 tbody tr:hover {
     background-color: #fff6 !important;
+    cursor: pointer;
 }
 
 tbody tr td,
