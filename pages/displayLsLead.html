@@ -40,20 +40,23 @@
 
             <section class="table__header">
 
-                <!-- <div class="view-selector">
-                    <select id="apiSelector">
-                        <option value="" class="option">Select an entity</option>
-                    </select>
-                </div> -->
-    
                 <div class="input-group">
                     <input type="search" id="search" placeholder="Search Data.."/>
                     <img src="/images/search.png" alt="">
                 </div>
 
+
+                  <!-- Actions -->
+                  <div class="actions">
+                    <button id="showAttachmentButton" class="action-button" disabled>Show Attachment (0)</button>
+                </div>
+
             </section>
+
+
+
             <div id="filterInputs" class="filter-inputs" style="display: none;"></div>
-                
+
 
             <section class="table__body">
                 <table>
@@ -65,14 +68,11 @@
          </main>
 
 
-         <div class="pagination">
-            <button id="nextButton">Next</button>
-          </div>
 
-        <div class="actions">
+        <div class="pagination">
+            <button id="nextButton" class="pagination-button" disabled>Next</button>
             <button id="backButton" class="action-button">Back</button>
         </div>
-
 
           <div id="errorMessage" class="error-message"></div>
 
@@ -81,3 +81,5 @@
     </body>
 
 </html>
+
+

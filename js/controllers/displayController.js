@@ -379,7 +379,7 @@ function addRowSelectionHandler() {
 
     if (row.classList.contains('selected')) {
         selectedEventId = row.cells[eventIdIndex].textContent.trim();
-        console.log("selectedEventId", selectedEventId);
+        console.log("selectedEventId : ->", selectedEventId);
         sessionStorage.setItem('selectedEventId', selectedEventId);
         row.classList.remove('selected');
         sessionStorage.removeItem('selectedEventId');

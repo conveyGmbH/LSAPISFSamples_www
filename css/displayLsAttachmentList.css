@@ -219,7 +219,6 @@ main.table {
     border-radius: .6rem;
     overflow: auto;
     overflow: overlay;
-    
 }
 
 .table__body::-webkit-scrollbar{
@@ -395,12 +394,11 @@ thead th.active,tbody td.active {
     background-color: #c55535;
 }
 
-
-
-
-
-
-
+#attachmentContainer{
+    background: #ccc;
+    height: 300px;
+    width: 400px;
+}
 
 /* Pagination */
 .pagination {
