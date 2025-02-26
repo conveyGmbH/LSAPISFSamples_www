@@ -452,13 +452,7 @@ function init() {
     }
   });
 
-  // Logout button
-  const logoutButton = document.getElementById("logoutButton");
-  if (logoutButton) {
-    logoutButton.addEventListener("click", () => {
-      apiService.logout();
-    });
-  }
+
 
   // Setup event listeners for buttons
   document.getElementById("viewLeadsButton").addEventListener("click", () => {
@@ -503,11 +497,5 @@ document.addEventListener('DOMContentLoaded', init);
 // Initialize the application
 document.addEventListener('DOMContentLoaded', () => {
   populateApiSelector();
-
-  const logoutButton = document.getElementById('logoutButton');
-  logoutButton.addEventListener('click', () => {
-    sessionStorage.clear();
-    window.location.href = 'index.html';
-  });
 
 });
