@@ -34,7 +34,7 @@
             </h3>
         </div>
 
-        <h2 class="head-line">LS Attachments List</h2>
+        <h3 class="sub-title">LS Attachments List</h3>
 
          <main class="table">
 
@@ -50,25 +50,28 @@
                 </div>
             </section>
 
+            <div class="tab-container" id="tabContainer">
+                <!-- Tabs will be generated dynamically -->
+            </div>
 
-            <div id="filterInputs" class="filter-inputs" style="display: none;"></div>
+            <div class="attachment-viewer">
+                <div class="attachment-header">
+                    <div class="file-name" id="fileName">File name</div>
+                    <button class="download-btn" id="downloadButton">
+                        <span>Download</span>
+                    </button>
+                </div>
+                <div class="attachment-content" id="attachmentContainer">
+                    <!-- Attachment content will be loaded here -->
+                    <div class="no-data">
+                        <p>Select an attachment to display</p>
+                    </div>
+                </div>
+            </div>
 
-            <section class="table__body">
-                <table>
-                    <thead id="tableHead"></thead>
-                    <tbody id="tableBody"></tbody> 
-                </table>
-                <p id="noDataMessage"></p>
-            </section>
          </main>
 
-         <div class="attachment-container" id="attachmentContainer"></div>
-         <div class="tab-container" id="tabContainer"></div>
-
-
-         <div class="pagination">
-            <button id="nextButton">Next</button>
-          </div>
+         <!-- <div class="attachment-container" id="attachmentContainer"></div> -->
 
           <div id="errorMessage" class="error-message"></div>
 
