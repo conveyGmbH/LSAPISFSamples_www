@@ -1,5 +1,5 @@
 import ApiService from "../services/apiService.js";
-import { formatDate, sortTable } from "../utils/helper.js";
+import { formatDate, sortTable, parseDate, formatDateForOData, escapeODataValue } from "../utils/helper.js";
 
 const serverName = sessionStorage.getItem('serverName');
 const apiName = sessionStorage.getItem('apiName');
@@ -19,7 +19,7 @@ async function fetchLsLeadReportData() {
   const eventId = sessionStorage.getItem('selectedEventId');
   if (!eventId) {
     alert('No EventId provided.');
-    window.location.href = '/pages/display.html';
+    window.location.href = 'display.html';
     return;
   }
 
@@ -40,6 +40,12 @@ async function fetchLsLeadReportData() {
     console.error('Error fetching LS_LeadReport data:', error);
     apiService.showError('An error occurred while fetching LS_LeadReport data.');
   }
+
+  // Initialize search functionality
+  initSearch();
+  
+  // Display filter options
+  displayLeadReportFilters();
 }
 
 /**
@@ -51,6 +57,13 @@ function displayData(data, append = false) {
   const tableHead = document.getElementById('tableHead');
   const tableBody = document.getElementById('tableBody');
   const noDataMessage = document.getElementById('noDataMessage');
+  const showAttachmentButton = document.getElementById('showAttachmentButton');
+  
+  // Initialize the attachment button if it exists
+  if (showAttachmentButton) {
+    showAttachmentButton.disabled = true;
+    showAttachmentButton.textContent = 'Show Attachment';
+  }
 
   if (!append) {
     tableHead.innerHTML = '';
@@ -110,15 +123,46 @@ function displayData(data, append = false) {
     });
     
     tableBody.appendChild(row);
+    
+    // Add click event to row to handle selection and show attachment button
+    row.addEventListener('click', () => {
+      const tableRows = document.querySelectorAll('tbody tr');
+      
+      // If row is already selected, deselect it
+      if (row.classList.contains('selected')) {
+        row.classList.remove('selected');
+        if (showAttachmentButton) {
+          showAttachmentButton.disabled = true;
+          showAttachmentButton.textContent = 'Show Attachment';
+        }
+        sessionStorage.removeItem('AttachmentIdList');
+      } else {
+        // Remove selection from any previously selected row
+        tableRows.forEach(r => r.classList.remove('selected'));
+        
+        row.classList.add('selected');
+        
+        // Check if this item has attachments
+        if (item.AttachmentIdList) {
+          if (showAttachmentButton) {
+            const attachmentCount = item.AttachmentIdList.split(',').length;
+            showAttachmentButton.disabled = false;
+            showAttachmentButton.textContent = `Show Attachment (${attachmentCount})`;
+          }
+          sessionStorage.setItem('AttachmentIdList', item.AttachmentIdList);
+        } else {
+          if (showAttachmentButton) {
+            showAttachmentButton.disabled = true;
+            showAttachmentButton.textContent = 'No Attachments';
+          }
+          sessionStorage.removeItem('AttachmentIdList');
+        }
+      }
+    });
   });
-
-  // Initialize search functionality after populating data
-  initSearch();
 }
 
-/**
- * Load next set of rows for pagination
- */
+
 async function loadNextRows() {
   if (!nextUrl) {
     console.error('No next URL found.');
@@ -143,30 +187,118 @@ async function loadNextRows() {
   }
 }
 
-/**
- * Initialize the application
- */
-function init() {
-  fetchLsLeadReportData();
 
-  // Setup back button
-  const backButton = document.getElementById('backButton');
-  if (backButton) {
-    backButton.addEventListener('click', () => {
-      window.location.href = 'display.html';
-    });
+function displayLeadReportFilters() {
+  const filterInputs = document.getElementById('filterInputs');
+  if (!filterInputs) return;
+  
+  filterInputs.innerHTML = ''; 
+  filterInputs.style.display = 'flex';
+  
+  // Filter fields for LS_LeadReport
+  const fields = ['Id', 'CreateDate', 'LastModifiedDate', 'SystemModstamp'];
+  const storedFilters = JSON.parse(localStorage.getItem('LS_LeadReport_Filters')) || {};
+  
+  fields.forEach(field => {
+    const input = document.createElement('input');
+    input.type = field.includes('Date') || field === 'SystemModstamp' ? 'date' : 'text';
+    input.placeholder = field;
+    input.id = `filter-${field}`;
+    input.classList.add('filter-input');
+    
+    // Restore saved values if available
+    if (storedFilters[field]) {
+      input.value = storedFilters[field];
+    }
+    
+    filterInputs.appendChild(input);
+  });
+  
+  // Apply button
+  const applyButton = document.createElement('button');
+  applyButton.textContent = 'Apply Filters';
+  applyButton.classList.add('apply-button');
+  applyButton.addEventListener('click', () => applyLeadReportFilters(fields));
+  filterInputs.appendChild(applyButton);
+  
+  // Reset button
+  const resetButton = document.createElement('button');
+  resetButton.textContent = 'Reset Filters';
+  resetButton.classList.add('reset-button');
+  resetButton.addEventListener('click', () => resetLeadReportFilters(fields));
+  filterInputs.appendChild(resetButton);
+}
+
+
+async function applyLeadReportFilters(fields) {
+  const eventId = sessionStorage.getItem('selectedEventId');
+  if (!eventId) {
+    alert('No EventId found. Please return to the main page and select an event.');
+    return;
   }
-
-  // Setup pagination button
-  const nextButton = document.getElementById('nextButton');
-  if (nextButton) {
-    nextButton.addEventListener('click', loadNextRows);
+  
+  const filters = {};
+  fields.forEach(field => {
+    const value = document.getElementById(`filter-${field}`).value.trim();
+    if (value) {
+      filters[field] = value;
+    }
+  });
+  
+  // Save filters to localStorage
+  localStorage.setItem('LS_LeadReport_Filters', JSON.stringify(filters));
+  
+  // Build filter parts
+  const filterParts = [`EventId eq '${escapeODataValue(eventId)}'`]; // Always filter by EventId
+  
+  Object.entries(filters).forEach(([field, value]) => {
+    if (field.includes('Date') || field === 'SystemModstamp') {
+      // Date handling
+      const date = parseDate(value);
+      if (date) {
+        filterParts.push(`${field} eq datetime'${formatDateForOData(date)}T00:00:00'`);
+      }
+    } else if (field === 'Id') {
+      // Exact match for Id
+      filterParts.push(`${field} eq '${escapeODataValue(value)}'`);
+    } else {
+      // "Starts with" search for other fields
+      filterParts.push(`startswith(${field},'${escapeODataValue(value)}') eq true`);
+    }
+  });
+  
+  const filterQuery = filterParts.join(' and ');
+  const endpoint = `LS_LeadReport?$format=json&$filter=${encodeURIComponent(filterQuery)}`;
+  
+  try {
+    const data = await apiService.request('GET', endpoint);
+    if (data && data.d && data.d.results) {
+      displayData(data.d.results);
+    } else {
+      displayData([]);
+      document.getElementById('noDataMessage').textContent = 'No data found with the provided filters.';
+    }
+  } catch (error) {
+    console.error('Error applying filters:', error);
+    alert('An error occurred while fetching filtered data.');
   }
 }
 
-/**
- * Initialize search functionality
- */
+function resetLeadReportFilters(fields) {
+  localStorage.removeItem('LS_LeadReport_Filters');
+  
+  fields.forEach(field => {
+    const input = document.getElementById(`filter-${field}`);
+    if (input) {
+      input.value = '';
+    }
+  });
+  
+  // Reload initial data
+  fetchLsLeadReportData();
+}
+
+
 function initSearch() {
   const searchInput = document.getElementById('search');
   const tableRows = document.querySelectorAll('tbody tr');
@@ -202,6 +334,40 @@ function initSearch() {
       noDataMessage.textContent = '';
     }
   });
+}
+
+
+function init() {
+  fetchLsLeadReportData();
+
+  // Setup back button
+  const backButton = document.getElementById('backButton');
+  if (backButton) {
+    backButton.addEventListener('click', () => {
+      window.location.href = 'display.html';
+    });
+  }
+
+  // Setup pagination button
+  const nextButton = document.getElementById('nextButton');
+  if (nextButton) {
+    nextButton.addEventListener('click', loadNextRows);
+  }
+  
+  // Setup show attachment button if it exists
+  const showAttachmentButton = document.getElementById('showAttachmentButton');
+if (showAttachmentButton) {
+  showAttachmentButton.addEventListener('click', () => {
+    const attachmentIdList = sessionStorage.getItem('AttachmentIdList');
+    if (attachmentIdList) {
+      // Set the source so the attachment page knows where to go back to
+      sessionStorage.setItem('attachmentSource', 'LeadReport');
+      window.location.href = 'displayLsAttachmentList.html';
+    } else {
+      alert('No attachments available for this report.');
+    }
+  });
+}
 }
 
 // Initialize the application when DOM is loaded

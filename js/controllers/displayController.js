@@ -6,13 +6,10 @@ const serverName = sessionStorage.getItem('serverName');
 const apiName = sessionStorage.getItem('apiName');
 const credentials = sessionStorage.getItem('credentials');
 
-// Seule l'entité LS_Event permet l'activation des boutons
 const ACTIVATING_ENTITY = 'LS_Event';
-// Entités pour lesquelles on peut sélectionner une ligne (pour le highlighting)
 const SELECTABLE_ENTITIES = ['LS_User', 'LS_Event'];
 
 if (!serverName || !apiName || !credentials) {
-  // If information is missing, redirect to the login page
   window.location.href = '/index.html';
 }
 
@@ -24,8 +21,8 @@ let nextUrl = '';
 // Handle filter inputs display based on entity
 function displayFilterInputs(entity) {
   const filterInputs = document.getElementById('filterInputs');
-  filterInputs.style.display = 'flex'; // Show the filter inputs
-  filterInputs.innerHTML = ''; // Clear previous inputs
+  filterInputs.style.display = 'flex';
+  filterInputs.innerHTML = '';
 
   let fields = [];
   if (entity === 'LS_User') {
@@ -43,12 +40,10 @@ function displayFilterInputs(entity) {
     input.id = `filter-${field}`;
     input.classList.add('filter-input');
 
-    // Set the input value from stored filters if available
     if (storedFilters[field]) {
       input.value = storedFilters[field];
     }
 
-    // For date fields, set input type to date
     if (field === 'StartDate' || field === 'EndDate') {
       input.type = 'date'; 
     }
@@ -101,7 +96,7 @@ async function populateApiSelector() {
         selector.value = filteredEntities[0]; 
       }
       
-      updateData(); // Load data for the selected entity
+      updateData();
     } else {
       console.error('Unable to retrieve entity list from the API.');
       apiService.showError('Unable to load the list of entities.');
@@ -305,7 +300,6 @@ function displayData(data, append = false) {
   const isRelevantHeader = header => !['__metadata', 'MitarbeiterViewId', 'LGNTINITLandViewId', 'VeranstaltungViewId', 'KontaktViewId'].includes(header);
 
   if (!append) {
-    // Clear previous content
     tableHead.innerHTML = '';
     tableBody.innerHTML = '';
   }
@@ -360,15 +354,12 @@ function displayData(data, append = false) {
       row.appendChild(td);
     });
 
-    // Add click event only for selectable entities (highlighting only)
     if (SELECTABLE_ENTITIES.includes(currentEntity)) {
       row.addEventListener('click', () => handleRowClick(row, item));
       
-      // Check if this row's ID matches the stored selectedEventId
       if (item.Id === selectedEventId) {
         row.classList.add('selected');
         
-        // Only enable buttons if we're in the activating entity (LS_Event)
         if (currentEntity === ACTIVATING_ENTITY) {
           updateButtonState(true);
         }
@@ -384,18 +375,16 @@ function displayData(data, append = false) {
   document.getElementById('nextButton').disabled = !nextUrl;
 }
 
-// Handle row click for selection
 function handleRowClick(row, item) {
   const tbody = document.querySelector('tbody');
   
-  // If this row is already selected, deselect it
   if (row.classList.contains('selected')) {
     row.classList.remove('selected');
     selectedEventId = null;
     sessionStorage.removeItem('selectedEventId');
     updateButtonState(false);
   } else {
-    // Otherwise, deselect any previously selected row and select this one
+    
     const previouslySelected = tbody.querySelector('tr.selected');
     if (previouslySelected) {
       previouslySelected.classList.remove('selected');
@@ -405,7 +394,6 @@ function handleRowClick(row, item) {
     selectedEventId = item.Id;
     sessionStorage.setItem('selectedEventId', selectedEventId);
     
-    // Only enable buttons if we're in the activating entity (LS_Event)
     if (currentEntity === ACTIVATING_ENTITY) {
       updateButtonState(true);
     } else {
@@ -452,7 +440,6 @@ async function loadNextRows() {
 function init() {
   populateApiSelector();
 
-  // Setup event listeners for buttons
   document.getElementById("viewLeadsButton").addEventListener("click", () => {
     if (selectedEventId) {
       sessionStorage.setItem("selectedEventId", selectedEventId);

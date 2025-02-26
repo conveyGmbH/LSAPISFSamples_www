@@ -1,7 +1,4 @@
-/**
- * Header Controller - Manages logo click and logout functionality
- * This file should be imported in all your HTML pages that have a header
- */
+
 
 import ApiService from "../services/apiService.js";
 
@@ -9,9 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initHeaderControls();
 });
 
-/**
- * Initialize header controls including logo click and logout functionality
- */
+
 function initHeaderControls() {
     handleClickLogo();
     handleClickLogout();

@@ -69,7 +69,6 @@ function displayData(data) {
     th.style.top = '0';
     th.addEventListener('click', () => sortTable(index, th));
     headerRow.appendChild(th);
-
   });
   tableHead.appendChild(headerRow);
 
@@ -85,20 +84,29 @@ function displayData(data) {
       }
       row.appendChild(td);
     });
+    
     tableBody.appendChild(row);
-
-    // Add click event to row to handle selection and show attachment button
-    row.addEventListener('click', () => handleRowSelection(item));
+    
   });
+  
+  initializeRowToggle();
 }
 
-// Function to handle row selection and enabling "Show Attachment" button
+
 function handleRowSelection(item) {
   const showAttachmentButton = document.getElementById('showAttachmentButton');
   if (item.AttachmentIdList) {
-    showAttachmentButton.disabled = false;
-    showAttachmentButton.textContent = `Show Attachment (${item.AttachmentIdList.split(',').length})`;
-    sessionStorage.setItem('AttachmentIdList', item.AttachmentIdList);
+    const validAttachments = item.AttachmentIdList.split(',').filter(id => id.trim() !== '');
+    
+    if (validAttachments.length > 0) {
+      showAttachmentButton.disabled = false;
+      showAttachmentButton.textContent = `Show Attachment (${validAttachments.length})`;
+      sessionStorage.setItem('AttachmentIdList', validAttachments.join(','));
+    } else {
+      showAttachmentButton.disabled = true;
+      showAttachmentButton.textContent = 'No Valid Attachments';
+      sessionStorage.removeItem('AttachmentIdList');
+    }
   } else {
     showAttachmentButton.disabled = true;
     showAttachmentButton.textContent = 'Show Attachment';
@@ -111,6 +119,46 @@ function handleRowSelection(item) {
   }
   event.currentTarget.classList.add('selected');
 }
+
+function initializeRowToggle() {
+  const tableRows = document.querySelectorAll('tbody tr');
+  const showAttachmentButton = document.getElementById('showAttachmentButton');
+  
+  if (showAttachmentButton) {
+    showAttachmentButton.disabled = true;
+  }
+  
+  tableRows.forEach(row => {
+    row.removeEventListener('click', handleRowClickWrapper);
+    
+    row.addEventListener('click', handleRowClickWrapper);
+  });
+}
+
+
+function handleRowClickWrapper(event) {
+  const row = event.currentTarget;
+  const cells = Array.from(row.cells);
+  
+  const item = {};
+  const headers = Array.from(document.querySelectorAll('thead th')).map(th => 
+    th.textContent.trim().replace(/[↑↓]/g, '')
+  );
+  
+  cells.forEach((cell, index) => {
+    if (headers[index]) {
+      item[headers[index]] = cell.textContent.trim();
+    }
+  });
+  
+  const attachmentColumn = headers.findIndex(h => h === 'AttachmentIdList');
+  if (attachmentColumn >= 0) {
+    item.AttachmentIdList = cells[attachmentColumn].textContent.trim();
+  }
+  
+  handleRowSelection(item, event);
+}
+
 
 // Function to initialize search functionality
 function initSearch() {
@@ -149,11 +197,114 @@ function initSearch() {
   });
 }
 
+
+function displayLeadFilters() {
+  const filterInputs = document.getElementById('filterInputs');
+  if (!filterInputs) return;
+  
+  filterInputs.innerHTML = ''; 
+  filterInputs.style.display = 'flex';
+  
+  
+  const fields = ['Id', 'FirstName', 'LastName', 'Company', 'Email', 'CreateDate', 'LastModifiedDate'];
+  const storedFilters = JSON.parse(localStorage.getItem('LS_Lead_Filters')) || {};
+  
+  fields.forEach(field => {
+    const input = document.createElement('input');
+    input.type = field.includes('Date') ? 'date' : 'text';
+    input.placeholder = field;
+    input.id = `filter-${field}`;
+    input.classList.add('filter-input');
+    
+    if (storedFilters[field]) {
+      input.value = storedFilters[field];
+    }
+    
+    filterInputs.appendChild(input);
+  });
+  
+  const applyButton = document.createElement('button');
+  applyButton.textContent = 'Apply Filters';
+  applyButton.classList.add('apply-button');
+  applyButton.addEventListener('click', () => applyLeadFilters(fields));
+  filterInputs.appendChild(applyButton);
+  
+  const resetButton = document.createElement('button');
+  resetButton.textContent = 'Reset Filters';
+  resetButton.classList.add('reset-button');
+  resetButton.addEventListener('click', () => resetLeadFilters(fields));
+  filterInputs.appendChild(resetButton);
+}
+
+
+ async function applyLeadFilters(fields) {
+  const eventId = sessionStorage.getItem('selectedEventId');
+  if (!eventId) {
+    alert('No EventId found. Please return to the main page and select an event.');
+    return;
+  }
+  
+  const filters = {};
+  fields.forEach(field => {
+    const value = document.getElementById(`filter-${field}`).value.trim();
+    if (value) {
+      filters[field] = value;
+    }
+  });
+  
+  localStorage.setItem('LS_Lead_Filters', JSON.stringify(filters));
+
+  const filterParts = [`EventId eq '${escapeODataValue(eventId)}'`]; 
+  
+  Object.entries(filters).forEach(([field, value]) => {
+    if (field.includes('Date')) {
+      const date = parseDate(value);
+      if (date) {
+        filterParts.push(`${field} eq datetime'${formatDateForOData(date)}T00:00:00'`);
+      }
+    } else if (field === 'Id' || field === 'Email') {
+      filterParts.push(`${field} eq '${escapeODataValue(value)}'`);
+    } else {
+      filterParts.push(`startswith(${field},'${escapeODataValue(value)}') eq true`);
+    }
+  });
+  
+  const filterQuery = filterParts.join(' and ');
+  const endpoint = `LS_Lead?$format=json&$filter=${encodeURIComponent(filterQuery)}`;
+  
+  try {
+    const data = await apiService.request('GET', endpoint);
+    if (data && data.d && data.d.results) {
+      displayData(data.d.results);
+    } else {
+      displayData([]);
+      document.getElementById('noDataMessage').textContent = 'No data found with the provided filters.';
+    }
+  } catch (error) {
+    console.error('Error applying filters:', error);
+    alert('An error occurred while fetching filtered data.');
+  }
+}
+
+function resetLeadFilters(fields) {
+  localStorage.removeItem('LS_Lead_Filters');
+  
+  fields.forEach(field => {
+    const input = document.getElementById(`filter-${field}`);
+    if (input) {
+      input.value = '';
+    }
+  });
+
+  fetchLsLeadData();
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const showAttachmentButton = document.getElementById('showAttachmentButton');
   showAttachmentButton.addEventListener('click', () => {
     const attachmentIdList = sessionStorage.getItem('AttachmentIdList');
     if (attachmentIdList) {
+      sessionStorage.setItem('attachmentSource', 'Lead');
       window.location.href = 'displayLsAttachmentList.html';
     } else {
       alert('No attachments available for this lead.');
@@ -161,6 +312,8 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   fetchLsLeadData();
+  displayLeadFilters();
+  initializeRowToggle();
 }
 );
 
