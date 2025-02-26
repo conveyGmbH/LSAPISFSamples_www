@@ -10,192 +10,177 @@ if (!serverName || !apiName || !credentials) {
 
 const apiService = new ApiService(serverName, apiName);
 
-// Function to fetch and display attachment data
+/**
+ * Fetches attachment data for all IDs in the AttachmentIdList
+ */
 async function fetchAttachmentData() {
   const attachmentIdList = sessionStorage.getItem('AttachmentIdList');
   if (!attachmentIdList) {
-    alert('No AttachmentIdList found.');
+    console.error('No AttachmentIdList found in sessionStorage');
+    alert('No attachments found.');
     window.location.href = 'displayLsLead.html';
     return;
   }
 
   const attachmentIds = attachmentIdList.split(',');
-  const data = [];
-
-  try {
-    for (const id of attachmentIds) {
-      const endpoint = `LS_AttachmentById?Id=%27${encodeURIComponent(id)}%27&$format=json`;
-      const attachmentData = await apiService.request('GET', endpoint);
-      if (attachmentData && attachmentData.d) {
-        data.push(attachmentData.d);
-      }
-    }
-    displayData(data);
-  } catch (error) {
-    console.error('Error fetching attachment data:', error);
-    alert('An error occurred while fetching attachment data.');
-  }
-
-  initSearch();
-}
-
-// Function to display data in the table
-function displayData(data) {
-  const tableHead = document.getElementById('tableHead');
-  const tableBody = document.getElementById('tableBody');
-  const noDataMessage = document.getElementById('noDataMessage');
-
-  tableHead.innerHTML = '';
-  tableBody.innerHTML = '';
-
-  if (!data || data.length === 0) {
-    noDataMessage.textContent = 'No data available.';
-    return;
-  }
-
-  noDataMessage.textContent = '';
-
-  const headers = Object.keys(data[0]).filter(header => header !== '__metadata');
-
-  const headerRow = document.createElement('tr');
+  console.log("Attachment IDs:", attachmentIds);
   
-  headers.forEach((header) => {
-    const th = document.createElement('th');
-    const headerText = document.createTextNode(header);
-    th.appendChild(headerText);
-    headerRow.appendChild(th);
-  });
-  tableHead.appendChild(headerRow);
-
-  data.forEach(item => {
-    const row = document.createElement('tr');
-
-    headers.forEach(header => {
-      const td = document.createElement('td');
-      let cellData = item[header];
-
-      console.log("Cell data:", cellData);
-
-      if (typeof cellData === 'object' && cellData !== null) {
-        cellData = JSON.stringify(cellData, null, 2);
-      }
-      td.textContent = cellData || 'N/A';
-      row.appendChild(td);
-      if (header.includes('Date')) {
-        td.textContent = formatDate(item[header]);
-      } else {
-        td.textContent = item[header] || 'N/A';
-      }
-      row.appendChild(td);
-    });
-    tableBody.appendChild(row);
-  });
-}
-
-// Function to initialize search functionality
-function initSearch() {
-  const searchInput = document.getElementById('search');
-  const tableRows = document.querySelectorAll('tbody tr');
-  const noDataMessage = document.getElementById('noDataMessage');
-
-  if (!searchInput || !tableRows) {
-    console.error('Search elements not found in the DOM.');
-    return;
-  }
-
-  searchInput.addEventListener('input', () => {
-    const searchValue = searchInput.value.toLowerCase();
-    let found = false;
-
-    tableRows.forEach((row, i) => {
-      const rowText = row.textContent.toLowerCase();
-      const isVisible = rowText.indexOf(searchValue) >= 0;
-      row.classList.toggle('hide', !isVisible);
-      if (isVisible) {
-        found = true;
-      }
-      row.style.setProperty('--delay', i / 25 + 's');
-    });
-
-    document.querySelectorAll('tbody tr:not(.hide)').forEach((visibleRow, i) => {
-      visibleRow.style.backgroundColor = (i % 2 === 0) ? 'transparent' : '#0000000b';
-    });
-
-    if (!found) {
-      noDataMessage.textContent = 'No results found.';
-    } else {
-      noDataMessage.textContent = '';
+  // Create tabs for all attachments
+  createAttachmentTabs(attachmentIds);
+  
+  // Load the first attachment by default
+  if (attachmentIds.length > 0) {
+    await loadAttachment(attachmentIds[0]);
+    const firstTab = document.querySelector('.tab-button');
+    if (firstTab) {
+      setActiveTab(firstTab);
     }
-  });
+  }
 }
 
-// Function to fetch and display an attachment
+/**
+ * Loads a specific attachment by ID and displays it
+ * @param {string} attachmentId - The ID of the attachment to load
+ */
 async function loadAttachment(attachmentId) {
   try {
+    // Clear any existing content and show loading state
+    const attachmentContainer = document.getElementById('attachmentContainer');
+    attachmentContainer.innerHTML = '<div class="loading">Loading attachment...</div>';
+    
+    // Update the file name display
+    const fileNameElement = document.getElementById('fileName');
+    fileNameElement.textContent = 'Loading...';
+    
+    // Construct the endpoint URL
     const endpoint = `LS_AttachmentById?Id=%27${encodeURIComponent(attachmentId)}%27&$format=json`;
+    console.log("Fetching attachment with endpoint:", endpoint);
 
     const data = await apiService.request('GET', endpoint);
-    console.log("data:", data.d.results[0]);
+    console.log("Attachment data received:", data);
 
-    if (data && data.d && data.d.results.length > 0) {
-      displayAttachment(data.d.results[0]); 
+    // Check response structure
+    let attachmentData = null;
+    
+    if (data && data.d && data.d.results && data.d.results.length > 0) {
+      attachmentData = data.d.results[0];
+      console.log("Processing attachment for display:", attachmentData);
+    } else if (data && data.d) {
+      attachmentData = data.d;
+      console.log("Processing attachment for display:", attachmentData);
+    }
+    
+    if (attachmentData) {
+      displayAttachment(attachmentData);
     } else {
       console.error("No attachment found for ID:", attachmentId);
+      attachmentContainer.innerHTML = '<div class="no-data"><p>No attachment data found.</p></div>';
+      fileNameElement.textContent = 'No file';
     }
   } catch (error) {
     console.error("Error loading attachment:", error);
+    document.getElementById('attachmentContainer').innerHTML = 
+      `<div class="no-data"><p>Error loading attachment: ${error.message}</p></div>`;
+    document.getElementById('fileName').textContent = 'Error';
   }
 }
 
-// Function to display an attachment based on its type
+/**
+ * Displays an attachment based on its type
+ * @param {Object} attachment - The attachment data object
+ */
 function displayAttachment(attachment) {
   const attachmentContainer = document.getElementById('attachmentContainer');
-
-  if (!attachment || !attachment.rtn9 || !attachment.rtn8) {
-      attachmentContainer.innerHTML = '<p>No attachment available.</p>';
-      return;
+  const fileNameElement = document.getElementById('fileName');
+  const downloadButton = document.getElementById('downloadButton');
+  
+  if (!attachment) {
+    attachmentContainer.innerHTML = '<div class="no-data"><p>No attachment available</p></div>';
+    fileNameElement.textContent = 'No file';
+    downloadButton.style.display = 'none';
+    return;
+  }
+  
+  // Get attachment properties
+  const fileName = attachment.Name || 'attachment';
+  const fileType = attachment.ContentType;
+  const base64Data = attachment.Body;
+  const fileSize = attachment.BodyLength;
+  
+  // Update file name display
+  fileNameElement.textContent = fileName;
+  downloadButton.style.display = 'inline-flex';
+  
+  if (!base64Data || !fileType) {
+    attachmentContainer.innerHTML = '<div class="no-data"><p>Missing data for this attachment</p></div>';
+    return;
   }
 
-  const base64Data = attachment.rtn9;
-  const fileType = attachment.rtn8;
-
-  const byteCharacters = atob(base64Data);
-
-  const byteArrays = [];
-  for (let offset = 0; offset < byteCharacters.length; offset += 512) {
-      const slice = byteCharacters.slice(offset, offset + 512);
-      const byteNumbers = new Array(slice.length);
-      for (let i = 0; i < slice.length; i++) {
-          byteNumbers[i] = slice.charCodeAt(i);
-      }
-      const byteArray = new Uint8Array(byteNumbers);
-      byteArrays.push(byteArray);
+  try {
+    // For Content Security Policy compliance, use data URLs instead of blob URLs
+    // This avoids the 'blob:' URL which is being blocked by CSP
+    const dataUrl = `data:${fileType};base64,${base64Data}`;
+    
+    // Set up download button functionality to use the data URL
+    downloadButton.onclick = () => {
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    };
+    
+    // Display based on file type using data URLs directly
+    if (fileType.startsWith('image/')) {
+      attachmentContainer.innerHTML = `<img src="${dataUrl}" alt="${fileName}" style="max-width: 100%; max-height: 500px;" />`;
+    } else if (fileType === 'application/pdf') {
+      attachmentContainer.innerHTML = `<iframe src="${dataUrl}" width="100%" height="500px" type="application/pdf"></iframe>`;
+    } else if (fileType.startsWith('audio/')) {
+      attachmentContainer.innerHTML = `
+        <audio controls style="width: 100%;">
+          <source src="${dataUrl}" type="${fileType}">
+          Your browser does not support this audio element.
+        </audio>`;
+    } else if (fileType.startsWith('video/')) {
+      attachmentContainer.innerHTML = `
+        <video controls style="width: 100%; max-height: 500px;">
+          <source src="${dataUrl}" type="${fileType}">
+          Your browser does not support this video element.
+        </video>`;
+    } else {
+      attachmentContainer.innerHTML = `
+        <div class="no-data">
+          <p>${fileName} (${(fileSize / 1024).toFixed(2)} KB)</p>
+          <p>Preview not available for this file type (${fileType})</p>
+          <p>Use the download button to open the file</p>
+        </div>`;
+    }
+  } catch (error) {
+    console.error("Error displaying attachment:", error);
+    attachmentContainer.innerHTML = `<div class="no-data"><p>Error displaying attachment: ${error.message}</p></div>`;
   }
-  const blob = new Blob(byteArrays, { type: fileType });
-
-  // 3. Create a URL for the Blob
-  const fileUrl = URL.createObjectURL(blob);
-
-  // Now use the fileUrl in your iframe
-  attachmentContainer.innerHTML = `<iframe src="${fileUrl}" width="100%" height="500px"></iframe>`;
 }
 
-// Function to create attachment tabs for navigation
-function createAttachmentTabs() {
+/**
+ * Creates tabs for navigating between attachments
+ * @param {Array} attachmentIds - Array of attachment IDs
+ */
+function createAttachmentTabs(attachmentIds) {
   const tabContainer = document.getElementById('tabContainer');
   tabContainer.innerHTML = '';
 
-  const attachmentIdList = sessionStorage.getItem('AttachmentIdList');
-  if (!attachmentIdList) {
-    alert('No attachments found.');
-    window.history.back();
+  if (!attachmentIds || attachmentIds.length === 0) {
+    tabContainer.innerHTML = '<div class="no-tabs">No attachments available</div>';
+    return;
   }
 
-  const attachmentIds = attachmentIdList.split(',');
+  // Create a tab for each attachment
   attachmentIds.forEach((attachmentId, index) => {
     const tab = document.createElement('button');
     tab.textContent = `Attachment ${index + 1}`;
     tab.classList.add('tab-button');
+    tab.dataset.attachmentId = attachmentId;
     
     tab.addEventListener('click', () => {
       loadAttachment(attachmentId);
@@ -204,29 +189,26 @@ function createAttachmentTabs() {
 
     tabContainer.appendChild(tab);
   });
-
-  // Load the first attachment by default
-  if (attachmentIds.length > 0) {
-    loadAttachment(attachmentIds[0]);
-    tabContainer.firstChild.classList.add('active-tab');
-  }
 }
 
-// Function to set the active tab styling
+/**
+ * Sets the active tab styling
+ * @param {HTMLElement} activeTab - The tab element to set as active
+ */
 function setActiveTab(activeTab) {
   const tabs = document.querySelectorAll('.tab-button');
   tabs.forEach(tab => tab.classList.remove('active-tab'));
   activeTab.classList.add('active-tab');
 }
 
-// Back button functionality
-const backButton = document.getElementById('backButton');
-backButton.addEventListener('click', () => {
-  window.location.href = 'displayLsLead.html';
+// Initialize event listeners
+document.addEventListener('DOMContentLoaded', () => {
+  // Back button functionality
+  const backButton = document.getElementById('backButton');
+  backButton.addEventListener('click', () => {
+    window.location.href = 'displayLsLead.html';
+  });
+
+  // Initialize by fetching attachment data
+  fetchAttachmentData();
 });
-
-// Initialize the attachment list
-document.addEventListener('DOMContentLoaded', createAttachmentTabs);
-
-// Initialize
-fetchAttachmentData();
