@@ -218,23 +218,35 @@ main.table {
     margin: .8rem auto;
     border-radius: .6rem;
     overflow: auto;
-    overflow: overlay;
-    
+    overflow: auto;
 }
 
 .table__body::-webkit-scrollbar{
-    width: 0.5rem;
-    height: 0.5rem;
+    width: 8px;
+    height: 8px;
+}
+
+.table__body::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
 }
 
 .table__body::-webkit-scrollbar-thumb{
     border-radius: .5rem;
-    background-color: #0004;
+    background-color: #ccc;
     visibility: hidden;
 }
 
 .table__body:hover::-webkit-scrollbar-thumb{ 
     visibility: visible;
+}
+.table__body::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 4px;
+}
+
+.table__body::-webkit-scrollbar-thumb:hover {
+    background: #999;
 }
 
 table{
@@ -245,12 +257,17 @@ table, th, td {
     border-collapse: collapse;
     padding: 1rem;
     text-align: left;
+    cursor: pointer;
+}
+
+
+tbody tr.selected {
+    background-color: rgba(217, 97, 63, 0.15) !important;
+    box-shadow: inset 0 0 0 1px var(--primary-color);
+    font-weight: 500;
 }
 
 thead th{
-    /* position: sticky;
-    top: 0;
-    left: 0; */
     background-color: var(--background-color);
     color: var(--primary-color);
     cursor: pointer;
@@ -356,20 +373,30 @@ thead th.active,tbody td.active {
 
 .filter-inputs {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: center;
     gap: 1rem;
-    margin-top: 1rem;
-    height: 1rem;
+    margin: 1rem 2rem;
+    padding: 1rem;
+    background-color: #f1f1f5;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .filter-inputs .filter-input {
-    padding: 0.5rem;
-    border-radius: 4px;
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    border: 1px solid #e0e0e0;
+    background-color: var(--white);
+    min-width: 180px;
+    flex: 1;
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .filter-group input{
-    /* background-color:#f1f1f1; */
     padding: 0.6rem 1.2rem;
     border: none;
     outline: none;
@@ -379,16 +406,27 @@ thead th.active,tbody td.active {
     margin: 1rem;
 }
 
+.filter-inputs .filter-input[type="date"] {
+    padding-right: 0.5rem; 
+}
+
+.filter-inputs .filter-input:focus {
+    border-color: var(--primary-color);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(217, 97, 63, 0.2);
+}
+
 
 .filter-inputs button {
     background-color: var(--primary-color);
     color: var(--white);
     border: none;
-    padding: 0.6rem 1.2rem;
+    padding: 0.75rem 1.5rem;
     border-radius: 6px;
     cursor: pointer;
     font-weight: 600;
     transition: all 0.3s ease;
+    min-width: 120px;
 }
 
 .filter-inputs button:hover {
@@ -396,18 +434,13 @@ thead th.active,tbody td.active {
 }
 
 
-
-
-
-
-
-
 /* Pagination */
 .pagination {
     display: flex;
     justify-content: center;
-    align-items: center;
-    padding: 1rem 0;
+    gap: 0.75rem;
+    margin: 1rem 0;
+    padding: 0.5rem 0;
 }
 
 .pagination button {
@@ -419,11 +452,14 @@ thead th.active,tbody td.active {
     cursor: pointer;
     font-weight: 600;
     transition: all 0.3s ease;
+    min-width: 100px;
+    text-align: center
 }
 
 .pagination button:disabled {
     background-color: #ccc;
     cursor: not-allowed;
+    opacity: 0.7;
 }
 
 .pagination button:hover:not(:disabled) {

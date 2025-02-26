@@ -10,15 +10,13 @@ if (!serverName || !apiName || !credentials) {
 
 const apiService = new ApiService(serverName, apiName);
 
-/**
- * Fetches attachment data for all IDs in the AttachmentIdList
- */
+
 async function fetchAttachmentData() {
   const attachmentIdList = sessionStorage.getItem('AttachmentIdList');
   if (!attachmentIdList) {
     console.error('No AttachmentIdList found in sessionStorage');
     alert('No attachments found.');
-    window.location.href = 'displayLsLead.html';
+    navigateBack();
     return;
   }
 
@@ -38,17 +36,25 @@ async function fetchAttachmentData() {
   }
 }
 
-/**
- * Loads a specific attachment by ID and displays it
- * @param {string} attachmentId - The ID of the attachment to load
- */
+
+function navigateBack() {
+  // Get the source page from sessionStorage if available
+  const sourcePage = sessionStorage.getItem('attachmentSource');
+  
+  if (sourcePage === 'LeadReport') {
+    window.location.href = 'displayLsLeadReport.html';
+  } else {
+    // Default to Lead page if no source or unknown source
+    window.location.href = 'displayLsLead.html';
+  }
+}
+
+
 async function loadAttachment(attachmentId) {
   try {
-    // Clear any existing content and show loading state
     const attachmentContainer = document.getElementById('attachmentContainer');
     attachmentContainer.innerHTML = '<div class="loading">Loading attachment...</div>';
     
-    // Update the file name display
     const fileNameElement = document.getElementById('fileName');
     fileNameElement.textContent = 'Loading...';
     
@@ -71,7 +77,24 @@ async function loadAttachment(attachmentId) {
     }
     
     if (attachmentData) {
-      displayAttachment(attachmentData);
+      // Check if the attachment actually has binary data (Body)
+      if (attachmentData.Body) {
+        displayAttachment(attachmentData);
+      } else {
+        console.warn("Attachment exists but has no file content:", attachmentId);
+        attachmentContainer.innerHTML = `
+          <div class="no-data">
+            <p>The attachment record exists (ID: ${attachmentId}), but no file content is available.</p>
+            <p>The file may have been deleted or is inaccessible.</p>
+          </div>`;
+        fileNameElement.textContent = attachmentData.Name || 'Unknown File';
+        
+        // Disable download button
+        const downloadButton = document.getElementById('downloadButton');
+        if (downloadButton) {
+          downloadButton.disabled = true;
+        }
+      }
     } else {
       console.error("No attachment found for ID:", attachmentId);
       attachmentContainer.innerHTML = '<div class="no-data"><p>No attachment data found.</p></div>';
@@ -85,10 +108,6 @@ async function loadAttachment(attachmentId) {
   }
 }
 
-/**
- * Displays an attachment based on its type
- * @param {Object} attachment - The attachment data object
- */
 function displayAttachment(attachment) {
   const attachmentContainer = document.getElementById('attachmentContainer');
   const fileNameElement = document.getElementById('fileName');
@@ -162,10 +181,6 @@ function displayAttachment(attachment) {
   }
 }
 
-/**
- * Creates tabs for navigating between attachments
- * @param {Array} attachmentIds - Array of attachment IDs
- */
 function createAttachmentTabs(attachmentIds) {
   const tabContainer = document.getElementById('tabContainer');
   tabContainer.innerHTML = '';
@@ -191,10 +206,7 @@ function createAttachmentTabs(attachmentIds) {
   });
 }
 
-/**
- * Sets the active tab styling
- * @param {HTMLElement} activeTab - The tab element to set as active
- */
+
 function setActiveTab(activeTab) {
   const tabs = document.querySelectorAll('.tab-button');
   tabs.forEach(tab => tab.classList.remove('active-tab'));
@@ -203,10 +215,9 @@ function setActiveTab(activeTab) {
 
 // Initialize event listeners
 document.addEventListener('DOMContentLoaded', () => {
-  // Back button functionality
   const backButton = document.getElementById('backButton');
   backButton.addEventListener('click', () => {
-    window.location.href = 'displayLsLead.html';
+    navigateBack();
   });
 
   // Initialize by fetching attachment data
