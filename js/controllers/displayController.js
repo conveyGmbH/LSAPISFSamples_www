@@ -109,7 +109,6 @@ async function populateApiSelector() {
 }
 
 // Update data based on selected entity
-// Dans displayController.js
 async function updateData() {
   const selector = document.getElementById('apiSelector');
   const selectedEntity = selector.value;
@@ -137,13 +136,11 @@ async function updateData() {
   const noDataMessage = document.getElementById('noDataMessage');
   noDataMessage.textContent = '';
 
-  // Update button state based on whether entity supports selection
   const isActivatingEntity = currentEntity === ACTIVATING_ENTITY;
   const hasSelection = selectedEventId !== null;
   updateButtonState(isActivatingEntity && hasSelection);
 
   if (selectedEntity) {
-    // Display filters only for entities that should have them
     if (selectedEntity === 'LS_User' || selectedEntity === 'LS_Event') {
       displayFilterInputs(selectedEntity);
     }
@@ -151,14 +148,12 @@ async function updateData() {
     const endpoint = `${selectedEntity}?$format=json`;
     try {
       const data = await apiService.request('GET', endpoint);
-      
+
       if (data && data.d && data.d.results && data.d.results.length > 0) {
         displayData(data.d.results);
-        
-        // Stocker l'URL de la page suivante
+
         nextUrl = apiService.getNextUrl(data);
-        
-        // Activer/désactiver le bouton Next
+
         const nextButton = document.getElementById('nextButton');
         if (nextButton) {
           nextButton.disabled = !nextUrl;
@@ -331,7 +326,7 @@ function displayData(data, append = false) {
   const tableBody = document.getElementById('tableBody');
   const noDataMessage = document.getElementById('noDataMessage');
 
-  // Ne pas effacer l'en-tête ou le corps du tableau si on ajoute des données
+  
   if (!append) {
     tableHead.innerHTML = '';
     tableBody.innerHTML = '';
@@ -346,12 +341,10 @@ function displayData(data, append = false) {
 
   noDataMessage.textContent = '';
 
-  // Filtrer les en-têtes indésirables
   const headers = Object.keys(data[0]).filter(header => 
     header !== '__metadata' && !header.endsWith('ViewId')
   );
 
-  // Créer l'en-tête seulement si on ne fait pas d'ajout
   if (!append) {
     const headerRow = document.createElement('tr');
     
@@ -375,7 +368,6 @@ function displayData(data, append = false) {
     tableHead.appendChild(headerRow);
   }
 
-  // Ajouter les nouvelles lignes
   data.forEach(item => {
     const row = document.createElement('tr');
 
@@ -389,7 +381,6 @@ function displayData(data, append = false) {
       row.appendChild(td);
     });
     
-    // Ajouter les gestionnaires d'événements pour la sélection des lignes
     row.addEventListener('click', (event) => {
       handleRowClick(item, event);
     });
@@ -397,19 +388,20 @@ function displayData(data, append = false) {
     tableBody.appendChild(row);
   });
   
-  // Activer le bouton Next si une URL de page suivante est disponible
   const nextButton = document.getElementById('nextButton');
   if (nextButton) {
     nextButton.disabled = !nextUrl;
   }
 }
 
-function handleRowClick(row, item) {
+function handleRowClick(item, event) {
+  const row = event.currentTarget;
   const tbody = document.querySelector('tbody');
   
   if (row.classList.contains('selected')) {
     row.classList.remove('selected');
     selectedEventId = null;
+
     sessionStorage.removeItem('selectedEventId');
     updateButtonState(false);
   } else {
@@ -450,23 +442,20 @@ async function loadNextRows() {
   }
 
   try {
-    // Afficher un indicateur de chargement si vous le souhaitez
     document.getElementById('nextButton').textContent = 'Loading...';
-    
+
     const data = await apiService.fetchNextRows(nextUrl);
 
     if (data && data.d && data.d.results && data.d.results.length > 0) {
-      // Ajouter les nouvelles lignes au tableau existant
+
       displayData(data.d.results, true);
-      
-      // Mettre à jour nextUrl pour la prochaine page
+
       nextUrl = apiService.getNextUrl(data);
-      
-      // Activer/désactiver le bouton "Next" en fonction de la disponibilité de données
+
       document.getElementById('nextButton').disabled = !nextUrl;
       document.getElementById('nextButton').textContent = 'Next';
+
     } else {
-      alert('No more data to load.');
       nextUrl = '';
       document.getElementById('nextButton').disabled = true;
       document.getElementById('nextButton').textContent = 'Next';
@@ -477,8 +466,6 @@ async function loadNextRows() {
     document.getElementById('nextButton').disabled = false;
   }
 }
-
-
 
 
 // Initialize the application
