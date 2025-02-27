@@ -12,9 +12,7 @@ if (!serverName || !apiName || !credentials) {
 const apiService = new ApiService(serverName, apiName);
 let nextUrl = '';
 
-/**
- * Fetch LS_LeadReport data based on the EventId in sessionStorage
- */
+
 async function fetchLsLeadReportData() {
   const eventId = sessionStorage.getItem('selectedEventId');
   if (!eventId) {
@@ -248,13 +246,11 @@ async function applyLeadReportFilters(fields) {
   
   Object.entries(filters).forEach(([field, value]) => {
     if (field.includes('Date') || field === 'SystemModstamp') {
-      // Date handling
       const date = parseDate(value);
       if (date) {
         filterParts.push(`${field} eq datetime'${formatDateForOData(date)}T00:00:00'`);
       }
     } else if (field === 'Id') {
-      // Exact match for Id
       filterParts.push(`${field} eq '${escapeODataValue(value)}'`);
     } else {
       // "Starts with" search for other fields

@@ -251,11 +251,11 @@ async function applyFilters(entity, fields) {
     filterParts.push(`startswith(Id,'${encodeURIComponent(filters["Id"])}') eq true`);
 
     if (filters["FirstName"]) {
-      filterParts.push(`startswith(FirstName,'${encodeURIComponent(filters["FirstName"])}' eq true)`);
+      filterParts.push(`startswith(FirstName,'${encodeURIComponent(filters["FirstName"])}')`);
     }
 
     if (filters["LastName"]) {
-      filterParts.push(`startswith(LastName,'${encodeURIComponent(filters["LastName"])}' eq true)`);
+      filterParts.push(`startswith(LastName,'${encodeURIComponent(filters["LastName"])}')`);
     }
 
     filterParts.push(`EventId eq '${encodeURIComponent(filters["EventId"])}'`);
