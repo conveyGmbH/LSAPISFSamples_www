@@ -38,15 +38,18 @@
             <div class="login-container">
                 <div class="card">
                     <h2>API Connection</h2>
-                    <label for="serverName">Server name</label>
+                    <label for="serverName">Server name <span style="color: red;">*</span></label>
                     <input type="text" id="serverName" placeholder="Enter server-name">
-                    <label for="apiName">API name</label>
-                    <input type="text" id="apiName" placeholder="Enter api-name"> 
 
-                    <label for="userName">User</label>
-                    <input type="text" id="userName" placeholder="Enter user">
-                    <label for="password">Password</label>
-                    <input type="password" id="password" placeholder="Enter password">
+                    <label for="apiName">API name <span style="color: red;">*</span></label>
+                    <input type="text" id="apiName" placeholder="Enter api-name" required> 
+
+                    <label for="userName">User <span style="color: red;">*</span> </label>
+                    <input type="text" id="userName" placeholder="Enter user" required>
+
+                    <label for="password">Password <span style="color: red;">*</span></label>
+                    <input type="password" id="password" placeholder="Enter password" required>
+
                     <button id="loginButton">Login</button>
                     <div id="errorMessage" class="error-message">
                         ⚠️ Invalid credentials. Please try again.

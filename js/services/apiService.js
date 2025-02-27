@@ -1,3 +1,4 @@
+// Description: This file contains the code to handle the API requests and responses.
 export default class ApiService {
   constructor(serverName, apiName) {
     this.serverName = serverName;
@@ -30,6 +31,7 @@ export default class ApiService {
       };
 
       if (data) {
+
         config.body = JSON.stringify(data);
       }
 
@@ -49,6 +51,32 @@ export default class ApiService {
       return null;
     }
   }
+ 
+  // Method to get the next URL from the data
+    getNextUrl(data) {
+
+      let url = "";
+      if (data && data.d) {
+
+        const next = data.d.__next;
+
+        if (next && typeof next === "string") {
+          const viewNamePos = next.lastIndexOf("/");
+          if (viewNamePos >= 0) {
+  
+            url = `https://${this.serverName}/${this.apiName}${next.substring(viewNamePos)}`;
+            console.log("Generated next URL:", url);
+
+            console.log("Original next URL:", next);
+            console.log("View name position:", viewNamePos);
+            console.log("Path part:", next.substring(viewNamePos));
+            console.log("Server name:", this.serverName);
+            console.log("API name:", this.apiName);
+          }
+        }
+      }
+      return url;
+    }
 
 
   // Method to fetch the next set of rows using the __next URL
@@ -68,8 +96,8 @@ export default class ApiService {
         credentials: "same-origin",
       };
 
+      console.log("Fetching next rows with URL:", nextUrl);
       const response = await fetch(nextUrl, config);
-      console.log("object", response);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -84,24 +112,6 @@ export default class ApiService {
     }
   }
 
-
-    // Helper function to get the next URL
-    // getNextUrl(json) {
-    //   const next = json.d.__next;
-    //   let url = "";
-    //   if (next && typeof next === "string") {
-    //     url = `https://${this.serverName}/${this.apiName}` + next; // Direct concatenation
-    //   }
-    //   console.log("Next URL:", url);
-    //   return url;
-    // }
-
-    getNextUrl(json) {
-      if (json && json.d && json.d.__next && typeof json.d.__next === "string") {
-          return json.d.__next; // Return the full URL directly
-      }
-      return "";
-  }
 
   // Logout
   logout() {

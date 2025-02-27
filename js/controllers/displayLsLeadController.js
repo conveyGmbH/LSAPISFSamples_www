@@ -36,6 +36,22 @@ async function fetchLsLeadData() {
   initSearch();
 }
 
+function sortTable(index, th) {
+  let sortAsc = !th.classList.contains('asc');
+  const tableRows = document.querySelectorAll('tbody tr');
+
+  [...tableRows].sort((a, b) => {
+    let firstRow = a.querySelectorAll('td')[index].textContent.toLowerCase();
+    let secondRow = b.querySelectorAll('td')[index].textContent.toLowerCase();
+    return sortAsc ? (firstRow > secondRow ? 1 : -1) : (firstRow < secondRow ? 1 : -1);
+  }).forEach(sortedRow => document.querySelector('tbody').appendChild(sortedRow));
+
+  th.classList.toggle('asc', sortAsc);
+  th.classList.toggle('desc', !sortAsc);
+}
+
+
+
 function displayData(data) {
   const tableHead = document.getElementById('tableHead');
   const tableBody = document.getElementById('tableBody');
