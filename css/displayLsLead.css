@@ -196,7 +196,7 @@ main.table {
     border-radius: .8rem;
     margin-bottom: 2rem;
 
-    overflow: hidden;
+    overflow: visible;
 }
 
 .table__header {
@@ -213,40 +213,28 @@ main.table {
 
 .table__body {
     width: 95%;
-    max-height: calc(89% - 1.6rem);
+    max-height: calc(70% - 1.6rem); 
     background-color: #fffb;
     margin: .8rem auto;
     border-radius: .6rem;
     overflow: auto;
-    overflow: auto;
+    overflow: overlay;
 }
 
 .table__body::-webkit-scrollbar{
-    width: 8px;
-    height: 8px;
-}
-
-.table__body::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 4px;
+    width: 0.5rem;
+    height: 0.5rem;
 }
 
 .table__body::-webkit-scrollbar-thumb{
     border-radius: .5rem;
-    background-color: #ccc;
+    background-color: #0004;
     visibility: hidden;
 }
 
+
 .table__body:hover::-webkit-scrollbar-thumb{ 
     visibility: visible;
-}
-.table__body::-webkit-scrollbar-thumb {
-    background: #ccc;
-    border-radius: 4px;
-}
-
-.table__body::-webkit-scrollbar-thumb:hover {
-    background: #999;
 }
 
 table{
