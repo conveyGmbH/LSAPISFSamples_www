@@ -83,8 +83,75 @@ export function resetFilters(entity, fields) {
   noDataMessage.textContent = 'Filters have been reset. Please enter new values and click "Apply Filters".';
 }
 
+// Function setupPagination
+export function setupPagination(apiService, displayDataFunction) {
+  let nextUrl = '';
+  
+  // function to update the next URL
+  function updateNextUrl(data) {
+    nextUrl = apiService.getNextUrl(data);
+    const nextButton = document.getElementById('nextButton');
+    if (nextButton) {
+      nextButton.disabled = !nextUrl;
+    }
+    return nextUrl;
+  }
+  
+  // function to load the next rows
+  async function loadNextRows() {
+    if (!nextUrl) {
+      console.error('No next URL found.');
+      return;
+    }
 
+    const nextButton = document.getElementById('nextButton');
+    if (nextButton) {
+      nextButton.textContent = 'Loading...';
+      nextButton.disabled = true;
+    }
 
+    try {
+      const data = await apiService.fetchNextRows(nextUrl);
+
+      if (data && data.d && data.d.results && data.d.results.length > 0) {
+
+        // Display the data
+        displayDataFunction(data.d.results, true);
+
+        // Update the next URL
+        updateNextUrl(data);
+      } else {
+
+        nextUrl = '';
+        if (nextButton) {
+          nextButton.disabled = true;
+        }
+      }
+    } catch (error) {
+      console.error("Error loading next rows:", error);
+    } finally {
+      if (nextButton) {
+        nextButton.textContent = 'Next';
+        nextButton.disabled = !nextUrl;
+      }
+    }
+  }
+  
+  // function to initialize button pagination
+  function initPagination() {
+    const nextButton = document.getElementById('nextButton');
+    if (nextButton) {
+      nextButton.addEventListener('click', loadNextRows);
+      nextButton.disabled = true; 
+    }
+  }
+  
+  return {
+    updateNextUrl,
+    loadNextRows,
+    initPagination
+  };
+}
 
 
 

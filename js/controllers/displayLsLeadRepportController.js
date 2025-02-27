@@ -48,11 +48,6 @@ async function fetchLsLeadReportData() {
   displayLeadReportFilters();
 }
 
-/**
- * Display data in the table
- * @param {Array} data - The data to display
- * @param {boolean} append - Whether to append to existing data or replace it
- */
 function displayData(data, append = false) {
   const tableHead = document.getElementById('tableHead');
   const tableBody = document.getElementById('tableBody');
@@ -124,7 +119,7 @@ function displayData(data, append = false) {
     
     tableBody.appendChild(row);
     
-    // Add click event to row to handle selection and show attachment button
+ 
     row.addEventListener('click', () => {
       const tableRows = document.querySelectorAll('tbody tr');
       
@@ -137,7 +132,7 @@ function displayData(data, append = false) {
         }
         sessionStorage.removeItem('AttachmentIdList');
       } else {
-        // Remove selection from any previously selected row
+        
         tableRows.forEach(r => r.classList.remove('selected'));
         
         row.classList.add('selected');
@@ -360,7 +355,7 @@ if (showAttachmentButton) {
   showAttachmentButton.addEventListener('click', () => {
     const attachmentIdList = sessionStorage.getItem('AttachmentIdList');
     if (attachmentIdList) {
-      // Set the source so the attachment page knows where to go back to
+      
       sessionStorage.setItem('attachmentSource', 'LeadReport');
       window.location.href = 'displayLsAttachmentList.html';
     } else {

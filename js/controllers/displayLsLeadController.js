@@ -1,5 +1,5 @@
 import ApiService from '../services/apiService.js';
-import { formatDate } from '../utils/helper.js';
+import {escapeODataValue, formatDateForOData, formatDate, setupPagination } from '../utils/helper.js';
 
 const serverName = sessionStorage.getItem('serverName');
 const apiName = sessionStorage.getItem('apiName');
@@ -11,7 +11,10 @@ if (!serverName || !apiName || !credentials) {
 
 const apiService = new ApiService(serverName, apiName);
 
+const pagination = setupPagination(apiService, displayData);
+
 async function fetchLsLeadData() {
+
   const eventId = sessionStorage.getItem('selectedEventId');
   if (!eventId) {
     alert('No EventId provided.');
@@ -24,7 +27,12 @@ async function fetchLsLeadData() {
   try {
     const data = await apiService.request('GET', endpoint);
     if (data && data.d && data.d.results) {
+      console.log(`[DEBUG] Nombre de lignes chargées: ${data.d.results.length}`);
+      console.log(`[DEBUG] URL pagination: ${data.d.__next ? "Disponible" : "Non disponible"}`);
+
       displayData(data.d.results);
+
+      pagination.updateNextUrl(data);
     } else {
       displayData([]);
     }
@@ -109,8 +117,31 @@ function displayData(data) {
 }
 
 
-function handleRowSelection(item) {
+function handleRowSelection(item, event) {
+  if (!event) {
+    console.error('Event is missing in handleRowSelection');
+    return;
+  }
+
+  const row = event.currentTarget;
   const showAttachmentButton = document.getElementById('showAttachmentButton');
+  const previouslySelected = document.querySelector('tr.selected');
+  
+  
+  if (previouslySelected === row) {
+    row.classList.remove('selected');
+    showAttachmentButton.disabled = true;
+    showAttachmentButton.textContent = 'Show Attachment';
+    sessionStorage.removeItem('AttachmentIdList');
+    return; 
+  }
+  
+  if (previouslySelected) {
+    previouslySelected.classList.remove('selected');
+  }
+  
+  row.classList.add('selected');
+  
   if (item.AttachmentIdList) {
     const validAttachments = item.AttachmentIdList.split(',').filter(id => id.trim() !== '');
     
@@ -128,13 +159,8 @@ function handleRowSelection(item) {
     showAttachmentButton.textContent = 'Show Attachment';
     sessionStorage.removeItem('AttachmentIdList');
   }
-
-  const previouslySelected = document.querySelector('tr.selected');
-  if (previouslySelected) {
-    previouslySelected.classList.remove('selected');
-  }
-  event.currentTarget.classList.add('selected');
 }
+
 
 function initializeRowToggle() {
   const tableRows = document.querySelectorAll('tbody tr');
@@ -252,7 +278,6 @@ function displayLeadFilters() {
   filterInputs.appendChild(resetButton);
 }
 
-
  async function applyLeadFilters(fields) {
   const eventId = sessionStorage.getItem('selectedEventId');
   if (!eventId) {
@@ -326,6 +351,9 @@ document.addEventListener('DOMContentLoaded', () => {
       alert('No attachments available for this lead.');
     }
   });
+
+  // init pagination
+  pagination.initPagination();
 
   fetchLsLeadData();
   displayLeadFilters();
