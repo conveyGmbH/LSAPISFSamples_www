@@ -420,7 +420,7 @@ function displayData(data, append = false) {
 
     headers.forEach(header => {
       const td = document.createElement('td');
-      if (header.includes('Date')) {
+      if (header.includes('Date') || header === 'SystemModstamp') {
         td.textContent = formatDate(item[header]);
       } else {
         td.textContent = item[header] || 'N/A';
