@@ -1,22 +1,45 @@
 // helpers.js
 
-export function formatDate(input) {
-    let date;
-    if (typeof input === 'string' && input.includes('/Date(')) {
-      const match = /\/Date\((\d+)\)\//.exec(input);
-      if (match) {
-        date = new Date(parseInt(match[1], 10));
-      }
-    } else {
-      date = new Date(input);
-    }
+// export function formatDate(input) {
+//     let date;
+//     if (typeof input === 'string' && input.includes('/Date(')) {
+//       const match = /\/Date\((\d+)\)\//.exec(input);
+//       if (match) {
+//         date = new Date(parseInt(match[1], 10));
+//       }
+//     } else {
+//       date = new Date(input);
+//     }
   
-    if (!isNaN(date)) {
-      return date.toLocaleDateString('en-GB');
-    } else {
-      return input;
+//     if (!isNaN(date)) {
+//       return date.toLocaleDateString('en-GB');
+//     } else {
+//       return input;
+//     }
+//   }
+
+// Modifiez votre fonction formatDate dans helper.js
+export function formatDate(dateString) {
+  if (!dateString) return 'N/A';
+  
+  // for the "/Date(timestamp)/"
+  if (typeof dateString === 'string' && dateString.includes('/Date(')) {
+    const timestamp = dateString.match(/\/Date\((\d+)\)\//);
+    if (timestamp && timestamp[1]) {
+      const date = new Date(parseInt(timestamp[1]));
+      return date.toISOString().split('T')[0]; // Format YYYY-MM-DD
     }
   }
+  
+  // for standard date
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString;
+    return date.toISOString().split('T')[0]; 
+  } catch (e) {
+    return dateString;
+  }
+}
   
   // Function to sort table by column
   export function sortTable(index, th) {
