@@ -70,6 +70,7 @@ function displayFilterInputs(entity) {
 async function populateApiSelector() {
   try {
     const response = await apiService.request('GET', '?$format=json');
+    
 
     if (response && response.d && response.d.EntitySets) {
       const entities = response.d.EntitySets;
@@ -108,6 +109,7 @@ async function populateApiSelector() {
 }
 
 // Update data based on selected entity
+// Dans displayController.js
 async function updateData() {
   const selector = document.getElementById('apiSelector');
   const selectedEntity = selector.value;
@@ -135,7 +137,7 @@ async function updateData() {
   const noDataMessage = document.getElementById('noDataMessage');
   noDataMessage.textContent = '';
 
-  // Buttons should only be enabled if entity is LS_Event and we have a selection
+  // Update button state based on whether entity supports selection
   const isActivatingEntity = currentEntity === ACTIVATING_ENTITY;
   const hasSelection = selectedEventId !== null;
   updateButtonState(isActivatingEntity && hasSelection);
@@ -146,13 +148,28 @@ async function updateData() {
       displayFilterInputs(selectedEntity);
     }
   
-    const data = await fetchData(`${selectedEntity}?$format=json`);
-    
-    if (data && data.length > 0) {
-      displayData(data);
-    } else {
-      displayData([]);
-      noDataMessage.textContent = 'No data available.';
+    const endpoint = `${selectedEntity}?$format=json`;
+    try {
+      const data = await apiService.request('GET', endpoint);
+      
+      if (data && data.d && data.d.results && data.d.results.length > 0) {
+        displayData(data.d.results);
+        
+        // Stocker l'URL de la page suivante
+        nextUrl = apiService.getNextUrl(data);
+        
+        // Activer/désactiver le bouton Next
+        const nextButton = document.getElementById('nextButton');
+        if (nextButton) {
+          nextButton.disabled = !nextUrl;
+        }
+      } else {
+        displayData([]);
+        noDataMessage.textContent = 'No data available.';
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      noDataMessage.textContent = 'Error fetching data.';
     }
   } else {
     noDataMessage.textContent = 'Please select an entity.';
@@ -291,88 +308,100 @@ async function fetchData(endpoint) {
   }
 }
 
+
+// Sort Colunm
+function sortTable(index, th) {
+  let sortAsc = !th.classList.contains('asc');
+  const tableRows = document.querySelectorAll('tbody tr');
+
+  [...tableRows].sort((a, b) => {
+    let firstRow = a.querySelectorAll('td')[index].textContent.toLowerCase();
+    let secondRow = b.querySelectorAll('td')[index].textContent.toLowerCase();
+    return sortAsc ? (firstRow > secondRow ? 1 : -1) : (firstRow < secondRow ? 1 : -1);
+  }).forEach(sortedRow => document.querySelector('tbody').appendChild(sortedRow));
+
+  th.classList.toggle('asc', sortAsc);
+  th.classList.toggle('desc', !sortAsc);
+}
+
+
 // Display data in the table
 function displayData(data, append = false) {
   const tableHead = document.getElementById('tableHead');
   const tableBody = document.getElementById('tableBody');
   const noDataMessage = document.getElementById('noDataMessage');
 
-  const isRelevantHeader = header => !['__metadata', 'MitarbeiterViewId', 'LGNTINITLandViewId', 'VeranstaltungViewId', 'KontaktViewId'].includes(header);
-
+  // Ne pas effacer l'en-tête ou le corps du tableau si on ajoute des données
   if (!append) {
     tableHead.innerHTML = '';
     tableBody.innerHTML = '';
   }
 
   if (!data || data.length === 0) {
-    noDataMessage.textContent = 'No data available.';
+    if (!append) {
+      noDataMessage.textContent = 'No data available.';
+    }
     return;
   }
 
   noDataMessage.textContent = '';
 
-  if (!tableHead || !tableBody) {
-    console.error('Table elements not found in the DOM.');
-    return;
-  }
+  // Filtrer les en-têtes indésirables
+  const headers = Object.keys(data[0]).filter(header => 
+    header !== '__metadata' && !header.endsWith('ViewId')
+  );
 
-  if (!append) {  
-    const headers = Object.keys(data[0]).filter(isRelevantHeader);
+  // Créer l'en-tête seulement si on ne fait pas d'ajout
+  if (!append) {
     const headerRow = document.createElement('tr');
-
+    
     headers.forEach((header, index) => {
       const th = document.createElement('th');
-
+      
       const headerText = document.createTextNode(header);
       th.appendChild(headerText);
 
       const span = document.createElement('span');
       span.classList.add('icon-arrow');
       span.innerHTML = '&UpArrow;';
-
       th.appendChild(span);
-
+  
       th.style.position = 'sticky';
       th.style.top = '0';
       th.addEventListener('click', () => sortTable(index, th));
       headerRow.appendChild(th);
     });
-
+    
     tableHead.appendChild(headerRow);
   }
 
-  tableBody.innerHTML = '';
-
-  // Create table rows
+  // Ajouter les nouvelles lignes
   data.forEach(item => {
     const row = document.createElement('tr');
-    const headers = Object.keys(item).filter(isRelevantHeader);
-    
+
     headers.forEach(header => {
       const td = document.createElement('td');
-      td.textContent = header.includes('Date') ? formatDate(item[header]) : item[header] || 'N/A';
+      if (header.includes('Date')) {
+        td.textContent = formatDate(item[header]);
+      } else {
+        td.textContent = item[header] || 'N/A';
+      }
       row.appendChild(td);
     });
-
-    if (SELECTABLE_ENTITIES.includes(currentEntity)) {
-      row.addEventListener('click', () => handleRowClick(row, item));
-      
-      if (item.Id === selectedEventId) {
-        row.classList.add('selected');
-        
-        if (currentEntity === ACTIVATING_ENTITY) {
-          updateButtonState(true);
-        }
-      }
-    }
-
+    
+    // Ajouter les gestionnaires d'événements pour la sélection des lignes
+    row.addEventListener('click', (event) => {
+      handleRowClick(item, event);
+    });
+    
     tableBody.appendChild(row);
   });
-
-  initSearch('search', 'tbody', 'noDataMessage');
-
-  nextUrl = apiService.getNextUrl(data);
-  document.getElementById('nextButton').disabled = !nextUrl;
+  
+  // Activer le bouton Next si une URL de page suivante est disponible
+  const nextButton = document.getElementById('nextButton');
+  if (nextButton) {
+    nextButton.disabled = !nextUrl;
+  }
 }
 
 function handleRowClick(row, item) {
@@ -421,20 +450,36 @@ async function loadNextRows() {
   }
 
   try {
+    // Afficher un indicateur de chargement si vous le souhaitez
+    document.getElementById('nextButton').textContent = 'Loading...';
+    
     const data = await apiService.fetchNextRows(nextUrl);
 
-    if (data && data.d && data.d.results.length > 0) {
+    if (data && data.d && data.d.results && data.d.results.length > 0) {
+      // Ajouter les nouvelles lignes au tableau existant
       displayData(data.d.results, true);
-      nextUrl = apiService.getNextUrl(data); 
+      
+      // Mettre à jour nextUrl pour la prochaine page
+      nextUrl = apiService.getNextUrl(data);
+      
+      // Activer/désactiver le bouton "Next" en fonction de la disponibilité de données
       document.getElementById('nextButton').disabled = !nextUrl;
+      document.getElementById('nextButton').textContent = 'Next';
     } else {
       alert('No more data to load.');
-      nextUrl = ''; 
+      nextUrl = '';
+      document.getElementById('nextButton').disabled = true;
+      document.getElementById('nextButton').textContent = 'Next';
     }
   } catch (error) {
     console.error("Error loading next rows:", error);
+    document.getElementById('nextButton').textContent = 'Next';
+    document.getElementById('nextButton').disabled = false;
   }
 }
+
+
+
 
 // Initialize the application
 function init() {
@@ -458,10 +503,13 @@ function init() {
     }
   });
 
-  const nextButton = document.getElementById("nextButton");
+  const nextButton = document.getElementById('nextButton');
   if (nextButton) {
-    nextButton.addEventListener("click", loadNextRows);
+    nextButton.addEventListener('click', loadNextRows);
+    nextButton.disabled = true; 
   }
+
+
 }
 
 // Initialize the application
