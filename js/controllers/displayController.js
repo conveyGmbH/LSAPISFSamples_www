@@ -1,5 +1,5 @@
 import ApiService from '../services/apiService.js';
-import {clearTable, formatDate, parseDate, escapeODataValue, initSearch, formatDateForOData } from '../utils/helper.js';
+import {clearTable, formatDate, parseDate, escapeODataValue, formatDateForOData } from '../utils/helper.js';
 
 // Retrieve server information from sessionStorage
 const serverName = sessionStorage.getItem('serverName');
@@ -169,7 +169,51 @@ async function updateData() {
   } else {
     noDataMessage.textContent = 'Please select an entity.';
   }
+
+  initSearch();
 }
+
+
+
+// // Function to initialize search functionality
+function initSearch() {
+  const searchInput = document.getElementById('search');
+  const tableRows = document.querySelectorAll('tbody tr');
+  const noDataMessage = document.getElementById('noDataMessage');
+  
+  if (!searchInput || !tableRows) {
+    console.error('Search elements not found in the DOM.');
+    return;
+  }
+  
+  searchInput.addEventListener('input', () => {
+    const searchValue = searchInput.value.toLowerCase();
+    let found = false;
+  
+    tableRows.forEach((row, i) => {
+      const rowText = row.textContent.toLowerCase();
+      const isVisible = rowText.indexOf(searchValue) >= 0;
+      row.classList.toggle('hide', !isVisible);
+      if (isVisible) {
+        found = true;
+      }
+      row.style.setProperty('--delay', i / 25 + 's');
+    });
+  
+    document.querySelectorAll('tbody tr:not(.hide)').forEach((visibleRow, i) => {
+      visibleRow.style.backgroundColor = (i % 2 === 0) ? 'transparent' : '#0000000b';
+    });
+  
+    if (!found) {
+      noDataMessage.textContent = 'No results found.';
+    } else {
+      noDataMessage.textContent = '';
+    }
+  });
+}
+
+
+
 
 // Function to apply filters and fetch data
 async function applyFilters(entity, fields) {
@@ -366,6 +410,9 @@ function displayData(data, append = false) {
     });
     
     tableHead.appendChild(headerRow);
+  
+    
+
   }
 
   data.forEach(item => {
@@ -393,6 +440,9 @@ function displayData(data, append = false) {
     nextButton.disabled = !nextUrl;
   }
 }
+
+
+
 
 function handleRowClick(item, event) {
   const row = event.currentTarget;

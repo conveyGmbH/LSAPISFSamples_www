@@ -1,7 +1,7 @@
 // main.js
 
-//  apiName = apisftes//  serverName = lstest.convey.de
-t
+//  apiName = apisftest  
+//  serverName = lstest.convey.de
 //  userName = conveyapisf1
 //  password = leadsuccess
 
