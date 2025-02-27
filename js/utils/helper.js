@@ -58,6 +58,12 @@ export function parseDate(input) {
 
 // Function to format date for OData query
 export function formatDateForOData(date) {
+
+  if (!(date instanceof Date) || isNaN(date)) {
+    console.error("Invalid date:", date);
+    return null;
+  }
+
   const year = date.getFullYear();
   const month = (date.getMonth() + 1).toString().padStart(2, '0');
   const day = date.getDate().toString().padStart(2, '0');

@@ -75,7 +75,8 @@ function displayData(data) {
 
   noDataMessage.textContent = '';
 
-  const headers = Object.keys(data[0]).filter(header => header !== '__metadata');
+  const headers = Object.keys(data[0]).filter(header => header !== '__metadata' && 
+    header !== 'KontaktViewId');
 
   const headerRow = document.createElement('tr');
   
@@ -305,8 +306,8 @@ function displayLeadFilters() {
       }
     } else if (field === 'Id' || field === 'Email') {
       filterParts.push(`${field} eq '${escapeODataValue(value)}'`);
-    } else {
-      filterParts.push(`startswith(${field},'${escapeODataValue(value)}') eq true`);
+    } else if (field === 'FirstName' || field === 'LastName' || field === 'Company') {
+      filterParts.push(`startswith(${field}, '${escapeODataValue(value)}')`);
     }
   });
   
