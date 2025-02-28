@@ -108,6 +108,7 @@ async function loadAttachment(attachmentId) {
   }
 }
 
+
 function displayAttachment(attachment) {
   const attachmentContainer = document.getElementById('attachmentContainer');
   const fileNameElement = document.getElementById('fileName');
@@ -136,11 +137,10 @@ function displayAttachment(attachment) {
   }
 
   try {
-    // For Content Security Policy compliance, use data URLs instead of blob URLs
-    // This avoids the 'blob:' URL which is being blocked by CSP
+
     const dataUrl = `data:${fileType};base64,${base64Data}`;
     
-    // Set up download button functionality to use the data URL
+    // Set up download button functionality
     downloadButton.onclick = () => {
       const a = document.createElement('a');
       a.href = dataUrl;
@@ -150,8 +150,39 @@ function displayAttachment(attachment) {
       document.body.removeChild(a);
     };
     
-    // Display based on file type using data URLs directly
-    if (fileType.startsWith('image/')) {
+    // Special handling for SVG files
+    if (fileType === 'image/svg+xml' || fileName.toLowerCase().endsWith('.svg')) {
+      try {
+        // Decode the Base64 data to get the SVG as a string
+        const svgString = atob(base64Data);
+        
+        // Create a wrapper div with appropriate styling
+        attachmentContainer.innerHTML = `
+          <div class="svg-container" style="width: 100%; max-height: 500px; overflow: auto;">
+            ${svgString}
+          </div>
+        `;
+        
+        // Adjust SVG element to be responsive if it exists
+        const svgElement = attachmentContainer.querySelector('svg');
+        if (svgElement) {
+          svgElement.style.width = '100%';
+          svgElement.style.height = 'auto';
+          svgElement.style.maxHeight = '500px';
+          svgElement.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+        } else {
+          // Fallback if SVG parsing failed
+          console.warn("SVG element not found in decoded string, using fallback");
+          attachmentContainer.innerHTML = `<object data="${dataUrl}" type="image/svg+xml" style="width: 100%; height: 500px;">SVG not supported</object>`;
+        }
+      } catch (svgError) {
+        console.error("Error displaying SVG:", svgError);
+        // Fallback method if decoding fails
+        attachmentContainer.innerHTML = `<object data="${dataUrl}" type="image/svg+xml" style="width: 100%; height: 500px;">SVG not supported</object>`;
+      }
+    } 
+    // Display based on file type using data URLs directly for other file types
+    else if (fileType.startsWith('image/')) {
       attachmentContainer.innerHTML = `<img src="${dataUrl}" alt="${fileName}" style="max-width: 100%; max-height: 500px;" />`;
     } else if (fileType === 'application/pdf') {
       attachmentContainer.innerHTML = `<iframe src="${dataUrl}" width="100%" height="500px" type="application/pdf"></iframe>`;
