@@ -254,6 +254,8 @@ function displayLeadFilters() {
   
   fields.forEach(field => {
     const input = document.createElement('input');
+
+
     input.type = field.includes('Date') ? 'date' : 'text';
     input.placeholder = field;
     input.id = `filter-${field}`;

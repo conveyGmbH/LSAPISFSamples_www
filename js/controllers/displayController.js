@@ -6,8 +6,9 @@ const serverName = sessionStorage.getItem('serverName');
 const apiName = sessionStorage.getItem('apiName');
 const credentials = sessionStorage.getItem('credentials');
 
+
 const ACTIVATING_ENTITY = 'LS_Event';
-const SELECTABLE_ENTITIES = ['LS_User', 'LS_Event'];
+const DEFAULT_ENTITY = 'LS_Country'; 
 
 if (!serverName || !apiName || !credentials) {
   window.location.href = '/index.html';
@@ -33,7 +34,12 @@ function displayFilterInputs(entity) {
 
   const storedFilters = JSON.parse(localStorage.getItem(`${entity}_Filters`)) || {};
 
+  
+
   fields.forEach(field => {
+    const inputWrapper = document.createElement('div');
+    inputWrapper.classList.add('date-input-wrapper');
+
     const input = document.createElement('input');
     input.type = 'text';
     input.placeholder = field;
@@ -46,9 +52,19 @@ function displayFilterInputs(entity) {
 
     if (field === 'StartDate' || field === 'EndDate') {
       input.type = 'date'; 
-    }
 
-    filterInputs.appendChild(input);
+         const fieldLabel = document.createElement('span');
+         fieldLabel.textContent = field;
+         fieldLabel.classList.add('date-field-label');
+         
+         inputWrapper.appendChild(input);
+         inputWrapper.appendChild(fieldLabel);
+         filterInputs.appendChild(inputWrapper);
+       } else {
+         input.type = 'text';
+         input.placeholder = field;
+         filterInputs.appendChild(input);
+    }
   });
 
   // Create a button to apply filters
@@ -93,7 +109,11 @@ async function populateApiSelector() {
       const lastSelectedEntity = localStorage.getItem('selectedEntity');
       if (lastSelectedEntity && filteredEntities.includes(lastSelectedEntity)) {
         selector.value = lastSelectedEntity;
-      } else if (filteredEntities.length > 0) {
+      } 
+      else if(filteredEntities.includes(DEFAULT_ENTITY)){
+        selector.value = DEFAULT_ENTITY;
+      }
+      else if (filteredEntities.length > 0) {
         selector.value = filteredEntities[0]; 
       }
       
@@ -135,6 +155,8 @@ async function updateData() {
 
   const noDataMessage = document.getElementById('noDataMessage');
   noDataMessage.textContent = '';
+
+
 
   const isActivatingEntity = currentEntity === ACTIVATING_ENTITY;
   const hasSelection = selectedEventId !== null;
@@ -427,10 +449,16 @@ function displayData(data, append = false) {
       }
       row.appendChild(td);
     });
-    
-    row.addEventListener('click', (event) => {
-      handleRowClick(item, event);
-    });
+
+    if (currentEntity === ACTIVATING_ENTITY) {
+      row.style.cursor = 'pointer';
+      row.classList.add('event-row');
+      row.addEventListener('click', (event) => {
+        handleRowClick(item, event);
+      });
+    }else if (currentEntity === 'LS_Country' || currentEntity === 'LS_User') {
+      row.style.cursor = 'default';
+    }
     
     tableBody.appendChild(row);
   });

@@ -17,10 +17,12 @@
     </head>
     <body>
 
-        <header class="main-header">
+          <!-- Header Area -->
+          <header class="main-header">
             <div class="logo">
                 <img src="../images/leadsuccess_white.svg" />
             </div>
+
             <div class="header-right">
                 <button id="logoutButton" class="logout-button">Logout</button>
             </div>
@@ -35,7 +37,9 @@
             </h3>
         </div>
 
-         <main class="table">
+
+        <!-- Main Area -->
+        <main class="table">
 
             <section class="table__header">
 
@@ -44,12 +48,14 @@
                         <option value="" class="option">Select an entity</option>
                     </select>
                 </div>
-    
-                <div class="input-group">
+
+                <!--  Search felder -->
+
+                 <div class="input-group" style="display: none;">
                     <input type="search" id="search" placeholder="Search Data.."/>
                     <img src="/images/search.png" alt="">
-                </div>
-             
+                </div> 
+
 
                 <!-- Actions -->
                 <div class="actions">
@@ -59,9 +65,7 @@
 
             </section>
 
-            <!-- Filter Inputs will be inserted here -->
             <div id="filterInputs" class="filter-inputs" style="display: none;"></div>
-
 
 
             <section class="table__body">
@@ -71,7 +75,8 @@
                 </table>
                 <p id="noDataMessage"></p>
             </section>
-         </main>
+
+        </main>
 
          <div class="pagination">
             <button id="nextButton" class="pagination-button" disabled>Next</button>
