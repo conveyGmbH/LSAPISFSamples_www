@@ -40,7 +40,7 @@
 
             <section class="table__header">
 
-                <div class="input-group">
+                <div class="input-group" style="display: none;">
                     <input type="search" id="search" placeholder="Search Data.."/>
                     <img src="/images/search.png" alt="">
                 </div>
@@ -48,12 +48,13 @@
 
                   <!-- Actions -->
                   <div class="actions">
+                    <button id="backButton" class="action-button">Back</button>
                     <button id="showAttachmentButton" class="action-button" disabled>Show Attachment (0)</button>
                 </div>
 
             </section>
 
-            <div id="filterInputs" class="filter-inputs" style="display: none;"></div>
+            <div id="filterInputs" class="filter-inputs"></div>
 
 
             <section class="table__body">
@@ -67,11 +68,7 @@
 
 
         <div class="pagination">
-
-            <button id="backButton" class="action-button">Back</button>
-
             <button id="nextButton" class="pagination-button" disabled>Next</button>
-
         </div>
 
           <div id="errorMessage" class="error-message"></div>

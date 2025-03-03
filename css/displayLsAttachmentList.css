@@ -1,24 +1,15 @@
-
+/* Config */
 :root {
     --primary-color: #d9613f;
-    --primary-dark: #c55535;
-    --primary-light: rgba(217, 97, 63, 0.1);
-    --background-color: #f5f7fa;
+    --background-color: rgb(215, 229, 241);
     --secondary-color: #2d3446;
     --text-color: #2d3446;
-    --border-color: rgba(45, 52, 70, 0.15);
-    --muted-color: #6c757d;
+    --accent-color: #d9613f;
+    --border-color: rgba(45, 52, 70, 0.2);
+    --hover-color: rgba(217, 97, 63, 0.1);
     --white: #ffffff;
-    --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.05);
-    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
-    --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.1);
-    --radius-sm: 4px;
-    --radius-md: 6px;
-    --radius-lg: 8px;
-    --transition: all 0.3s ease;
 }
 
-/* Reset & Base */
 *,
 *::before,
 *::after {
@@ -27,105 +18,107 @@
     box-sizing: border-box;
 }
 
-body {
-    background-color: var(--background-color);
-    font-family: "Open Sans", -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, serif;
+body{
     min-height: 100vh;
+    height: 100vh; 
     display: flex;
     flex-direction: column;
-    color: var(--text-color);
+    background-color: #f1f1f1;
+    align-items: center;
+    overflow: hidden;
+    font-family: "Open Sans", -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, serif;
 }
 
-/* Header */
+/* Header Content */
 .main-header {
-    background-color: var(--primary-color);
     width: 100%;
-    padding: 1rem 2rem;
+    background-color: var(--primary-color);
+    padding: 10px 20px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    box-shadow: var(--shadow-md);
-    position: sticky;
-    top: 0;
+    box-shadow: 0 2px 8px rgba(217, 97, 63, 0.3);
     z-index: 10;
 }
 
 .logo img {
     height: 40px;
-    width: auto;
 }
 
-#logoutButton {
+.header-right {
+    display: flex;
+    align-items: center;
+}
+
+.logout-button  {
     background-color: var(--white);
     color: var(--primary-color);
     border: none;
     padding: 0.6rem 1.2rem;
-    border-radius: var(--radius-md);
+    border-radius: 6px;
     cursor: pointer;
     font-weight: 600;
-    transition: var(--transition);
-    box-shadow: var(--shadow-sm);
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-#logoutButton:hover {
+.logout-button:hover {
     background-color: rgba(255, 255, 255, 0.9);
     transform: translateY(-1px);
-    box-shadow: var(--shadow-md);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
 }
 
-/* Sub-header */
 .sub-header {
-    margin: 1.5rem 0;
+    padding: 15px 20px;
+    z-index: 9;
+    width: 100%;
     text-align: center;
-    padding: 0 1rem;
 }
 
-.sub-header h1 {
-    margin-bottom: 0.5rem;
-    color: var(--secondary-color);
+.head-line {
+    margin-bottom: 10px;
 }
 
 .sub-header h3 {
-    font-weight: 500;
-    color: var(--muted-color);
+    margin-top: 0;
+    font-size: 16px;
 }
 
 .sub-header a {
     color: var(--primary-color);
     text-decoration: none;
-    font-weight: bold;
-    transition: var(--transition);
 }
 
 .sub-header a:hover {
     text-decoration: underline;
-    color: var(--primary-dark);
-}
-
-.sub-title {
-    text-align: center;
 }
 
 /* Main Table Container */
 main.table {
-    width: 90%;
-    max-width: 1200px;
-    background-color: var(--white);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-md);
-    margin: 0 auto 2rem;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    background-color: #fff5;
+    backdrop-filter: blur(7px);
+    box-shadow: 0 .4rem .8rem #0005;
+    border-radius: .8rem;
+    margin: 1rem;
     overflow: hidden;
+    max-height: calc(100vh - 150px); 
+    width: 98%;
+    position: relative; 
 }
 
 /* Table Header with Search */
 .table__header {
     width: 100%;
+    background-color: #ccc;
     padding: 1rem;
-    background-color: #f8f9fa;
-    border-bottom: 1px solid var(--border-color);
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 1rem;
+    z-index: 8;
 }
 
 .table__header .input-group {
