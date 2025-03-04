@@ -15,7 +15,7 @@ async function fetchAttachmentData() {
   const attachmentIdList = sessionStorage.getItem('AttachmentIdList');
   if (!attachmentIdList) {
     console.error('No AttachmentIdList found in sessionStorage');
-    alert('No attachments found.');
+    showError('No attachments found.');
     navigateBack();
     return;
   }
@@ -102,6 +102,7 @@ async function loadAttachment(attachmentId) {
     }
   } catch (error) {
     console.error("Error loading attachment:", error);
+    showError(`Error loading attachment: ${error.message}`);
     document.getElementById('attachmentContainer').innerHTML = 
       `<div class="no-data"><p>Error loading attachment: ${error.message}</p></div>`;
     document.getElementById('fileName').textContent = 'Error';
@@ -130,6 +131,7 @@ function displayAttachment(attachment) {
   // Update file name display
   fileNameElement.textContent = fileName;
   downloadButton.style.display = 'inline-flex';
+  downloadButton.disabled = false;
   
   if (!base64Data || !fileType) {
     attachmentContainer.innerHTML = '<div class="no-data"><p>Missing data for this attachment</p></div>';
@@ -137,7 +139,6 @@ function displayAttachment(attachment) {
   }
 
   try {
-
     const dataUrl = `data:${fileType};base64,${base64Data}`;
     
     // Set up download button functionality
@@ -158,7 +159,7 @@ function displayAttachment(attachment) {
         
         // Create a wrapper div with appropriate styling
         attachmentContainer.innerHTML = `
-          <div class="svg-container" style="width: 100%; max-height: 500px; overflow: auto;">
+          <div class="svg-container">
             ${svgString}
           </div>
         `;
@@ -208,6 +209,7 @@ function displayAttachment(attachment) {
     }
   } catch (error) {
     console.error("Error displaying attachment:", error);
+    showError(`Error displaying attachment: ${error.message}`);
     attachmentContainer.innerHTML = `<div class="no-data"><p>Error displaying attachment: ${error.message}</p></div>`;
   }
 }
@@ -237,11 +239,23 @@ function createAttachmentTabs(attachmentIds) {
   });
 }
 
-
 function setActiveTab(activeTab) {
   const tabs = document.querySelectorAll('.tab-button');
   tabs.forEach(tab => tab.classList.remove('active-tab'));
   activeTab.classList.add('active-tab');
+}
+
+function showError(message) {
+  const errorElement = document.getElementById('errorMessage');
+  if (errorElement) {
+    errorElement.textContent = message;
+    errorElement.style.display = 'block';
+    
+    // Hide after 5 seconds
+    setTimeout(() => {
+      errorElement.style.display = 'none';
+    }, 5000);
+  }
 }
 
 // Initialize event listeners

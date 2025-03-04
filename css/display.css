@@ -60,6 +60,9 @@ body{
     font-weight: 600;
     transition: all 0.3s ease;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .logout-button:hover {
@@ -443,6 +446,25 @@ thead th.active,tbody td.active {
 .filter-inputs button.reset-button:hover {
     background-color: #5a6268;
 }
+
+.filter-inputs button.reset-button.disabled {
+    background-color: #ccc;
+    color: #888;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+  }
+  
+  .filter-inputs button.reset-button.disabled:hover {
+    background-color: #ccc;
+    transform: none;
+    box-shadow: none;
+  }
+
+
+
+
+
 
 .date-input-wrapper {
     position: relative;
