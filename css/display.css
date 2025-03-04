@@ -63,6 +63,7 @@ body{
     display: flex;
     align-items: center;
     gap: 8px;
+    margin:5px 0;
 }
 
 .logout-button:hover {
