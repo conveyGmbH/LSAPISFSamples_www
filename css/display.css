@@ -189,7 +189,6 @@ main.table {
 
 
  .table__header .input-group  {
-
     width: 300px;
     height: 40px;
     background-color: var(--white);
@@ -332,7 +331,7 @@ tr.selected {
 }
 
 /* Sort */
-td:not(:first-of-type) {
+ td:not(:first-of-type) {
     min-width: 12.1rem;
 }
 
@@ -367,15 +366,74 @@ thead th.asc span.icon-arrow {
 
 thead th.active,tbody td.active {
     color: #6c00bd;
-}
+} 
 
-/* Styles for filter inputs */
+thead th.active {
+    color: #6c00bd !important;
+    font-weight: bold;
+  }
+  
+tbody td.active {
+color: #6c00bd;
+font-weight: 500;
+}
+  
+  /* Styles pour les icônes de flèche */
+  thead th.active span.icon-arrow {
+    background-color: #6c00bd;
+    color: #fff;
+    display: inline-block;
+    border-radius: 50%;
+    text-align: center;
+  }
+  
+  thead th.asc span.icon-arrow {
+    transform: rotate(180deg);
+  }
+  
+  thead th.desc span.icon-arrow {
+    transform: rotate(0deg);
+  }
+  
+  tbody td.active {
+    transition: all 0.2s ease-in-out;
+  }
+  
+  thead th:hover {
+    color: #6c00bd;
+    cursor: pointer;
+  }
+  
+  thead th:hover span.icon-arrow {
+    border: 1.4px solid #6c00bd;
+  } 
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* Styles for  inputs filter*/
 .section__filter{
     margin: 1rem;
     padding: 1rem;
     display: flex;
     justify-content: center;
 }
+
+.filter-inputs button.reset-button.disabled:hover {
+    background-color: #ccc !important;
+    transform: none;
+    box-shadow: none;
+} 
+
 
 .filter-inputs {
     display: flex;
@@ -402,18 +460,18 @@ thead th.active,tbody td.active {
     box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
-.filter-group input{
+.filter-group input {
     padding: 0.6rem 1.2rem;
     border: none;
     outline: none;
-    background-color: #ccc;
+    background-color: #471919;
     border-radius: 6px;
     width: max-content;
     margin: 1rem;
 }
 
 .filter-inputs .filter-input[type="date"] {
-    padding-right: 0.5rem; 
+    padding-right: 0.5rem;
 }
 
 .filter-inputs .filter-input:focus {
@@ -434,37 +492,31 @@ thead th.active,tbody td.active {
     min-width: 120px;
 }
 
+
 .filter-inputs button.reset-button {
-    background-color: #6c757d;
+    background-color: #6c757d; 
 }
 
-.filter-inputs button:hover {
-    background-color: #c55535;
+.filter-inputs button.reset-button:hover:not(:disabled) {
+    background-color: #5a6268;
     transform: translateY(-1px);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-.filter-inputs button.reset-button:hover {
-    background-color: #5a6268;
-}
-
-.filter-inputs button.reset-button.disabled {
-    background-color: #ccc;
+.filter-inputs button.reset-button:disabled {
+    background-color: #ccc !important;
     color: #888;
     cursor: not-allowed;
     box-shadow: none;
     transform: none;
-  }
-  
-  .filter-inputs button.reset-button.disabled:hover {
-    background-color: #ccc;
+    opacity: 0.7;
+}
+
+.filter-inputs button.reset-button:disabled:hover {
+    background-color: #ccc !important;
     transform: none;
     box-shadow: none;
-  }
-
-
-
-
+}
 
 
 .date-input-wrapper {
