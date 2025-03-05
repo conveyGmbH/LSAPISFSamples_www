@@ -59,7 +59,6 @@ function sortTable(index, th) {
 }
 
 
-
 function displayData(data) {
   const tableHead = document.getElementById('tableHead');
   const tableBody = document.getElementById('tableBody');
@@ -117,7 +116,6 @@ function displayData(data) {
   initializeRowToggle();
 }
 
-
 function handleRowSelection(item, event) {
   if (!event) {
     console.error('Event is missing in handleRowSelection');
@@ -161,7 +159,6 @@ function handleRowSelection(item, event) {
     sessionStorage.removeItem('AttachmentIdList');
   }
 }
-
 
 function initializeRowToggle() {
   const tableRows = document.querySelectorAll('tbody tr');
