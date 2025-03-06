@@ -535,17 +535,21 @@ async function applyLeadFilters(fields) {
       const date = new Date(value);
       if (!isNaN(date.getTime())) {
         const formattedDate = formatDateForOData(date);
-
         const nextDay = new Date(date);
         nextDay.setDate(nextDay.getDate() + 1);
         const formattedNextDay = formatDateForOData(nextDay);
 
         filterParts.push(`(${field} ge datetime'${formattedDate}T00:00:00' and ${field} lt datetime'${formattedNextDay}T00:00:00')`);
       }
-    } else if (field === 'Id' || field === 'Email') {
-      filterParts.push(`${field} eq '${escapeODataValue(value)}'`);
+    } else if (field === 'Id') {
+      filterParts.push(`substringof('${escapeODataValue(value)}', ${field})`);
+    } else if (field === 'Email') {
+      const emailFilter = `substringof('${escapeODataValue(value)}', ${field})`;
+      console.log('Email filter:', emailFilter);
+      filterParts.push(emailFilter);
+      // filterParts.push(`substringof('${escapeODataValue(value)}', ${field})`);
     } else if (field === 'FirstName' || field === 'LastName' || field === 'Company') {
-      filterParts.push(`startswith(${field}, '${escapeODataValue(value)}')`);
+      filterParts.push(`substringof('${escapeODataValue(value)}', ${field})`);
     }
   });
   
@@ -570,6 +574,79 @@ async function applyLeadFilters(fields) {
     }
   } catch (error) {
     console.error('Error applying filters:', error);
+    console.error('Error details:', error.message);
+    alert('An error occurred while fetching filtered data.');
+  }
+}
+
+// Fonction améliorée pour le filtrage des lead reports
+async function applyLeadReportFilters(fields) {
+  const eventId = sessionStorage.getItem('selectedEventId');
+  if (!eventId) {
+    alert('No EventId found. Please return to the main page and select an event.');
+    return;
+  }
+
+  const filters = {};
+  let hasFilters = false;
+
+  fields.forEach(field => {
+    const value = document.getElementById(`filter-${field}`).value.trim();
+    if (value) {
+      filters[field] = value;
+      hasFilters = true;
+    }
+  });
+
+  localStorage.setItem('LS_LeadReport_Filters', JSON.stringify(filters));
+
+  if (!hasFilters) {
+    return fetchLsLeadReportData();
+  }
+
+  const filterParts = [`EventId eq '${escapeODataValue(eventId)}'`];
+
+  Object.entries(filters).forEach(([field, value]) => {
+    if (field.includes('Date') || field.includes('SystemModstamp')) {      
+      const date = new Date(value);
+      if (!isNaN(date.getTime())) {
+        const formattedDate = formatDateForOData(date);
+        const nextDay = new Date(date);
+        nextDay.setDate(nextDay.getDate() + 1);
+        const formattedNextDay = formatDateForOData(nextDay);
+
+        filterParts.push(`(${field} ge datetime'${formattedDate}T00:00:00' and ${field} lt datetime'${formattedNextDay}T00:00:00')`);
+      }
+    } else if (field === 'Id') {
+      filterParts.push(`substringof('${escapeODataValue(value)}', ${field})`);
+    } else if (field === 'Email') {
+      filterParts.push(`substringof('${escapeODataValue(value)}', ${field})`);
+    } else if (field === 'FirstName' || field === 'LastName' || field === 'Company') {
+      filterParts.push(`substringof('${escapeODataValue(value)}', ${field})`);
+    }
+  });
+
+  const filterQuery = filterParts.join(' and ');
+
+  let endpoint = `LS_LeadReport?$format=json&$filter=${encodeURIComponent(filterQuery)}`;
+
+  if (lastSortedColumn) {
+    const sortOrder = lastSortDirection === 'asc' ? lastSortedColumn : `${lastSortedColumn} desc`;
+    endpoint = `LS_LeadReport?$orderby=${sortOrder}&$format=json&$filter=${encodeURIComponent(filterQuery)}`;
+  }
+
+  try {
+    const data = await apiService.request('GET', endpoint);
+    if (data && data.d && data.d.results) {
+      displayData(data.d.results);
+      pagination.updateNextUrl(data);
+    } else {
+      displayData([]);
+      document.getElementById('noDataMessage').textContent = 'No data found with the provided filters.';
+    }
+  } catch (error) {
+    console.error('Error applying filters:', error);
+    console.error('Error details:', error.message);
     alert('An error occurred while fetching filtered data.');
   }
 }

@@ -63,18 +63,10 @@ export default class ApiService {
         if (next && typeof next === "string") {
 
           const viewNamePos = next.lastIndexOf("/");
-          
+
           if (viewNamePos >= 0) {
   
             url = `https://${this.serverName}/${this.apiName}${next.substring(viewNamePos)}`;
-
-            // Debugging
-            // console.log("Generated next URL:", url);
-            // console.log("Original next URL:", next);
-            // console.log("View name position:", viewNamePos);
-            // console.log("Path part:", next.substring(viewNamePos));
-            // console.log("Server name:", this.serverName);
-            // console.log("API name:", this.apiName);
           }
         }
       }

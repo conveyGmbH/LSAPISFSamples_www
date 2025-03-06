@@ -6,7 +6,7 @@ const serverName = sessionStorage.getItem('serverName');
 const apiName = sessionStorage.getItem('apiName');
 const credentials = sessionStorage.getItem('credentials');
 
-// Column config
+// Column width config
 const columnConfig = {
   LS_Country: {
     Id: "100px",
@@ -179,28 +179,28 @@ async function applyFilters(entity, fields) {
 
   if (entity === "LS_User") {
     if (filters["Id"]) {
-      filterParts.push(`startswith(Id,'${escapeODataValue(filters["Id"])}') eq true`);
+      filterParts.push(`substringof('${escapeODataValue(filters["Id"])}', Id) eq true`);
     }
 
     if (filters["FirstName"]) {
-      filterParts.push(`startswith(FirstName,'${escapeODataValue(filters["FirstName"])}') eq true`);
+      filterParts.push(`substringof('${escapeODataValue(filters["FirstName"])}', FirstName) eq true`);
     }
 
     if (filters["LastName"]) {
-      filterParts.push(`startswith(LastName,'${escapeODataValue(filters["LastName"])}') eq true`);
+      filterParts.push(`substringof('${escapeODataValue(filters["LastName"])}', LastName) eq true`);
     }
 
     if (filters["EventId"]) {
-      filterParts.push(`EventId eq '${escapeODataValue(filters["EventId"])}'`);
+      filterParts.push(`substringof('${escapeODataValue(filters["EventId"])}', EventId) eq true`);
     }
   } else if (entity === "LS_Event") {
     if (filters["Id"]) {
-      filterParts.push(`Id eq '${escapeODataValue(filters["Id"])}'`);
+      filterParts.push(`substringof('${escapeODataValue(filters["Id"])}', Id) eq true`);
     }
 
     if (filters["Subject"]) {
       const escapedSubject = escapeODataValue(filters["Subject"]);
-      filterParts.push(`startswith(Subject,'${escapedSubject}') eq true`);
+      filterParts.push(`substringof('${escapedSubject}', Subject) eq true`);
     }
 
     if (filters["StartDate"]) {
@@ -210,7 +210,12 @@ async function applyFilters(entity, fields) {
         return;
       }
 
-      filterParts.push(`StartDate eq datetime'${formatDateForOData(startDate)}T00:00:00'`);
+      const formattedDate = formatDateForOData(startDate);
+      const nextDay = new Date(startDate);
+      nextDay.setDate(nextDay.getDate() + 1);
+      const formattedNextDay = formatDateForOData(nextDay);
+
+      filterParts.push(`(StartDate ge datetime'${formattedDate}T00:00:00' and StartDate lt datetime'${formattedNextDay}T00:00:00')`);
     }
 
     if (filters["EndDate"]) {
@@ -220,7 +225,12 @@ async function applyFilters(entity, fields) {
         return;
       }
 
-      filterParts.push(`EndDate eq datetime'${formatDateForOData(endDate)}T00:00:00'`);
+      const formattedDate = formatDateForOData(endDate);
+      const nextDay = new Date(endDate);
+      nextDay.setDate(nextDay.getDate() + 1);
+      const formattedNextDay = formatDateForOData(nextDay);
+      
+      filterParts.push(`(EndDate ge datetime'${formattedDate}T00:00:00' and EndDate lt datetime'${formattedNextDay}T00:00:00')`);
     }
   }
 
@@ -230,6 +240,7 @@ async function applyFilters(entity, fields) {
     const filterQuery = filterParts.join(" and ");
     endpoint += `&$filter=${encodeURIComponent(filterQuery)}`;
   }
+  
   
   try {
     const data = await fetchData(endpoint);
@@ -243,6 +254,7 @@ async function applyFilters(entity, fields) {
     }
   } catch (error) {
     console.error("Error applying filters:", error);
+    console.error("Error details:", error.message);
     alert("An error occurred while fetching data. Please try again later.");
   }
 }
@@ -500,15 +512,15 @@ async function sortTable(index, th) {
 
 function restoreRowSelection(eventId) {
   if (!eventId) return;
-  
+
   selectedEventId = eventId;
-  
+
   const rows = document.querySelectorAll('tbody tr');
   let rowFound = false;
-  
+
   rows.forEach(row => {
     row.classList.remove('selected');
-    
+
     const firstCell = row.querySelector('td');
     if (firstCell && firstCell.textContent.trim() === eventId) {
       row.classList.add('selected');

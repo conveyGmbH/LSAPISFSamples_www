@@ -178,7 +178,7 @@ function displayAttachment(attachment) {
         }
       } catch (svgError) {
         console.error("Error displaying SVG:", svgError);
-        // Fallback method if decoding fails
+
         attachmentContainer.innerHTML = `<object data="${dataUrl}" type="image/svg+xml" style="width: 100%; height: 500px;">SVG not supported</object>`;
       }
     } 
