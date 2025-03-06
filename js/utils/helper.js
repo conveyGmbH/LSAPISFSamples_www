@@ -1,24 +1,6 @@
 // helpers.js
 
-// export function formatDate(input) {
-//     let date;
-//     if (typeof input === 'string' && input.includes('/Date(')) {
-//       const match = /\/Date\((\d+)\)\//.exec(input);
-//       if (match) {
-//         date = new Date(parseInt(match[1], 10));
-//       }
-//     } else {
-//       date = new Date(input);
-//     }
-  
-//     if (!isNaN(date)) {
-//       return date.toLocaleDateString('en-GB');
-//     } else {
-//       return input;
-//     }
-//   }
 
-// Modifiez votre fonction formatDate dans helper.js
 export function formatDate(dateString) {
   if (!dateString) return 'N/A';
   

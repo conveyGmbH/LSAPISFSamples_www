@@ -117,13 +117,11 @@ function displayFilterInputs(entity) {
   resetButton.classList.add('reset-button');
   resetButton.id = 'resetFiltersButton';
   
-  // Le bouton est désactivé par défaut sauf s'il y a des filtres actifs avec des valeurs
   resetButton.disabled = !hasActiveFiltersWithValues;
   
   resetButton.addEventListener('click', () => resetFilters(entity, fields));
   filterInputs.appendChild(resetButton);
-  
-  // Vérifier immédiatement l'état des champs pour s'assurer que le bouton Reset est correctement désactivé
+
   updateResetButtonState(entity, fields);
 }
 
@@ -131,17 +129,12 @@ function updateResetButtonState(entity, fields) {
   const resetButton = document.getElementById('resetFiltersButton');
   if (!resetButton) return;
   
-  // Vérifier si au moins un champ de filtre a une valeur non vide
   const hasValue = fields.some(field => {
     const input = document.getElementById(`filter-${field}`);
     return input && input.value && input.value.trim() !== '';
   });
   
-  // Désactiver le bouton si aucun champ n'a de valeur
   resetButton.disabled = !hasValue;
-  
-  // Ajouter un log pour débogage (à supprimer après vérification)
-  console.log('Reset button state updated:', !hasValue ? 'disabled' : 'enabled');
 }
 
 function resetFilters(entity, fields) {
@@ -210,7 +203,6 @@ async function applyFilters(entity, fields) {
       filterParts.push(`startswith(Subject,'${escapedSubject}') eq true`);
     }
 
-    // Filtres de date optionnels
     if (filters["StartDate"]) {
       const startDate = parseDate(filters["StartDate"]);
       if (!startDate) {
@@ -438,72 +430,97 @@ function getColumnWidth(header, entity) {
 
 
 async function sortTable(index, th) {
-  // Get the header text
+
   const headerText = th.childNodes[0].nodeValue.trim();
+  console.log("Colonne sélectionnée pour le tri:", headerText);
+  
+  const previousSelectedEventId = selectedEventId;
   
   let sortAsc;
   
-  // Determine the sorting order
   if (lastSortedColumn !== headerText) {
     sortAsc = true;
     lastSortedColumn = headerText;
   } else {
+    
     sortAsc = lastSortDirection === 'desc';
   }
   
   lastSortDirection = sortAsc ? 'asc' : 'desc';
-    
-  // Reset sorting styles for all headers
+  
+  console.log("Direction de tri:", lastSortDirection);
+  
   const allHeaders = document.querySelectorAll('thead th');
   allHeaders.forEach(header => {
     header.classList.remove('asc', 'desc', 'active');
   });
-  
-  // Apply sorting styles to the clicked header
+
   th.classList.add(lastSortDirection, 'active');
-  
+
   const sortOrder = sortAsc ? headerText : `${headerText} desc`;
-  
+
   try {
-    // Display loading message
+
     const noDataMessage = document.getElementById('noDataMessage');
-    if (noDataMessage) noDataMessage.textContent = 'Loading...';
-    
-    // Construct API endpoint for sorting
+    if (noDataMessage) noDataMessage.textContent = 'Chargement...';
+
     let endpoint = `${currentEntity}?$orderby=${sortOrder}&$format=json`;
-    
-    console.log(`Sorting request URL: ${endpoint}`);
-    
-    // Fetch sorted data from the API
+
     const response = await apiService.request('GET', endpoint);
-    
+
     if (response && response.d && response.d.results) {
-      // Display retrieved data
+
       displayData(response.d.results);
-      
-      // Get next page URL for pagination
+
       nextUrl = apiService.getNextUrl(response);
-      
-      // Enable/disable the next button based on availability of more data
+
       const nextButton = document.getElementById('nextButton');
       if (nextButton) {
         nextButton.disabled = !nextUrl;
       }
+
+      if (previousSelectedEventId && currentEntity === ACTIVATING_ENTITY) {
+        restoreRowSelection(previousSelectedEventId);
+      } else {
+
+        updateButtonState(false);
+      }
     } else {
-      // Display no data message if response is empty
+
       displayData([]);
       if (noDataMessage) noDataMessage.textContent = 'No data available.';
+      updateButtonState(false);
     }
   } catch (error) {
-    // Handle errors during sorting request
-    console.error('Error while sorting:', error);
-    console.error('Details:', error.message);
-    alert('Sorting error. Check the console for details.');
+    console.error('Sorting error:', error);
+    console.error('details:', error.message);
+    alert('Error during sorting. Check the console for more details.');
   }
 }
 
+function restoreRowSelection(eventId) {
+  if (!eventId) return;
+  
+  selectedEventId = eventId;
+  
+  const rows = document.querySelectorAll('tbody tr');
+  let rowFound = false;
+  
+  rows.forEach(row => {
+    row.classList.remove('selected');
+    
+    const firstCell = row.querySelector('td');
+    if (firstCell && firstCell.textContent.trim() === eventId) {
+      row.classList.add('selected');
+      rowFound = true;
+    }
+  });
+  
+  updateButtonState(rowFound && currentEntity === ACTIVATING_ENTITY);
+}
+
 function displayData(data, append = false) {
-  // Get table elements
+
   const tableHead = document.getElementById('tableHead');
   const tableBody = document.getElementById('tableBody');
   const noDataMessage = document.getElementById('noDataMessage');
@@ -658,6 +675,7 @@ function updateButtonState(enabled) {
 }
 
 // Function to load next rows
+
 async function loadNextRows() {
   if (!nextUrl) {
     console.error('No next URL found.');
@@ -670,14 +688,16 @@ async function loadNextRows() {
     const data = await apiService.fetchNextRows(nextUrl);
 
     if (data && data.d && data.d.results && data.d.results.length > 0) {
-
-      displayData(data.d.results, true);
+      displayData(data.d.results, false);
 
       nextUrl = apiService.getNextUrl(data);
 
       document.getElementById('nextButton').disabled = !nextUrl;
       document.getElementById('nextButton').textContent = 'Next';
-
+      
+      if (selectedEventId && currentEntity === ACTIVATING_ENTITY) {
+        restoreRowSelection(selectedEventId);
+      }
     } else {
       nextUrl = '';
       document.getElementById('nextButton').disabled = true;
@@ -718,7 +738,6 @@ function init() {
     nextButton.addEventListener('click', loadNextRows);
     nextButton.disabled = true; 
   }
-
 
 }
 
