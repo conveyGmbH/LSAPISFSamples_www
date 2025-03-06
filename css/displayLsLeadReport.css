@@ -356,6 +356,7 @@ thead th.desc span.icon-arrow {
     justify-content: center;
 }
 
+
 /* Conteneur de filtres */
 .filter-container, .filter-inputs {
     display: flex;
@@ -405,16 +406,16 @@ thead th.desc span.icon-arrow {
 .date-wrapper, .date-input-wrapper {
     position: relative;
     display: inline-block;
-    width: 300px;
+    width: 400px;
 }
 
 .date-wrapper-createdate, .date-wrapper-lastmodifieddate {
-    width: 300px;
-    min-width: 300px;
+    width: 400px;
+    min-width: 400px;
 }
 
 .filter-date, .filter-input[type="date"] {
-    width: 300px;
+    width: 400px;
     padding-right: 100px;
     min-width: 180px;
     height: 38px;
@@ -578,7 +579,7 @@ thead th.desc span.icon-arrow {
         width: 95%;
         overflow: hidden; 
     }
-
+    
     .table__body {
         margin: 0.4rem auto;
         width: 100%;
@@ -588,18 +589,19 @@ thead th.desc span.icon-arrow {
     .table__body table {
         min-width: 100%; 
     }
-    
+
     table, th, td {
         padding: 0.5rem; 
     }
 
     th, td {
         padding: 0.5rem 0.3rem;
-        font-size: 0.9rem; /
+        font-size: 0.9rem; 
     }
-
-
+    
+   
     td:not(:first-of-type) {
-        min-width: auto; /
+        min-width: auto; 
     }
 }
+
