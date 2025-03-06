@@ -456,21 +456,24 @@ async function applyLeadReportFilters(fields) {
       const date = new Date(value);
       if (!isNaN(date.getTime())) {
         const formattedDate = formatDateForOData(date);
-
         const nextDay = new Date(date);
         nextDay.setDate(nextDay.getDate() + 1);
         const formattedNextDay = formatDateForOData(nextDay);
 
         filterParts.push(`(${field} ge datetime'${formattedDate}T00:00:00' and ${field} lt datetime'${formattedNextDay}T00:00:00')`);
       }
-    } else if (field === 'Id' || field === 'Email') {
-      filterParts.push(`${field} eq '${escapeODataValue(value)}'`);
+    } else if (field === 'Id') {
+      filterParts.push(`substringof('${escapeODataValue(value)}', ${field})`);
+    } else if (field === 'Email') {
+      const emailFilter = `substringof('${escapeODataValue(value)}', ${field})`;
+      filterParts.push(emailFilter);
     } else if (field === 'FirstName' || field === 'LastName' || field === 'Company') {
-      filterParts.push(`startswith(${field}, '${escapeODataValue(value)}')`);
+      filterParts.push(`substringof('${escapeODataValue(value)}', ${field})`);
     }
   });
 
   const filterQuery = filterParts.join(' and ');
+  console.log('Generated OData filter query:', filterQuery);
 
   let endpoint = `LS_LeadReport?$format=json&$filter=${encodeURIComponent(filterQuery)}`;
 
@@ -490,6 +493,7 @@ async function applyLeadReportFilters(fields) {
     }
   } catch (error) {
     console.error('Error applying filters:', error);
+    console.error('Error details:', error.message);
     alert('An error occurred while fetching filtered data.');
   }
 }
