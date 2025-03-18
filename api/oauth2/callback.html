@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Salesforce Authentication</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      background-color: #f5f5f5;
+    }
+    
+    .container {
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      padding: 30px;
+      max-width: 500px;
+      width: 100%;
+      text-align: center;
+    }
+    
+    .logo {
+      max-width: 100px;
+      margin-bottom: 20px;
+    }
+    
+    h1 {
+      color: #0288d1;
+      margin-bottom: 20px;
+    }
+    
+    .status {
+      padding: 15px;
+      border-radius: 4px;
+      margin: 20px 0;
+    }
+    
+    .status.success {
+      background-color: #e8f5e9;
+      color: #2e7d32;
+    }
+    
+    .status.error {
+      background-color: #ffebee;
+      color: #c62828;
+    }
+    
+    .loader {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #0288d1;
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      animation: spin 1s linear infinite;
+      margin: 20px auto;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    button {
+      background-color: #0288d1;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      margin-top: 20px;
+    }
+    
+    button:hover {
+      background-color: #0277bd;
+    }
+    
+    .results {
+      text-align: left;
+      margin-top: 20px;
+      border-top: 1px solid #eee;
+      padding-top: 20px;
+    }
+    
+    .results h2 {
+      font-size: 18px;
+      margin-bottom: 10px;
+    }
+    
+    .result-item {
+      margin-bottom: 10px;
+      padding: 10px;
+      border-radius: 4px;
+    }
+    
+    .result-item.success {
+      background-color: #e8f5e9;
+    }
+    
+    .result-item.error {
+      background-color: #ffebee;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <img src="/images/leadsuccess_white.svg" alt="Lead Success Logo" class="logo">
+    <h1>Salesforce Authentication</h1>
+    
+    <div id="statusMessage" class="status">Processing authentication...</div>
+    <div id="loader" class="loader"></div>
+    
+    <div id="results" class="results" style="display: none;">
+      <h2>Transfer Results</h2>
+      <div id="resultsContent"></div>
+    </div>
+    
+    <button id="returnButton" style="display: none;">Return to Application</button>
+  </div>
+  
+  <script>
+    // Function to show error message
+    function showError(message) {
+      const statusEl = document.getElementById('statusMessage');
+      const loaderEl = document.getElementById('loader');
+      const buttonEl = document.getElementById('returnButton');
+      
+      statusEl.textContent = message;
+      statusEl.className = 'status error';
+      loaderEl.style.display = 'none';
+      buttonEl.style.display = 'block';
+    }
+    
+    // Function to show success message
+    function showSuccess(message) {
+      const statusEl = document.getElementById('statusMessage');
+      statusEl.textContent = message;
+      statusEl.className = 'status success';
+    }
+    
+    // Function to handle return to app
+    function returnToApp() {
+      const returnUrl = sessionStorage.getItem('salesforce_return_page');
+      if (returnUrl) {
+        window.location.href = returnUrl;
+      } else {
+        window.location.href = '/pages/display.html';
+      }
+    }
+    
+    // Process the authentication and lead transfer
+    async function processAuth() {
+      try {
+        // Get code from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
+        const error = urlParams.get('error');
+        
+        if (error) {
+          showError(`Salesforce authorization error: ${error}`);
+          return;
+        }
+        
+        if (!code) {
+          showError('No authorization code received');
+          return;
+        }
+        
+        // Get client ID from session storage
+        const clientId = sessionStorage.getItem('sf_client_id');
+        if (!clientId) {
+          showError('Client ID not found. Please configure Salesforce integration first.');
+          return;
+        }
+        
+        // Exchange code for access token
+        const tokenResponse = await fetch('/api/salesforce/token', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            code,
+            clientId,
+            redirectUri: 'http://localhost:3000/api/oauth2/callback'
+          })
+        });
+        
+        if (!tokenResponse.ok) {
+          const errorData = await tokenResponse.json();
+          throw new Error(errorData.message || 'Token exchange failed');
+        }
+        
+        const tokenData = await tokenResponse.json();
+        console.log('Token exchange successful');
+        
+        // Store tokens
+        sessionStorage.setItem('sf_access_token', tokenData.access_token);
+        sessionStorage.setItem('sf_instance_url', tokenData.instance_url);
+        
+        if (tokenData.refresh_token) {
+          sessionStorage.setItem('sf_refresh_token', tokenData.refresh_token);
+        }
+        
+        // Check if we have leads to transfer
+        const leadsToTransfer = sessionStorage.getItem('salesforce_leads_to_transfer');
+        if (!leadsToTransfer) {
+          showSuccess('Authentication successful. No leads to transfer.');
+          document.getElementById('loader').style.display = 'none';
+          document.getElementById('returnButton').style.display = 'block';
+          return;
+        }
+        
+        // Transfer leads
+        showSuccess('Authentication successful. Transferring leads...');
+        const leads = JSON.parse(leadsToTransfer);
+        
+        const transferResponse = await fetch('/api/salesforce/transfer-leads', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            leads,
+            accessToken: tokenData.access_token,
+            instanceUrl: tokenData.instance_url
+          })
+        });
+        
+        if (!transferResponse.ok) {
+          const errorData = await transferResponse.json();
+          throw new Error(errorData.message || 'Lead transfer failed');
+        }
+        
+        const results = await transferResponse.json();
+        
+        // Show results
+        showSuccess(`Lead transfer completed: ${results.success.length} succeeded, ${results.failures.length} failed`);
+        document.getElementById('loader').style.display = 'none';
+        document.getElementById('returnButton').style.display = 'block';
+        
+        // Display detailed results
+        if (results.success.length > 0 || results.failures.length > 0) {
+          const resultsEl = document.getElementById('results');
+          const contentEl = document.getElementById('resultsContent');
+          let html = '';
+          
+          // Show successes
+          if (results.success.length > 0) {
+            results.success.forEach(item => {
+              html += `<div class="result-item success">
+                Lead ID: ${item.id} - ${item.action === 'created' ? 'Created' : 'Updated'} in Salesforce
+              </div>`;
+            });
+          }
+          
+          // Show failures
+          if (results.failures.length > 0) {
+            results.failures.forEach(item => {
+              html += `<div class="result-item error">
+                Lead ID: ${item.id} - Error: ${item.error}
+              </div>`;
+            });
+          }
+          
+          contentEl.innerHTML = html;
+          resultsEl.style.display = 'block';
+        }
+        
+        // Clean up
+        sessionStorage.removeItem('salesforce_leads_to_transfer');
+      } catch (error) {
+        console.error('Error:', error);
+        showError(`Error: ${error.message}`);
+      }
+    }
+    
+    // Add event listener to return button
+    document.getElementById('returnButton').addEventListener('click', returnToApp);
+    
+    // Start processing when page loads
+    document.addEventListener('DOMContentLoaded', processAuth);
+  </script>
+</body>
+</html>

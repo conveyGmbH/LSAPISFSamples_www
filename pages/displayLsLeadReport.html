@@ -7,7 +7,7 @@
             content="default-src 'self' data: gap: https://ssl.gstatic.com 'unsafe-eval' 'unsafe-inline'; 
                     style-src 'self' 'unsafe-inline'; 
                     media-src 'self' data: https://*.convey.de http://*.convey.de; 
-                    connect-src blob: http://*.convey.de https://*.convey.de ws://127.0.0.1:5504;" />
+                    connect-src blob: http://*.convey.de https://*.convey.de ws://127.0.0.1:5504 http://localhost:3000;" />
         <meta name="viewport" 
             content="user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, width=device-width" />
 
@@ -89,6 +89,9 @@
 
           <script src="../js/controllers/headerController.js" type="module" defer></script>        
           <script src="../js/controllers/displayLsLeadRepportController.js" type="module" defer></script>        
+          <script src="../js/controllers/salesforceController.js" type="module" defer></script>        
+          <script type="module" src="../js/services/salesforceService.js"></script>
+<script type="module" src="../js/controllers/salesforceController.js"></script>
     </body>
 
 </html>

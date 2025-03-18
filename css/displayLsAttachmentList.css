@@ -277,25 +277,31 @@ body {
     cursor: not-allowed;
 }
 
+
 .attachment-content {
     flex: 1;
-    min-height: 60vh;
-    padding: 20px;
+    min-height: 100vh;
+    padding: 0; 
     display: flex;
     justify-content: center;
     align-items: center;
     background-color: #fcfcfc;
-    overflow: auto;
+    overflow: hidden;
 }
 
-.attachment-content iframe,
+.pdf-viewer {
+    width: 100%;
+    height: 100%;
+    border: none;
+    display: block;
+}
+
+
 .attachment-content img,
 .attachment-content video,
 .attachment-content audio,
-.attachment-content object {
-    max-width: 100%;
-    border-radius: var(--radius-sm);
-    box-shadow: var(--shadow-sm);
+.attachment-content object:not(.pdf-viewer) {
+    margin: 20px;
 }
 
 .attachment-content iframe {
@@ -432,6 +438,10 @@ body {
     
     .head-line {
         font-size: 1.25rem;
+    }
+
+    .attachment-content {
+        min-height: 50vh;
     }
 }
 

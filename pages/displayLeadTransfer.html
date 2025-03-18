@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Lead Success API for Salesforce - Attachments</title>
+    <title>Lead Success - Transfer to Salesforce</title>
     <meta charset="utf-8" />
     <meta http-equiv="Content-Security-Policy" 
         content="default-src 'self' data: gap: https://ssl.gstatic.com 'unsafe-eval' 'unsafe-inline'; 
@@ -10,8 +10,9 @@
                 connect-src blob: http://*.convey.de https://*.convey.de ws://127.0.0.1:5504 http://localhost:3000;" />
     <meta name="viewport" 
         content="user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, width=device-width" />
-    <link href="../css/displayLsAttachmentList.css" rel="stylesheet">
+    <link href="../css/displayLeadTransfer.css" rel="stylesheet">
     <link rel="icon" type="image/x-icon" href="../images/api-sf.ico">
+
 </head>
 <body>
     <header class="main-header">
@@ -32,9 +33,7 @@
 
     <div class="sub-header">
         <h1 class="head-line">Salesforce API Manager</h1>
-        <h3>API documentation available 
-            <a href="/docs/LeadSuccess_API_for SalesForce.pdf" download>here</a>
-        </h3>
+        <h3>Transfer Lead to Salesforce</h3>
     </div>
 
     <div class="page-title">
@@ -47,36 +46,48 @@
                 <span>Back</span>
             </button>
         </div>
-        <h2>Attachments</h2>
-        <div class="layout-spacer"></div>
+        <h2>Lead Data Preview</h2>
+        <div class="sf-connection-status" id="sfConnectionStatus">
+            <div class="status-indicator not-connected"></div>
+            <span>Not connected to Salesforce</span>
+        </div>
     </div>
 
     <div class="container">
-        <div class="tab-container" id="tabContainer">
-            <!-- Tabs will be generated dynamically -->
-        </div>
-
-        <div class="attachment-viewer">
-            <div class="attachment-header">
-                <div class="file-name" id="fileName">Select an attachment</div>
-                <button class="download-btn" id="downloadButton">
+        <div class="lead-preview">
+            <div class="preview-header">
+                <h3>Lead Information</h3>
+                <div class="source-info">
+                    <span>Source: </span>
+                    <span id="leadSource">-</span>
+                </div>
+            </div>
+            
+            <div id="leadData" class="lead-data">
+                <!-- Lead data will be displayed here -->
+                <div class="loading">Loading lead data...</div>
+            </div>
+            
+            <div class="action-panel">
+                <button id="connectSalesforceBtn" class="sf-connect-btn">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                        <polyline points="7 10 12 15 17 10"></polyline>
-                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                        <path d="M20 11h-8m0 0V3m0 8 8-8M4 13h8m0 0v8m0-8-8 8"/>
                     </svg>
-                    <span>Download</span>
+                    Connect to Salesforce
+                </button>
+                <button id="transferLeadBtn" class="transfer-btn" disabled>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 5v14M19 12l-7 7-7-7"/>
+                    </svg>
+                    Transfer to Salesforce
                 </button>
             </div>
-            <div class="attachment-content" id="attachmentContainer">
-                <!-- Attachment content will be loaded here -->
-                <div class="no-data">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#6c757d" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
-                        <polyline points="13 2 13 9 20 9"></polyline>
-                    </svg>
-                    <p>Select an attachment to display</p>
-                </div>
+        </div>
+        
+        <div class="transfer-results" id="transferResults" style="display: none;">
+            <h3>Transfer Results</h3>
+            <div id="transferStatus" class="transfer-status">
+                <!-- Transfer status will be displayed here -->
             </div>
         </div>
     </div>
@@ -84,6 +95,6 @@
     <div id="errorMessage" class="error-message" style="display: none;"></div>
 
     <script src="../js/controllers/headerController.js" type="module" defer></script>
-    <script src="../js/controllers/displayLsAttachmentListController.js" type="module" defer></script>
+    <script src="../js/controllers/displayLeadTransferController.js" type="module" defer></script>
 </body>
 </html>

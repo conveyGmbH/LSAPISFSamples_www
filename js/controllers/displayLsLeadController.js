@@ -6,36 +6,36 @@ const columnConfig = {
     "Id": "500px",
     "CreatedDate": "200px",
     "LastModifiedDate": "200px",
-    "CreatedById": "200px",
-    "LastModifiedById": "200px",
-    "Salutation": "200px",
+    "CreatedById": "400px",
+    "LastModifiedById": "400px",
+    "Salutation": "400px",
     "Suffix": "200px",
-    "FirstName": "200px",
-    "MiddleName": "200px",
-    "LastName": "200px",
+    "FirstName": "400px",
+    "MiddleName": "400px",
+    "LastName": "400px",
     "Company": "500px",
-    "Title": "200px",
-    "Phone": "200px",
-    "MobilePhone": "200px",
-    "Fax": "200px",
+    "Title": "400px",
+    "Phone": "400px",
+    "MobilePhone": "400px",
+    "Fax": "400px",
     "Email": "400px",
     "Website": "500px",
-    "Street": "200px",
-    "PostalCode": "200px",
+    "Street": "400px",
+    "PostalCode": "400px",
     "City": "300px",
-    "Country": "200px",
+    "Country": "300px",
     "CountryCode": "200px",
-    "State": "200px",
+    "State": "300px",
     "Description": "500px",
     "AttachmentIdList": "800px",
-    "SalesArea": "200px",
+    "SalesArea": "400px",
     "RequestBarcode": "500px",
     "StatusMessage": "500px",
     "DeviceId": "200px",
     "DeviceRecordId": "200px",
     "SystemModstamp": "200px",
     "EventId": "500px",
-    "IsReviewed": "200px",
+    "IsReviewed": "400px",
     "Department": "400px",
     "Industry": "200px"
   }
@@ -89,6 +89,261 @@ async function fetchLsLeadData() {
   initSearch();
 }
 
+
+// Fonction pour améliorer l'affichage responsive de la table
+function enhanceTableDisplay() {
+  const tableBody = document.querySelector('.table__body');
+  if (!tableBody) return;
+  
+  // Set a minimum height for the table body
+  tableBody.style.minHeight = '200px';
+  
+  const table = tableBody.querySelector('table');
+  if (!table) return;
+  
+  const isMobile = window.innerWidth <= 768;
+  
+  if (isMobile) {
+    // On mobile, ensure horizontal scrolling works properly
+    table.style.width = 'max-content';
+    table.style.minWidth = 'max-content';
+    tableBody.style.overflowX = 'auto';
+    tableBody.style.maxWidth = '100%';
+    
+    // Adjust cell sizes for better mobile viewing
+    const allCells = table.querySelectorAll('th, td');
+    allCells.forEach(cell => {
+      // Limit maximum width for better readability
+      cell.style.maxWidth = '250px';
+      cell.style.padding = '8px 10px';
+    });
+    
+    // Make sure the table wrapper doesn't overflow the viewport
+    tableBody.style.width = 'calc(100% - 16px)';
+    tableBody.style.margin = '8px';
+  } else {
+    // Desktop view
+    table.style.width = '100%';
+    table.style.minWidth = '100%';
+    tableBody.style.overflowX = '';
+    
+    // Reset cell sizes
+    const allCells = table.querySelectorAll('th, td');
+    allCells.forEach(cell => {
+      cell.style.maxWidth = '';
+      cell.style.padding = '';
+    });
+    
+    // Apply configured column widths
+    applyColumnWidths();
+  }
+}
+
+ // Fix for applyColumnWidths function: add missing currentEntity declaration
+ function applyColumnWidths() {
+  const tableHead = document.querySelector('thead');
+  const tableBody = document.querySelector('tbody');
+  if (!tableHead || !tableBody) return;
+  
+  // Add fallback for currentEntity since it's not defined
+  const currentEntity = 'LS_Lead'; // Default to LS_Lead
+  
+  const config = columnConfig[currentEntity] || {};
+  
+  const headers = tableHead.querySelectorAll('th');
+  
+  headers.forEach((header, index) => {
+    const headerText = header.textContent.trim().replace(/[↑↓]/g, '');
+    const width = config[headerText];
+    
+    if (width) {
+      // Apply width to header
+      header.style.width = width;
+      
+      // Apply same width to all cells in this column
+      const cells = tableBody.querySelectorAll(`tr td:nth-child(${index + 1})`);
+      cells.forEach(cell => {
+        cell.style.width = width;
+      });
+    }
+  });
+}
+
+ // Improved responsive layout function
+ function handleResponsiveLayout() {
+  const isMobile = window.innerWidth <= 768;
+  
+  // Fix body overflow on mobile to allow scrolling
+  if (isMobile) {
+    document.body.style.overflow = 'auto';
+    document.body.style.height = 'auto';
+    
+    // Fix main container height
+    const mainTable = document.querySelector('main.table');
+    if (mainTable) {
+      mainTable.style.maxHeight = 'none';
+      mainTable.style.overflow = 'visible';
+    }
+  } else {
+    document.body.style.overflow = 'hidden';
+    document.body.style.height = '100vh';
+    
+    // Reset main container
+    const mainTable = document.querySelector('main.table');
+    if (mainTable) {
+      mainTable.style.maxHeight = 'calc(100vh - 150px)';
+      mainTable.style.overflow = 'hidden';
+    }
+  }
+  
+  // Handle table header responsive layout
+  const tableHeader = document.querySelector('.table__header');
+  if (tableHeader) {
+    if (isMobile) {
+      tableHeader.classList.add('mobile-header');
+      
+      // Make action buttons responsive
+      const actions = tableHeader.querySelector('.actions');
+      if (actions) {
+        actions.style.width = '100%';
+        actions.style.flexDirection = 'row';
+        actions.style.flexWrap = 'wrap';
+        actions.style.gap = '8px';
+        
+        const buttons = actions.querySelectorAll('button');
+        buttons.forEach(button => {
+          button.style.flex = '1';
+          button.style.minWidth = '120px';
+          button.style.margin = '0';
+        });
+      }
+    } else {
+      tableHeader.classList.remove('mobile-header');
+      
+      // Reset desktop styles
+      const actions = tableHeader.querySelector('.actions');
+      if (actions) {
+        actions.style.width = '';
+        actions.style.flexDirection = '';
+        actions.style.flexWrap = '';
+        actions.style.gap = '10px';
+        
+        const buttons = actions.querySelectorAll('button');
+        buttons.forEach(button => {
+          button.style.flex = '';
+          button.style.minWidth = '';
+          button.style.margin = '0';
+        });
+      }
+    }
+  }
+  
+  // Handle filter container responsive layout
+  const filterContainer = document.querySelector('.filter-container, .filter-inputs');
+  if (filterContainer) {
+    if (isMobile) {
+      filterContainer.classList.add('mobile-filters');
+      filterContainer.style.flexDirection = 'column';
+      filterContainer.style.width = 'calc(100% - 16px)';
+      filterContainer.style.margin = '8px';
+      
+      // Make all input groups full width
+      const inputGroups = filterContainer.querySelectorAll('.input-group-float');
+      inputGroups.forEach(group => {
+        group.style.width = '100%';
+        group.style.minWidth = '100%';
+        
+        // Ensure date inputs are full width
+        const dateInput = group.querySelector('input[type="date"]');
+        if (dateInput) {
+          dateInput.style.width = '100%';
+        }
+      });
+      
+      // Handle filter buttons on mobile
+      const filterButtons = filterContainer.querySelector('.filter-buttons');
+      if (filterButtons) {
+        filterButtons.style.width = '100%';
+        filterButtons.style.marginLeft = '0';
+        filterButtons.style.marginTop = '12px';
+      }
+    } else {
+      filterContainer.classList.remove('mobile-filters');
+      filterContainer.style.flexDirection = 'row';
+      filterContainer.style.width = 'calc(100% - 24px)';
+      filterContainer.style.margin = '12px';
+      
+      // Reset input groups
+      const inputGroups = filterContainer.querySelectorAll('.input-group-float');
+      inputGroups.forEach(group => {
+        group.style.width = '';
+        group.style.minWidth = '300px';
+        
+        // Reset date inputs
+        const dateInput = group.querySelector('input[type="date"]');
+        if (dateInput) {
+          dateInput.style.width = '';
+        }
+      });
+      
+      // Reset filter buttons
+      const filterButtons = filterContainer.querySelector('.filter-buttons');
+      if (filterButtons) {
+        filterButtons.style.width = '';
+        filterButtons.style.marginLeft = 'auto';
+        filterButtons.style.marginTop = '';
+      }
+    }
+  }
+  
+  // Improve table display
+  enhanceTableDisplay();
+}
+
+
+ // Fix for the buttonGroup reference error in addTransferButton
+ function addTransferButton() {
+  // Check if the button already exists to avoid duplicates
+  if (document.getElementById('transferButton')) return;
+  
+  // Create the button
+  const transferButton = document.createElement('button');
+  transferButton.id = 'transferButton';
+  transferButton.className = 'action-button';
+  transferButton.disabled = true;
+  transferButton.innerHTML = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 5v14M19 12l-7 7-7-7"/>
+    </svg>
+    <span>Transfer to Salesforce</span>
+  `;
+  
+  // Add click event
+  transferButton.addEventListener('click', () => {
+    if (selectedRowItem) {
+      sessionStorage.setItem('selectedLeadData', JSON.stringify(selectedRowItem));
+      sessionStorage.setItem('selectedLeadSource', 'Lead');
+      window.location.href = 'displayLeadTransfer.html';
+    } else {
+      alert('Please select a lead to transfer.');
+    }
+  });
+  
+  // Insert the button into the DOM
+  const showAttachmentButton = document.getElementById('showAttachmentButton');
+  const actionsContainer = showAttachmentButton?.parentNode;
+  
+  if (actionsContainer) {
+    actionsContainer.insertBefore(transferButton, showAttachmentButton.nextSibling);
+  }
+}
+
+
+document.addEventListener('DOMContentLoaded', () => {
+  
+  addTransferButton();
+  
+});
 // Function to get the configured width of a column
 function getColumnWidth(header, entity) {
 
@@ -284,6 +539,39 @@ function getItemFromRow(row) {
   return item;
 }
 
+// function restoreRowSelection(previousItem) {
+//   if (!previousItem || !previousItem.Id) return;
+  
+//   const rows = document.querySelectorAll('tbody tr');
+//   let matchFound = false;
+  
+//   rows.forEach(row => {
+//     const rowItem = getItemFromRow(row);
+//     if (rowItem.Id === previousItem.Id) {
+//       row.click(); 
+//       matchFound = true;
+//     }
+//   });
+  
+//   if (!matchFound) {
+//     const showAttachmentButton = document.getElementById('showAttachmentButton');
+//     if (showAttachmentButton) {
+//       showAttachmentButton.disabled = true;
+//       showAttachmentButton.textContent = 'Show Attachment';
+//       sessionStorage.removeItem('AttachmentIdList');
+//     }
+
+//       // Insérer le bouton dans le DOM
+//     if (showAttachmentButton && showAttachmentButton.parentNode) {
+//       showAttachmentButton.parentNode.insertBefore(transferButton, showAttachmentButton.nextSibling);
+//     } else {
+//       // Sinon, l'ajouter à la fin du groupe de boutons
+//       buttonGroup.appendChild(transferButton);
+//     }
+//   }
+// }
+
+// Fixed version of restoreRowSelection to avoid reference error
 function restoreRowSelection(previousItem) {
   if (!previousItem || !previousItem.Id) return;
   
@@ -305,8 +593,15 @@ function restoreRowSelection(previousItem) {
       showAttachmentButton.textContent = 'Show Attachment';
       sessionStorage.removeItem('AttachmentIdList');
     }
+
+    // Fix for transferButton reference
+    const transferButton = document.getElementById('transferButton');
+    if (transferButton) {
+      transferButton.disabled = true;
+    }
   }
 }
+
 
 function handleRowSelection(item, event) {
   if (!event) {
@@ -350,6 +645,12 @@ function handleRowSelection(item, event) {
     showAttachmentButton.disabled = true;
     showAttachmentButton.textContent = 'Show Attachment';
     sessionStorage.removeItem('AttachmentIdList');
+  }
+
+  // display button
+  const transferButton = document.getElementById('transferButton');
+  if (transferButton) {
+    transferButton.disabled = !selectedRowItem;
   }
 }
 
@@ -428,80 +729,397 @@ function initSearch() {
   });
 }
 
+// function displayLeadFilters() {
+//   const filterInputs = document.getElementById('filterInputs');
+//   if (!filterInputs) return;
+  
+//   filterInputs.innerHTML = ''; 
+//   filterInputs.classList.add('filter-container');
+  
+//   const textFields = ['Id', 'CreateById', 'LastModifiedById','FirstName', 'LastName', 'Company', 'Email'];
+//   const dateFields = ['CreatedDate', 'LastModifiedDate', 'SystemModstamp'];
+  
+//   const storedFilters = JSON.parse(localStorage.getItem('LS_Lead_Filters')) || {};
+  
+//   textFields.forEach(field => {
+//     const input = document.createElement('input');
+//     input.type = 'text';
+//     input.placeholder = field;
+//     input.id = `filter-${field}`;
+//     input.classList.add('filter-input');
+//     input.classList.add(`filter-${field.toLowerCase()}`);
+    
+//     if (storedFilters[field]) {
+//       input.value = storedFilters[field];
+//     }
+    
+//     input.addEventListener('input', updateResetButtonState);
+//     filterInputs.appendChild(input);
+//   });
+  
+//   dateFields.forEach(field => {
+//     const dateWrapper = document.createElement('div');
+//     dateWrapper.classList.add('date-wrapper');
+//     dateWrapper.classList.add(`date-wrapper-${field.toLowerCase()}`); 
+    
+//     const input = document.createElement('input');
+//     input.type = 'date';
+//     input.id = `filter-${field}`;
+//     input.classList.add('filter-input', 'filter-date');
+    
+//     if (storedFilters[field]) {
+//       input.value = storedFilters[field];
+//     }
+    
+//     input.addEventListener('input', updateResetButtonState);
+    
+//     const label = document.createElement('span');
+//     label.textContent = field;
+//     label.classList.add('date-label');
+    
+//     dateWrapper.appendChild(input);
+//     dateWrapper.appendChild(label);
+//     filterInputs.appendChild(dateWrapper);
+//   });
+  
+//   const buttonWrapper = document.createElement('div');
+//   buttonWrapper.classList.add('filter-buttons');
+  
+//   const applyButton = document.createElement('button');
+//   applyButton.textContent = 'Apply Filters';
+//   applyButton.classList.add('filter-button', 'apply-filter');
+//   applyButton.addEventListener('click', () => applyLeadFilters([...textFields, ...dateFields]));
+//   buttonWrapper.appendChild(applyButton);
+  
+//   const resetButton = document.createElement('button');
+//   resetButton.textContent = 'Reset Filters';
+//   resetButton.id = 'resetFiltersButton';
+//   resetButton.classList.add('filter-button', 'reset-filter');
+  
+//   const hasActiveFilters = Object.values(storedFilters).some(value => value && value.trim() !== '');
+//   resetButton.disabled = !hasActiveFilters;
+  
+//   resetButton.addEventListener('click', () => resetLeadFilters([...textFields, ...dateFields]));
+//   buttonWrapper.appendChild(resetButton);
+  
+//   filterInputs.appendChild(buttonWrapper);
+// }
+
+// Fonction pour afficher les filtres LS_Lead avec labels flottants
+// function displayLeadFilters() {
+//   const filterInputs = document.getElementById('filterInputs');
+//   if (!filterInputs) return;
+  
+//   filterInputs.innerHTML = ''; 
+//   filterInputs.className = 'filter-container';
+  
+//   const textFields = ['Id', 'FirstName', 'LastName', 'Company', 'Email'];
+//   const dateFields = ['CreatedDate', 'LastModifiedDate', 'SystemModstamp'];
+  
+//   const storedFilters = JSON.parse(localStorage.getItem('LS_Lead_Filters')) || {};
+  
+//   // Création des champs texte avec labels flottants
+//   textFields.forEach(field => {
+//     const inputGroup = document.createElement('div');
+//     inputGroup.classList.add('input-group-float');
+    
+//     const input = document.createElement('input');
+//     input.type = 'text';
+//     input.id = `filter-${field}`;
+//     input.classList.add('filter-input');
+    
+//     // Ajouter le label flottant
+//     const label = document.createElement('label');
+//     label.setAttribute('for', `filter-${field}`);
+//     label.textContent = field;
+    
+//     // Restaurer les valeurs stockées
+//     if (storedFilters[field]) {
+//       input.value = storedFilters[field];
+//     }
+    
+//     input.addEventListener('input', updateResetButtonState);
+    
+//     inputGroup.appendChild(input);
+//     inputGroup.appendChild(label);
+//     filterInputs.appendChild(inputGroup);
+//   });
+  
+//   // Création des champs de date avec labels flottants
+//   dateFields.forEach(field => {
+//     const inputGroup = document.createElement('div');
+//     inputGroup.classList.add('input-group-float');
+    
+//     const input = document.createElement('input');
+//     input.type = 'date';
+//     input.id = `filter-${field}`;
+//     input.classList.add('filter-input');
+    
+//     // Ajouter le label flottant
+//     const label = document.createElement('label');
+//     label.setAttribute('for', `filter-${field}`);
+//     label.textContent = field;
+    
+//     // Restaurer les valeurs stockées
+//     if (storedFilters[field]) {
+//       input.value = storedFilters[field];
+//     }
+    
+//     input.addEventListener('input', updateResetButtonState);
+    
+//     inputGroup.appendChild(input);
+//     inputGroup.appendChild(label);
+//     filterInputs.appendChild(inputGroup);
+//   });
+  
+//   // Ajouter le groupe de boutons
+//   const buttonGroup = document.createElement('div');
+//   buttonGroup.classList.add('filter-buttons');
+  
+//   const applyButton = document.createElement('button');
+//   applyButton.textContent = 'Apply Filters';
+//   applyButton.classList.add('filter-button');
+//   applyButton.addEventListener('click', () => applyLeadFilters([...textFields, ...dateFields]));
+//   buttonGroup.appendChild(applyButton);
+  
+//   const resetButton = document.createElement('button');
+//   resetButton.textContent = 'Reset Filters';
+//   resetButton.id = 'resetFiltersButton';
+//   resetButton.classList.add('filter-button', 'reset-button');
+  
+//   const hasActiveFilters = Object.values(storedFilters).some(value => value && value.trim() !== '');
+//   resetButton.disabled = !hasActiveFilters;
+  
+//   resetButton.addEventListener('click', () => resetLeadFilters([...textFields, ...dateFields]));
+//   buttonGroup.appendChild(resetButton);
+  
+//   filterInputs.appendChild(buttonGroup);
+// }
+
+
+// Updated function for displaying LS_Lead filters with floating labels
+// function displayLeadFilters() {
+//   const filterInputs = document.getElementById('filterInputs');
+//   if (!filterInputs) return;
+  
+//   filterInputs.innerHTML = ''; 
+//   filterInputs.className = 'filter-container';
+  
+//   const textFields = ['Id', 'FirstName', 'LastName', 'Company', 'Email'];
+//   const dateFields = ['CreatedDate', 'LastModifiedDate', 'SystemModstamp'];
+  
+//   const storedFilters = JSON.parse(localStorage.getItem('LS_Lead_Filters')) || {};
+  
+//   // Create text fields with floating labels
+//   textFields.forEach(field => {
+//     const inputGroup = document.createElement('div');
+//     inputGroup.classList.add('input-group-float');
+    
+//     // Create input element first (order is important for floating labels)
+//     const input = document.createElement('input');
+//     input.type = 'text';
+//     input.id = `filter-${field}`;
+//     input.classList.add('filter-input');
+//     input.placeholder = " "; // Empty space placeholder is required for the CSS selector to work
+    
+//     // Create label element
+//     const label = document.createElement('label');
+//     label.setAttribute('for', `filter-${field}`);
+//     label.textContent = field;
+    
+//     // Restore stored values if they exist
+//     if (storedFilters[field]) {
+//       input.value = storedFilters[field];
+//     }
+    
+//     input.addEventListener('input', updateResetButtonState);
+    
+//     // Add elements to the DOM in correct order (input first, then label)
+//     inputGroup.appendChild(input);
+//     inputGroup.appendChild(label);
+//     filterInputs.appendChild(inputGroup);
+//   });
+  
+//   // Create date fields with floating labels
+//   dateFields.forEach(field => {
+//     const inputGroup = document.createElement('div');
+//     inputGroup.classList.add('input-group-float');
+    
+//     // Create date input first
+//     const input = document.createElement('input');
+//     input.type = 'date';
+//     input.id = `filter-${field}`;
+//     input.classList.add('filter-input');
+//     input.placeholder = " "; // Empty space placeholder
+    
+//     // Create label
+//     const label = document.createElement('label');
+//     label.setAttribute('for', `filter-${field}`);
+//     label.textContent = field;
+    
+//     // Restore stored values
+//     if (storedFilters[field]) {
+//       input.value = storedFilters[field];
+//       // This class helps with styling when a date is already selected
+//       inputGroup.classList.add('has-value');
+//     }
+    
+//     input.addEventListener('input', () => {
+//       updateResetButtonState();
+//       // Add or remove has-value class when date is selected or cleared
+//       if (input.value) {
+//         inputGroup.classList.add('has-value');
+//       } else {
+//         inputGroup.classList.remove('has-value');
+//       }
+//     });
+    
+//     // Add elements to DOM in correct order
+//     inputGroup.appendChild(input);
+//     inputGroup.appendChild(label);
+//     filterInputs.appendChild(inputGroup);
+//   });
+  
+//   // Add button group
+//   const buttonGroup = document.createElement('div');
+//   buttonGroup.classList.add('filter-buttons');
+  
+//   // Apply filters button
+//   const applyButton = document.createElement('button');
+//   applyButton.textContent = 'Apply Filters';
+//   applyButton.classList.add('filter-button');
+//   applyButton.addEventListener('click', () => applyLeadFilters([...textFields, ...dateFields]));
+//   buttonGroup.appendChild(applyButton);
+  
+//   // Reset filters button
+//   const resetButton = document.createElement('button');
+//   resetButton.textContent = 'Reset Filters';
+//   resetButton.id = 'resetFiltersButton';
+//   resetButton.classList.add('filter-button', 'reset-button');
+  
+//   // Check if there are any active filters
+//   const hasActiveFilters = Object.values(storedFilters).some(value => value && value.trim() !== '');
+//   resetButton.disabled = !hasActiveFilters;
+  
+//   resetButton.addEventListener('click', () => resetLeadFilters([...textFields, ...dateFields]));
+//   buttonGroup.appendChild(resetButton);
+  
+//   // Add button group to filters container
+//   filterInputs.appendChild(buttonGroup);
+// }
+
+// Updated function for displaying LS_Lead filters with floating labels and proper input IDs
 function displayLeadFilters() {
   const filterInputs = document.getElementById('filterInputs');
   if (!filterInputs) return;
   
   filterInputs.innerHTML = ''; 
-  filterInputs.classList.add('filter-container');
+  filterInputs.className = 'filter-container';
   
-  const textFields = ['Id', 'CreateById', 'LastModifiedById','FirstName', 'LastName', 'Company', 'Email'];
+  const textFields = ['Id', 'FirstName', 'LastName', 'Company', 'Email'];
   const dateFields = ['CreatedDate', 'LastModifiedDate', 'SystemModstamp'];
   
   const storedFilters = JSON.parse(localStorage.getItem('LS_Lead_Filters')) || {};
   
+  // Create text fields with floating labels
   textFields.forEach(field => {
+    const inputGroup = document.createElement('div');
+    inputGroup.classList.add('input-group-float');
+    // Add ID to the container for styling specific fields
+    inputGroup.id = `input-group-${field.toLowerCase()}`;
+    
+    // Create input element first (order is important for floating labels)
     const input = document.createElement('input');
     input.type = 'text';
-    input.placeholder = field;
     input.id = `filter-${field}`;
     input.classList.add('filter-input');
-    input.classList.add(`filter-${field.toLowerCase()}`);
+    input.placeholder = " "; // Empty space placeholder is required for the CSS selector to work
     
+    // Create label element
+    const label = document.createElement('label');
+    label.setAttribute('for', `filter-${field}`);
+    label.textContent = field;
+    
+    // Restore stored values if they exist
     if (storedFilters[field]) {
       input.value = storedFilters[field];
     }
     
     input.addEventListener('input', updateResetButtonState);
-    filterInputs.appendChild(input);
+    
+    // Add elements to the DOM in correct order (input first, then label)
+    inputGroup.appendChild(input);
+    inputGroup.appendChild(label);
+    filterInputs.appendChild(inputGroup);
   });
   
+  // Create date fields with floating labels
   dateFields.forEach(field => {
-    const dateWrapper = document.createElement('div');
-    dateWrapper.classList.add('date-wrapper');
-    dateWrapper.classList.add(`date-wrapper-${field.toLowerCase()}`); 
+    const inputGroup = document.createElement('div');
+    inputGroup.classList.add('input-group-float');
+    inputGroup.id = `input-group-${field.toLowerCase()}`;
     
+    // Create date input first
     const input = document.createElement('input');
     input.type = 'date';
     input.id = `filter-${field}`;
-    input.classList.add('filter-input', 'filter-date');
+    input.classList.add('filter-input');
+    input.placeholder = " "; // Empty space placeholder
     
+    // Create label
+    const label = document.createElement('label');
+    label.setAttribute('for', `filter-${field}`);
+    label.textContent = field;
+    
+    // Restore stored values
     if (storedFilters[field]) {
       input.value = storedFilters[field];
+      // This class helps with styling when a date is already selected
+      inputGroup.classList.add('has-value');
     }
     
-    input.addEventListener('input', updateResetButtonState);
+    input.addEventListener('input', () => {
+      updateResetButtonState();
+      // Add or remove has-value class when date is selected or cleared
+      if (input.value) {
+        inputGroup.classList.add('has-value');
+      } else {
+        inputGroup.classList.remove('has-value');
+      }
+    });
     
-    const label = document.createElement('span');
-    label.textContent = field;
-    label.classList.add('date-label');
-    
-    dateWrapper.appendChild(input);
-    dateWrapper.appendChild(label);
-    filterInputs.appendChild(dateWrapper);
+    // Add elements to DOM in correct order
+    inputGroup.appendChild(input);
+    inputGroup.appendChild(label);
+    filterInputs.appendChild(inputGroup);
   });
   
-  const buttonWrapper = document.createElement('div');
-  buttonWrapper.classList.add('filter-buttons');
+  // Add button group
+  const buttonGroup = document.createElement('div');
+  buttonGroup.classList.add('filter-buttons');
   
+  // Apply filters button
   const applyButton = document.createElement('button');
   applyButton.textContent = 'Apply Filters';
-  applyButton.classList.add('filter-button', 'apply-filter');
+  applyButton.classList.add('filter-button');
   applyButton.addEventListener('click', () => applyLeadFilters([...textFields, ...dateFields]));
-  buttonWrapper.appendChild(applyButton);
+  buttonGroup.appendChild(applyButton);
   
+  // Reset filters button
   const resetButton = document.createElement('button');
   resetButton.textContent = 'Reset Filters';
   resetButton.id = 'resetFiltersButton';
-  resetButton.classList.add('filter-button', 'reset-filter');
+  resetButton.classList.add('filter-button', 'reset-button');
   
+  // Check if there are any active filters
   const hasActiveFilters = Object.values(storedFilters).some(value => value && value.trim() !== '');
   resetButton.disabled = !hasActiveFilters;
   
   resetButton.addEventListener('click', () => resetLeadFilters([...textFields, ...dateFields]));
-  buttonWrapper.appendChild(resetButton);
+  buttonGroup.appendChild(resetButton);
   
-  filterInputs.appendChild(buttonWrapper);
+  // Add button group to filters container
+  filterInputs.appendChild(buttonGroup);
 }
 
 async function applyLeadFilters(fields) {
@@ -579,7 +1197,6 @@ async function applyLeadFilters(fields) {
   }
 }
 
-// Fonction améliorée pour le filtrage des lead reports
 async function applyLeadReportFilters(fields) {
   const eventId = sessionStorage.getItem('selectedEventId');
   if (!eventId) {
@@ -693,6 +1310,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // display button transfert to salesforce
+    addTransferButton();
+
+
   // Initialiser la pagination
   pagination.initPagination();
 
@@ -704,4 +1325,10 @@ document.addEventListener('DOMContentLoaded', () => {
 const backButton = document.getElementById('backButton');
 backButton.addEventListener('click', () => {
   window.location.href = 'display.html';
+});
+
+// Ajouter des écouteurs d'événements pour le redimensionnement et le chargement
+window.addEventListener('resize', handleResponsiveLayout);
+document.addEventListener('DOMContentLoaded', () => {
+   handleResponsiveLayout();
 });
