@@ -245,7 +245,6 @@ function resetFilters(entity, fields) {
   updateData();
 }
 
-
 async function applyFilters(entity, fields) {
 
   const filters = {};
@@ -683,6 +682,7 @@ function displayData(data, append = false) {
       const width = getColumnWidth(header, currentEntity);
       if (width) {
         th.style.width = width;
+       
       }
       
       // Add header text
@@ -893,3 +893,16 @@ function init() {
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', init);
+
+
+
+
+
+
+
+
+
+
+
+
+
