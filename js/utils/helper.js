@@ -52,12 +52,43 @@ export function formatDate(dateString) {
   
 
 // Function to parse date input from user
-export function parseDate(input) {
-  // Expecting input in 'YYYY-MM-DD' format
-  const date = new Date(input);
+// export function parseDate(input) {
+//   // Expecting input in 'YYYY-MM-DD' format
+//   const date = new Date(input);
+//   if (!isNaN(date.getTime())) {
+//     return date;
+//   }
+//   return null;
+// }
+
+export function parseDate(dateString) {
+  if (!dateString) return null;
+  
+  // Format dd.mm.yyyy (format européen)
+  if (/^\d{2}\.\d{2}\.\d{4}$/.test(dateString)) {
+    const parts = dateString.split('.');
+    // Créer la date en tenant compte des mois 0-indexés en JavaScript
+    const date = new Date(parseInt(parts[2]), parseInt(parts[1])-1, parseInt(parts[0]));
+    return date;
+  }
+  
+  // Format yyyy-mm-dd (format ISO)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+    return new Date(dateString);
+  }
+  
+  // Format dd/mm/yyyy
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateString)) {
+    const parts = dateString.split('/');
+    return new Date(parseInt(parts[2]), parseInt(parts[1])-1, parseInt(parts[0]));
+  }
+  
+  // Essai de parsing général
+  const date = new Date(dateString);
   if (!isNaN(date.getTime())) {
     return date;
   }
+  
   return null;
 }
 

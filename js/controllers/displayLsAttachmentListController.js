@@ -109,7 +109,6 @@ async function loadAttachment(attachmentId) {
   }
 }
 
-
 function displayAttachment(attachment) {
   const attachmentContainer = document.getElementById('attachmentContainer');
   const fileNameElement = document.getElementById('fileName');
@@ -140,7 +139,7 @@ function displayAttachment(attachment) {
 
   try {
     const dataUrl = `data:${fileType};base64,${base64Data}`;
-    
+
     // Set up download button functionality
     downloadButton.onclick = () => {
       const a = document.createElement('a');
@@ -178,15 +177,23 @@ function displayAttachment(attachment) {
         }
       } catch (svgError) {
         console.error("Error displaying SVG:", svgError);
-
         attachmentContainer.innerHTML = `<object data="${dataUrl}" type="image/svg+xml" style="width: 100%; height: 500px;">SVG not supported</object>`;
       }
     } 
-    // Display based on file type using data URLs directly for other file types
+    
     else if (fileType.startsWith('image/')) {
       attachmentContainer.innerHTML = `<img src="${dataUrl}" alt="${fileName}" style="max-width: 100%; max-height: 500px;" />`;
     } else if (fileType === 'application/pdf') {
-      attachmentContainer.innerHTML = `<iframe src="${dataUrl}" width="100%" height="500px" type="application/pdf"></iframe>`;
+
+      attachmentContainer.innerHTML = `
+        <iframe 
+          src="${dataUrl}#view=Fit&scrollbar=0" 
+          class="pdf-viewer" 
+          type="application/pdf"
+          style="width: 100%; height: 100%; border: none;"
+        >
+          <p>Votre navigateur ne supporte pas l'affichage des PDF. <a href="${dataUrl}" download="${fileName}">Téléchargez le PDF</a> pour le visualiser.</p>
+        </iframe>`;
     } else if (fileType.startsWith('audio/')) {
       attachmentContainer.innerHTML = `
         <audio controls style="width: 100%;">

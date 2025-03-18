@@ -14,17 +14,17 @@ const columnConfig = {
     Code: "100px"
   },
   LS_User: {
-    Id: "400px",
-    FirstName: "150px",
-    LastName: "150px",
-    Email: "200px",
-    Phone: "200px",
+    Id: "500px",
+    FirstName: "400px",
+    LastName: "400px",
+    Email: "400px",
+    Phone: "300px",
     MobilePhone: "300px",
-    Street: "200px",
-    PostalCode: "150px",
-    City: "150px",
-    Country: "150px",
-    CountryCode: "250px",
+    Street: "400px",
+    PostalCode: "300px",
+    City: "300px",
+    Country: "300px",
+    CountryCode: "300px",
     EventId: "500px"
   },
   LS_Event: {
@@ -57,10 +57,85 @@ let currentEntity = '';
 let nextUrl = '';
 
 
+
+function enhanceHeaderLayout() {
+  const tableHeader = document.querySelector('.table__header');
+  if (!tableHeader) return;
+  
+  // S'assurer que les boutons d'action ont la bonne structure
+  const actions = tableHeader.querySelector('.actions');
+  if (actions) {
+    // Ajouter une classe pour la mise en page mobile
+    actions.classList.add('action-buttons-container');
+    
+    // S'assurer que tous les boutons ont les bonnes classes et styles
+    const buttons = actions.querySelectorAll('button');
+    buttons.forEach(button => {
+      button.classList.add('action-button');
+      // Uniformiser la hauteur des boutons
+      button.style.height = '44px';
+    });
+  }
+  
+  // Améliorer la structure du sélecteur d'entités
+  const viewSelector = tableHeader.querySelector('.view-selector');
+  if (viewSelector) {
+    const select = viewSelector.querySelector('select');
+    if (select) {
+      // Uniformiser la hauteur du sélecteur
+      select.style.height = '44px';
+    }
+  }
+}
+
+ function enhanceTableResponsiveness() {
+  const tableBody = document.querySelector('.table__body');
+  if (!tableBody) return;
+  
+  // Vérifier si l'écran est en mode mobile
+  const isMobile = window.innerWidth <= 768;
+  
+  if (isMobile) {
+    // Permettre le défilement horizontal sur mobile
+    tableBody.style.overflowX = 'auto';
+    
+    // S'assurer que la table a une largeur minimum convenable
+    const table = tableBody.querySelector('table');
+    if (table) {
+      table.style.minWidth = 'max-content';
+    }
+  } else {
+    // Sur desktop, laisser la table s'adapter normalement
+    tableBody.style.overflowX = '';
+    
+    const table = tableBody.querySelector('table');
+    if (table) {
+      table.style.minWidth = '100%';
+    }
+  }
+}
+
+  function handleResponsiveLayout() {
+    enhanceHeaderLayout();
+    enhanceTableResponsiveness();
+    
+    // Adapter les conteneurs de filtres
+    const filterContainer = document.querySelector('.filter-container, .filter-inputs');
+    if (filterContainer) {
+      if (window.innerWidth <= 768) {
+        filterContainer.classList.add('mobile-filters');
+      } else {
+        filterContainer.classList.remove('mobile-filters');
+      }
+    }
+  }
+
 function displayFilterInputs(entity) {
   const filterInputs = document.getElementById('filterInputs');
   filterInputs.style.display = 'flex';
   filterInputs.innerHTML = '';
+  filterInputs.className = 'filter-container';
+  
   let fields = [];
 
   if (entity === 'LS_User') {
@@ -74,54 +149,68 @@ function displayFilterInputs(entity) {
   const hasActiveFiltersWithValues = Object.values(storedFilters).some(value => value && value.trim() !== '');
 
   fields.forEach(field => {
-    const inputWrapper = document.createElement('div');
-    inputWrapper.classList.add('date-input-wrapper');
+    const inputGroup = document.createElement('div');
+    inputGroup.classList.add('input-group-float');
+    inputGroup.id = `input-group-${field.toLowerCase()}`;
 
     const input = document.createElement('input');
-    input.type = 'text';
-    input.placeholder = field;
     input.id = `filter-${field}`;
     input.classList.add('filter-input');
-
-    input.addEventListener('input', () => updateResetButtonState(entity, fields));
-
-    if (storedFilters[field]) {
-      input.value = storedFilters[field];
-    }
-
+    input.placeholder = " "; // Espace requis pour le sélecteur CSS
+    
     if (field === 'StartDate' || field === 'EndDate') {
       input.type = 'date';
-
-      const fieldLabel = document.createElement('span');
-      fieldLabel.textContent = field;
-      fieldLabel.classList.add('date-field-label');
-         
-      inputWrapper.appendChild(input);
-      inputWrapper.appendChild(fieldLabel);
-      filterInputs.appendChild(inputWrapper);
     } else {
       input.type = 'text';
-      input.placeholder = field;
-      filterInputs.appendChild(input);
     }
+
+    const label = document.createElement('label');
+    label.setAttribute('for', `filter-${field}`);
+    label.textContent = field;
+    
+    if (storedFilters[field]) {
+      input.value = storedFilters[field];
+      if (input.type === 'date') {
+        inputGroup.classList.add('has-value');
+      }
+    }
+
+    input.addEventListener('input', () => {
+      updateResetButtonState(entity, fields);
+      // Ajouter ou supprimer la classe has-value pour les dates
+      if (input.type === 'date') {
+        if (input.value) {
+          inputGroup.classList.add('has-value');
+        } else {
+          inputGroup.classList.remove('has-value');
+        }
+      }
+    });
+    
+    // Ajouter les éléments au DOM dans le bon ordre (input d'abord, puis label)
+    inputGroup.appendChild(input);
+    inputGroup.appendChild(label);
+    filterInputs.appendChild(inputGroup);
   });
+
+  const buttonGroup = document.createElement('div');
+  buttonGroup.classList.add('filter-buttons');
 
   const applyButton = document.createElement('button');
   applyButton.textContent = 'Apply Filters';
-  applyButton.classList.add('apply-button');
+  applyButton.classList.add('filter-button');
   applyButton.addEventListener('click', () => applyFilters(entity, fields));
-  filterInputs.appendChild(applyButton);
+  buttonGroup.appendChild(applyButton);
 
   const resetButton = document.createElement('button');
   resetButton.textContent = 'Reset Filters';
-  resetButton.classList.add('reset-button');
+  resetButton.classList.add('filter-button', 'reset-button');
   resetButton.id = 'resetFiltersButton';
-  
   resetButton.disabled = !hasActiveFiltersWithValues;
-  
   resetButton.addEventListener('click', () => resetFilters(entity, fields));
-  filterInputs.appendChild(resetButton);
+  buttonGroup.appendChild(resetButton);
 
+  filterInputs.appendChild(buttonGroup);
   updateResetButtonState(entity, fields);
 }
 
@@ -158,24 +247,43 @@ function resetFilters(entity, fields) {
 
 
 async function applyFilters(entity, fields) {
+
   const filters = {};
   let hasFilters = false;
 
   fields.forEach((field) => {
-    const value = document.getElementById(`filter-${field}`).value.trim();
+    const element = document.getElementById(`filter-${field}`);
+    if (!element) {
+      console.error(`Element filter-${field} not found`);
+      return;
+    }
+    
+    const value = element.value.trim();
+    
     if (value) {
       filters[field] = value;
       hasFilters = true;
     }
   });
 
+  console.log("Collected filters:", filters);
   localStorage.setItem(`${entity}_Filters`, JSON.stringify(filters));
 
   if (!hasFilters) {
+    console.log("No filters applied, returning to updateData");
     return updateData();
   }
 
   const filterParts = [];
+  
+  // If the entity is LS_Event or LS_User, add the EventId filter if available
+  if (entity === "LS_User" || entity === "LS_Event") {
+    const eventId = sessionStorage.getItem('selectedEventId');
+    if (eventId) {
+      console.log("Adding EventId filter:", eventId);
+      filterParts.push(`EventId eq '${escapeODataValue(eventId)}'`);
+    }
+  }
 
   if (entity === "LS_User") {
     if (filters["Id"]) {
@@ -203,47 +311,55 @@ async function applyFilters(entity, fields) {
       filterParts.push(`substringof('${escapedSubject}', Subject) eq true`);
     }
 
+    // Handling the start date
     if (filters["StartDate"]) {
       const startDate = parseDate(filters["StartDate"]);
+      
       if (!startDate) {
-        alert("Invalid date format for StartDate. Please use YYYY-MM-DD format.");
+        alert("Invalid date format for the start date. Use DD.MM.YYYY, YYYY-MM-DD, or DD/MM/YYYY.");
         return;
       }
-
+      
       const formattedDate = formatDateForOData(startDate);
-      const nextDay = new Date(startDate);
-      nextDay.setDate(nextDay.getDate() + 1);
-      const formattedNextDay = formatDateForOData(nextDay);
-
-      filterParts.push(`(StartDate ge datetime'${formattedDate}T00:00:00' and StartDate lt datetime'${formattedNextDay}T00:00:00')`);
+      
+      // Find all events starting from this date (inclusive)
+      filterParts.push(`StartDate ge datetime'${formattedDate}T00:00:00'`);
     }
 
+    // Handling the end date
     if (filters["EndDate"]) {
       const endDate = parseDate(filters["EndDate"]);
+      
       if (!endDate) {
-        alert("Invalid date format for EndDate. Please use YYYY-MM-DD format.");
+        alert("Invalid date format for the end date. Use DD.MM.YYYY, YYYY-MM-DD, or DD/MM/YYYY.");
         return;
       }
-
-      const formattedDate = formatDateForOData(endDate);
+      
+      
+      // Add one day to include the entire end day
       const nextDay = new Date(endDate);
       nextDay.setDate(nextDay.getDate() + 1);
+      
       const formattedNextDay = formatDateForOData(nextDay);
       
-      filterParts.push(`(EndDate ge datetime'${formattedDate}T00:00:00' and EndDate lt datetime'${formattedNextDay}T00:00:00')`);
+      // Find all events ending before the next day (thus including the entire specified day)
+      filterParts.push(`EndDate lt datetime'${formattedNextDay}T00:00:00'`);
     }
   }
 
+  
   let endpoint = `${entity}?$format=json`;
   
   if (filterParts.length > 0) {
     const filterQuery = filterParts.join(" and ");
+    console.log("Final filter query:", filterQuery);
     endpoint += `&$filter=${encodeURIComponent(filterQuery)}`;
   }
   
   
   try {
     const data = await fetchData(endpoint);
+    console.log("Fetched data:", data ? data.length : 0, "records");
 
     if (data && data.length > 0) {
       displayData(data);
@@ -259,8 +375,6 @@ async function applyFilters(entity, fields) {
   }
 }
 
-
-// Populate API selector with available entities
 async function populateApiSelector() {
   try {
     const response = await apiService.request('GET', '?$format=json');
@@ -752,6 +866,30 @@ function init() {
   }
 
 }
+
+  // Écouter les changements de taille d'écran
+  window.addEventListener('resize', handleResponsiveLayout);
+  
+  // Exécuter au chargement de la page
+  document.addEventListener('DOMContentLoaded', () => {
+    handleResponsiveLayout();
+    
+    // Observer les mutations du DOM pour appliquer les améliorations 
+    // lorsque new éléments sont ajoutés (comme les filtres)
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        if (mutation.type === 'childList') {
+          handleResponsiveLayout();
+        }
+      }
+    });
+    
+    observer.observe(document.body, { childList: true, subtree: true });
+  });
+
+
+
+
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', init);

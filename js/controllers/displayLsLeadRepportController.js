@@ -143,11 +143,11 @@ const columnConfig = {
     }
   };
 
-  const pagination = setupPagination(apiService, displayData);
+const pagination = setupPagination(apiService, displayData);
 
-  let lastSortedColumn = null;
-  let lastSortDirection = 'asc';
-  let selectedRowItem = null;
+let lastSortedColumn = null;
+let lastSortDirection = 'asc';
+let selectedRowItem = null;
 
 
 async function fetchLsLeadReportData() {
@@ -190,124 +190,124 @@ function getColumnWidth(header, entity) {
   return null;
 }
 
-function displayData(data, append = false) {
+// function displayData(data, append = false) {
 
-  const tableHead = document.getElementById('tableHead');
-  const tableBody = document.getElementById('tableBody');
-  const noDataMessage = document.getElementById('noDataMessage');
-  const showAttachmentButton = document.getElementById('showAttachmentButton');
+//   const tableHead = document.getElementById('tableHead');
+//   const tableBody = document.getElementById('tableBody');
+//   const noDataMessage = document.getElementById('noDataMessage');
+//   const showAttachmentButton = document.getElementById('showAttachmentButton');
 
-  if (showAttachmentButton) {
-    showAttachmentButton.disabled = true;
-    showAttachmentButton.textContent = 'Show Attachment';
-  }
+//   if (showAttachmentButton) {
+//     showAttachmentButton.disabled = true;
+//     showAttachmentButton.textContent = 'Show Attachment';
+//   }
 
-  if (!append) {
-    tableHead.innerHTML = '';
-    tableBody.innerHTML = '';
-  }
+//   if (!append) {
+//     tableHead.innerHTML = '';
+//     tableBody.innerHTML = '';
+//   }
 
-  if (!data || data.length === 0) {
-    noDataMessage.textContent = 'No data available.';
-    return;
-  }
+//   if (!data || data.length === 0) {
+//     noDataMessage.textContent = 'No data available.';
+//     return;
+//   }
 
-  noDataMessage.textContent = '';
+//   noDataMessage.textContent = '';
 
-  // Filter out metadata and unwanted columns
-  const headers = Object.keys(data[0]).filter(header =>
-    header !== '__metadata' &&
-    header !== 'KontaktViewId' &&
-    !header.endsWith(' ')
-  );
+//   // Filter out metadata and unwanted columns
+//   const headers = Object.keys(data[0]).filter(header =>
+//     header !== '__metadata' &&
+//     header !== 'KontaktViewId' &&
+//     !header.endsWith(' ')
+//   );
 
-  if (!append) {
-    const headerRow = document.createElement('tr');
+//   if (!append) {
+//     const headerRow = document.createElement('tr');
 
-    headers.forEach((header, index) => {
-      const th = document.createElement('th');
+//     headers.forEach((header, index) => {
+//       const th = document.createElement('th');
 
-      const width = getColumnWidth(header, 'LS_LeadReport');
-      if (width) {
-        th.style.width = width;
-      }
+//       const width = getColumnWidth(header, 'LS_LeadReport');
+//       if (width) {
+//         th.style.width = width;
+//       }
 
-      const headerText = document.createTextNode(header);
-      th.appendChild(headerText);
+//       const headerText = document.createTextNode(header);
+//       th.appendChild(headerText);
 
-      const span = document.createElement('span');
-      span.classList.add('icon-arrow');
-      span.innerHTML = '&UpArrow;';
-      th.appendChild(span);
+//       const span = document.createElement('span');
+//       span.classList.add('icon-arrow');
+//       span.innerHTML = '&UpArrow;';
+//       th.appendChild(span);
 
-      th.style.position = 'sticky';
-      th.style.top = '0';
-      th.addEventListener('click', () => sortTable(index, th));
-      headerRow.appendChild(th);
-    });
+//       th.style.position = 'sticky';
+//       th.style.top = '0';
+//       th.addEventListener('click', () => sortTable(index, th));
+//       headerRow.appendChild(th);
+//     });
 
-    tableHead.appendChild(headerRow);
-  }
+//     tableHead.appendChild(headerRow);
+//   }
 
-  // Populate table body
-  data.forEach(item => {
-    const row = document.createElement('tr');
+//   // Populate table body
+//   data.forEach(item => {
+//     const row = document.createElement('tr');
 
-    headers.forEach(header => {
-      const td = document.createElement('td');
+//     headers.forEach(header => {
+//       const td = document.createElement('td');
 
-      const width = getColumnWidth(header, 'LS_LeadReport');
-      if (width) {
-        td.style.width = width;
-      }
+//       const width = getColumnWidth(header, 'LS_LeadReport');
+//       if (width) {
+//         td.style.width = width;
+//       }
 
-       if (header === lastSortedColumn) {
-        td.classList.add('active');
-      }
+//        if (header === lastSortedColumn) {
+//         td.classList.add('active');
+//       }
 
 
-      if (header.includes('Date') || header === 'SystemModstamp') {
-        td.textContent = formatDate(item[header]);
-      } else {
-        td.textContent = item[header] || 'N/A';
-      }
-      row.appendChild(td);
-    });
+//       if (header.includes('Date') || header === 'SystemModstamp') {
+//         td.textContent = formatDate(item[header]);
+//       } else {
+//         td.textContent = item[header] || 'N/A';
+//       }
+//       row.appendChild(td);
+//     });
 
-    tableBody.appendChild(row);
+//     tableBody.appendChild(row);
 
-    row.addEventListener('click', () => {
-      const tableRows = document.querySelectorAll('tbody tr');
+//     row.addEventListener('click', () => {
+//       const tableRows = document.querySelectorAll('tbody tr');
 
-      if (row.classList.contains('selected')) {
-        row.classList.remove('selected');
-        if (showAttachmentButton) {
-          showAttachmentButton.disabled = true;
-          showAttachmentButton.textContent = 'Show Attachment';
-        }
-        sessionStorage.removeItem('AttachmentIdList');
-      } else {
-        tableRows.forEach(r => r.classList.remove('selected'));
-        row.classList.add('selected');
+//       if (row.classList.contains('selected')) {
+//         row.classList.remove('selected');
+//         if (showAttachmentButton) {
+//           showAttachmentButton.disabled = true;
+//           showAttachmentButton.textContent = 'Show Attachment';
+//         }
+//         sessionStorage.removeItem('AttachmentIdList');
+//       } else {
+//         tableRows.forEach(r => r.classList.remove('selected'));
+//         row.classList.add('selected');
 
-        if (item.AttachmentIdList) {
-          if (showAttachmentButton) {
-            const attachmentCount = item.AttachmentIdList.split(',').length;
-            showAttachmentButton.disabled = false;
-            showAttachmentButton.textContent = `Show Attachment (${attachmentCount})`;
-          }
-          sessionStorage.setItem('AttachmentIdList', item.AttachmentIdList);
-        } else {
-          if (showAttachmentButton) {
-            showAttachmentButton.disabled = true;
-            showAttachmentButton.textContent = 'No Attachments';
-          }
-          sessionStorage.removeItem('AttachmentIdList');
-        }
-      }
-    });
-  });
-}
+//         if (item.AttachmentIdList) {
+//           if (showAttachmentButton) {
+//             const attachmentCount = item.AttachmentIdList.split(',').length;
+//             showAttachmentButton.disabled = false;
+//             showAttachmentButton.textContent = `Show Attachment (${attachmentCount})`;
+//           }
+//           sessionStorage.setItem('AttachmentIdList', item.AttachmentIdList);
+//         } else {
+//           if (showAttachmentButton) {
+//             showAttachmentButton.disabled = true;
+//             showAttachmentButton.textContent = 'No Attachments';
+//           }
+//           sessionStorage.removeItem('AttachmentIdList');
+//         }
+//       }
+//     });
+//   });
+// }
 
 
 async function loadNextRows() {
@@ -335,83 +335,198 @@ async function loadNextRows() {
 }
 
 
+// function displayLeadReportFilters() {
+//   const filterInputs = document.getElementById('filterInputs');
+//   if (!filterInputs) return;
+
+//   filterInputs.innerHTML = '';
+//   filterInputs.classList.add('filter-container');
+
+//   const textFields = ['Id', 'CreatedById', 'LastModifiedById','FirstName', 'LastName', 'Company', 'Email'];
+//   const dateFields = ['CreatedDate', 'LastModifiedDate', 'SystemModstamp'];
+
+
+
+//   const storedFilters = JSON.parse(localStorage.getItem('LS_LeadReport_Filters')) || {};
+
+//   textFields.forEach(field => {
+//     const input = document.createElement('input');
+//     input.type = 'text';
+//     input.placeholder = field;
+//     input.id = `filter-${field}`;
+//     input.classList.add('filter-input');
+//     input.classList.add(`filter-${field.toLowerCase()}`);
+
+//     if (storedFilters[field]) {
+//       input.value = storedFilters[field];
+//     }
+
+//     input.addEventListener('input', updateResetButtonState);
+//     filterInputs.appendChild(input);
+//   });
+
+//   dateFields.forEach(field => {
+//     const dateWrapper = document.createElement('div');
+//     dateWrapper.classList.add('date-wrapper');
+//     dateWrapper.classList.add(`date-wrapper-${field.toLowerCase()}`);
+
+//     const input = document.createElement('input');
+//     input.type = 'date';
+//     input.id = `filter-${field}`;
+//     input.classList.add('filter-input', 'filter-date');
+
+//     if (storedFilters[field]) {
+//       input.value = storedFilters[field];
+//     }
+
+//     input.addEventListener('input', updateResetButtonState);
+
+//     const label = document.createElement('span');
+//     label.textContent = field;
+//     label.classList.add('date-label');
+
+//     dateWrapper.appendChild(input);
+//     dateWrapper.appendChild(label);
+//     filterInputs.appendChild(dateWrapper);
+//   });
+
+//   const buttonWrapper = document.createElement('div');
+//   buttonWrapper.classList.add('filter-buttons');
+
+//   const applyButton = document.createElement('button');
+//   applyButton.textContent = 'Apply Filters';
+//   applyButton.classList.add('filter-button', 'apply-filter');
+//   applyButton.addEventListener('click', () => applyLeadReportFilters([...textFields, ...dateFields]));
+//   buttonWrapper.appendChild(applyButton);
+
+//   const resetButton = document.createElement('button');
+//   resetButton.textContent = 'Reset Filters';
+//   resetButton.id = 'resetFiltersButton';
+//   resetButton.classList.add('filter-button', 'reset-filter');
+
+//   const hasActiveFilters = Object.values(storedFilters).some(value => value && value.trim() !== '');
+//   resetButton.disabled = !hasActiveFilters;
+
+//   resetButton.addEventListener('click', () => resetLeadReportFilters([...textFields, ...dateFields]));
+//   buttonWrapper.appendChild(resetButton);
+
+//   filterInputs.appendChild(buttonWrapper);
+// }
+
+// Updated function for displaying LS_LeadReport filters with floating labels and proper input IDs
 function displayLeadReportFilters() {
   const filterInputs = document.getElementById('filterInputs');
   if (!filterInputs) return;
-
-  filterInputs.innerHTML = '';
-  filterInputs.classList.add('filter-container');
-
-  const textFields = ['Id', 'CreatedById', 'LastModifiedById','FirstName', 'LastName', 'Company', 'Email'];
+  
+  filterInputs.innerHTML = ''; 
+  filterInputs.className = 'filter-container';
+  
+  const textFields = ['Id', 'FirstName', 'LastName', 'Company', 'Email'];
   const dateFields = ['CreatedDate', 'LastModifiedDate', 'SystemModstamp'];
-
-
-
+  
   const storedFilters = JSON.parse(localStorage.getItem('LS_LeadReport_Filters')) || {};
-
+  
+  // Create text fields with floating labels
   textFields.forEach(field => {
+    const inputGroup = document.createElement('div');
+    inputGroup.classList.add('input-group-float');
+    // Add ID to the container for styling specific fields
+    inputGroup.id = `input-group-${field.toLowerCase()}`;
+    
+    // Create input element first (order is important for floating labels)
     const input = document.createElement('input');
     input.type = 'text';
-    input.placeholder = field;
     input.id = `filter-${field}`;
     input.classList.add('filter-input');
-    input.classList.add(`filter-${field.toLowerCase()}`);
-
+    input.placeholder = " "; // Empty space placeholder is required for the CSS selector to work
+    
+    // Create label element
+    const label = document.createElement('label');
+    label.setAttribute('for', `filter-${field}`);
+    label.textContent = field;
+    
+    // Restore stored values if they exist
     if (storedFilters[field]) {
       input.value = storedFilters[field];
     }
-
+    
     input.addEventListener('input', updateResetButtonState);
-    filterInputs.appendChild(input);
+    
+    // Add elements to the DOM in correct order (input first, then label)
+    inputGroup.appendChild(input);
+    inputGroup.appendChild(label);
+    filterInputs.appendChild(inputGroup);
   });
-
+  
+  // Create date fields with floating labels
   dateFields.forEach(field => {
-    const dateWrapper = document.createElement('div');
-    dateWrapper.classList.add('date-wrapper');
-    dateWrapper.classList.add(`date-wrapper-${field.toLowerCase()}`);
-
+    const inputGroup = document.createElement('div');
+    inputGroup.classList.add('input-group-float');
+    inputGroup.id = `input-group-${field.toLowerCase()}`;
+    
+    // Create date input first
     const input = document.createElement('input');
     input.type = 'date';
     input.id = `filter-${field}`;
-    input.classList.add('filter-input', 'filter-date');
-
+    input.classList.add('filter-input');
+    input.placeholder = " "; // Empty space placeholder
+    
+    // Create label
+    const label = document.createElement('label');
+    label.setAttribute('for', `filter-${field}`);
+    label.textContent = field;
+    
+    // Restore stored values
     if (storedFilters[field]) {
       input.value = storedFilters[field];
+      // This class helps with styling when a date is already selected
+      inputGroup.classList.add('has-value');
     }
-
-    input.addEventListener('input', updateResetButtonState);
-
-    const label = document.createElement('span');
-    label.textContent = field;
-    label.classList.add('date-label');
-
-    dateWrapper.appendChild(input);
-    dateWrapper.appendChild(label);
-    filterInputs.appendChild(dateWrapper);
+    
+    input.addEventListener('input', () => {
+      updateResetButtonState();
+      // Add or remove has-value class when date is selected or cleared
+      if (input.value) {
+        inputGroup.classList.add('has-value');
+      } else {
+        inputGroup.classList.remove('has-value');
+      }
+    });
+    
+    // Add elements to DOM in correct order
+    inputGroup.appendChild(input);
+    inputGroup.appendChild(label);
+    filterInputs.appendChild(inputGroup);
   });
-
-  const buttonWrapper = document.createElement('div');
-  buttonWrapper.classList.add('filter-buttons');
-
+  
+  // Add button group
+  const buttonGroup = document.createElement('div');
+  buttonGroup.classList.add('filter-buttons');
+  
+  // Apply filters button
   const applyButton = document.createElement('button');
   applyButton.textContent = 'Apply Filters';
-  applyButton.classList.add('filter-button', 'apply-filter');
+  applyButton.classList.add('filter-button');
   applyButton.addEventListener('click', () => applyLeadReportFilters([...textFields, ...dateFields]));
-  buttonWrapper.appendChild(applyButton);
-
+  buttonGroup.appendChild(applyButton);
+  
+  // Reset filters button
   const resetButton = document.createElement('button');
   resetButton.textContent = 'Reset Filters';
   resetButton.id = 'resetFiltersButton';
-  resetButton.classList.add('filter-button', 'reset-filter');
-
+  resetButton.classList.add('filter-button', 'reset-button');
+  
+  // Check if there are any active filters
   const hasActiveFilters = Object.values(storedFilters).some(value => value && value.trim() !== '');
   resetButton.disabled = !hasActiveFilters;
-
+  
   resetButton.addEventListener('click', () => resetLeadReportFilters([...textFields, ...dateFields]));
-  buttonWrapper.appendChild(resetButton);
-
-  filterInputs.appendChild(buttonWrapper);
+  buttonGroup.appendChild(resetButton);
+  
+  // Add button group to filters container
+  filterInputs.appendChild(buttonGroup);
 }
+
 
 function updateResetButtonState() {
   const resetButton = document.getElementById('resetFiltersButton');
@@ -422,8 +537,6 @@ function updateResetButtonState() {
   
   resetButton.disabled = !hasValue;
 }
-
-
 
 async function applyLeadReportFilters(fields) {
   const eventId = sessionStorage.getItem('selectedEventId');
@@ -627,6 +740,51 @@ function restoreRowSelection(previousItem) {
   }
 }
 
+
+// function addTransferButton() {
+//   // Vérifier si le bouton existe déjà
+//   if (document.getElementById('transferButton')) return;
+  
+//   // const buttonGroup = document.querySelector('.button-group');
+//   // if (!buttonGroup) {
+//   //   console.error('Button group container not found');
+//   //   return;
+//   // }
+  
+//   const transferButton = document.createElement('button');
+//   transferButton.id = 'transferButton';
+//   transferButton.className = 'action-button';
+//   transferButton.disabled = true;
+//   transferButton.innerHTML = `
+//     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+//       <path d="M12 5v14M19 12l-7 7-7-7"/>
+//     </svg>
+//     <span>Transfer to Salesforce</span>
+//   `;
+  
+//   transferButton.addEventListener('click', () => {
+//     const selectedRow = document.querySelector('tr.selected');
+//     if (selectedRow) {
+//       const item = getItemFromRow(selectedRow);
+//       sessionStorage.setItem('selectedLeadData', JSON.stringify(item));
+//       sessionStorage.setItem('selectedLeadSource', 'LeadReport');
+//       window.location.href = 'displayLeadTransfer.html';
+//     } else {
+//       alert('Please select a lead report to transfer.');
+//     }
+//   });
+  
+//   // Insérer le bouton dans le DOM
+//   const showAttachmentButton = document.getElementById('showAttachmentButton');
+//   if (showAttachmentButton && showAttachmentButton.parentNode) {
+//     showAttachmentButton.parentNode.insertBefore(transferButton, showAttachmentButton.nextSibling);
+//   } else {
+//     buttonGroup.appendChild(transferButton);
+//   }
+// }
+
+
+
 function initSearch() {
   const searchInput = document.getElementById('search');
   const tableRows = document.querySelectorAll('tbody tr');
@@ -665,6 +823,284 @@ function initSearch() {
 }
 
 
+
+
+  // Enhanced displayData function with improved row selection and button toggling
+  function displayData(data, append = false) {
+    const tableHead = document.getElementById('tableHead');
+    const tableBody = document.getElementById('tableBody');
+    const noDataMessage = document.getElementById('noDataMessage');
+    const showAttachmentButton = document.getElementById('showAttachmentButton');
+    const transferButton = document.getElementById('transferButton');
+  
+    if (showAttachmentButton) {
+      showAttachmentButton.disabled = true;
+      showAttachmentButton.textContent = 'Show Attachment';
+    }
+  
+    if (transferButton) {
+      transferButton.disabled = true;
+    }
+  
+    if (!append) {
+      tableHead.innerHTML = '';
+      tableBody.innerHTML = '';
+    }
+  
+    if (!data || data.length === 0) {
+      noDataMessage.textContent = 'No data available.';
+      return;
+    }
+  
+    noDataMessage.textContent = '';
+  
+    // Filter out metadata and unwanted columns
+    const headers = Object.keys(data[0]).filter(header =>
+      header !== '__metadata' &&
+      header !== 'KontaktViewId' &&
+      !header.endsWith(' ')
+    );
+  
+    if (!append) {
+      const headerRow = document.createElement('tr');
+  
+      headers.forEach((header, index) => {
+        const th = document.createElement('th');
+  
+        const width = getColumnWidth(header, 'LS_LeadReport');
+        if (width) {
+          th.style.width = width;
+        }
+  
+        const headerText = document.createTextNode(header);
+        th.appendChild(headerText);
+  
+        const span = document.createElement('span');
+        span.classList.add('icon-arrow');
+        
+        if (header === lastSortedColumn) {
+          th.classList.add(lastSortDirection, 'active');
+          span.innerHTML = lastSortDirection === 'asc' ? '&uarr;' : '&darr;';
+        } else {
+          span.innerHTML = '&UpArrow;';
+        }
+        
+        th.appendChild(span);
+  
+        th.style.position = 'sticky';
+        th.style.top = '0';
+        th.addEventListener('click', () => sortTable(index, th));
+        headerRow.appendChild(th);
+      });
+  
+      tableHead.appendChild(headerRow);
+    }
+  
+    // Populate table body
+    data.forEach(item => {
+      const row = document.createElement('tr');
+  
+      headers.forEach(header => {
+        const td = document.createElement('td');
+  
+        const width = getColumnWidth(header, 'LS_LeadReport');
+        if (width) {
+          td.style.width = width;
+        }
+  
+        if (header === lastSortedColumn) {
+          td.classList.add('active');
+        }
+  
+        if (header.includes('Date') || header === 'SystemModstamp') {
+          td.textContent = formatDate(item[header]);
+        } else {
+          td.textContent = item[header] || 'N/A';
+        }
+        row.appendChild(td);
+      });
+  
+      tableBody.appendChild(row);
+    });
+    
+    // Initialize row toggle functionality
+    initializeRowToggle();
+  }
+  
+  // Function to get item data from row
+  function getItemFromRow(row) {
+    const cells = Array.from(row.cells);
+    
+    const item = {};
+    const headers = Array.from(document.querySelectorAll('thead th')).map(th => 
+      th.textContent.trim().replace(/[↑↓]/g, '')
+    );
+    
+    cells.forEach((cell, index) => {
+      if (headers[index]) {
+        item[headers[index]] = cell.textContent.trim();
+      }
+    });
+    
+    return item;
+  }
+  
+  // Handle row selection with toggle support for both attachment and transfer buttons
+  function handleRowSelection(item, event) {
+    if (!event) {
+      console.error('Event is missing in handleRowSelection');
+      return;
+    }
+  
+    const row = event.currentTarget;
+    const showAttachmentButton = document.getElementById('showAttachmentButton');
+    const transferButton = document.getElementById('transferButton');
+    const previouslySelected = document.querySelector('tr.selected');
+  
+    if (previouslySelected === row) {
+      // Deselect if clicking the same row
+      row.classList.remove('selected');
+      if (showAttachmentButton) {
+        showAttachmentButton.disabled = true;
+        showAttachmentButton.textContent = 'Show Attachment';
+      }
+      if (transferButton) {
+        transferButton.disabled = true;
+      }
+      sessionStorage.removeItem('AttachmentIdList');
+      selectedRowItem = null;
+      return;
+    }
+    
+    // Clear previous selection
+    if (previouslySelected) {
+      previouslySelected.classList.remove('selected');
+    }
+    
+    // Set new selection
+    row.classList.add('selected');
+    selectedRowItem = item;
+    
+    // Handle the attachment button state
+    if (item.AttachmentIdList) {
+      const validAttachments = item.AttachmentIdList.split(',').filter(id => id.trim() !== '');
+      
+      if (validAttachments.length > 0) {
+        if (showAttachmentButton) {
+          showAttachmentButton.disabled = false;
+          showAttachmentButton.textContent = `Show Attachment (${validAttachments.length})`;
+        }
+        sessionStorage.setItem('AttachmentIdList', validAttachments.join(','));
+      } else {
+        if (showAttachmentButton) {
+          showAttachmentButton.disabled = true;
+          showAttachmentButton.textContent = 'No Valid Attachments';
+        }
+        sessionStorage.removeItem('AttachmentIdList');
+      }
+    } else {
+      if (showAttachmentButton) {
+        showAttachmentButton.disabled = true;
+        showAttachmentButton.textContent = 'Show Attachment';
+      }
+      sessionStorage.removeItem('AttachmentIdList');
+    }
+  
+    // Enable transfer button when a row is selected
+    if (transferButton) {
+      transferButton.disabled = false;
+    }
+  }
+  
+  // Initialize row toggle for all table rows
+  function initializeRowToggle() {
+    const tableRows = document.querySelectorAll('tbody tr');
+    const showAttachmentButton = document.getElementById('showAttachmentButton');
+    const transferButton = document.getElementById('transferButton');
+    
+    if (showAttachmentButton) {
+      showAttachmentButton.disabled = true;
+    }
+    
+    if (transferButton) {
+      transferButton.disabled = true;
+    }
+    
+    tableRows.forEach(row => {
+      // Remove existing event listener to prevent duplicates
+      row.removeEventListener('click', handleRowClickWrapper);
+      
+      // Add new event listener
+      row.addEventListener('click', handleRowClickWrapper);
+    });
+  }
+  
+  // Wrapper function to handle row clicks
+  function handleRowClickWrapper(event) {
+    const row = event.currentTarget;
+    const item = getItemFromRow(row);
+    
+    // Add attachment ID to the item if available
+    const headers = Array.from(document.querySelectorAll('thead th')).map(th => 
+      th.textContent.trim().replace(/[↑↓]/g, '')
+    );
+    
+    const attachmentColumn = headers.findIndex(h => h === 'AttachmentIdList');
+    if (attachmentColumn >= 0 && row.cells[attachmentColumn]) {
+      item.AttachmentIdList = row.cells[attachmentColumn].textContent.trim();
+    }
+    
+    handleRowSelection(item, event);
+  }
+  
+  // Improved addTransferButton function
+  function addTransferButton() {
+    // Check if the button already exists to avoid duplicates
+    if (document.getElementById('transferButton')) return;
+    
+    // Create the button
+    const transferButton = document.createElement('button');
+    transferButton.id = 'transferButton';
+    transferButton.className = 'action-button';
+    transferButton.disabled = true;
+    transferButton.innerHTML = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 5v14M19 12l-7 7-7-7"/>
+      </svg>
+      <span>Transfer to Salesforce</span>
+    `;
+    
+    // Add click event
+    transferButton.addEventListener('click', () => {
+      if (selectedRowItem) {
+        sessionStorage.setItem('selectedLeadData', JSON.stringify(selectedRowItem));
+        sessionStorage.setItem('selectedLeadSource', 'LeadReport');
+        window.location.href = 'displayLeadTransfer.html';
+      } else {
+        alert('Please select a lead report to transfer.');
+      }
+    });
+    
+    // Insert the button into the DOM
+    const showAttachmentButton = document.getElementById('showAttachmentButton');
+    const actionsContainer = showAttachmentButton?.parentNode;
+    
+    if (actionsContainer) {
+      actionsContainer.insertBefore(transferButton, showAttachmentButton.nextSibling);
+    }
+  }
+
+
+
+
+
+
+
+
+
+
+
+
 function init() {
   fetchLsLeadReportData();
 
@@ -676,6 +1112,11 @@ function init() {
     });
   }
 
+  // Ajouter le bouton de transfert
+  addTransferButton();
+
+
+
   // Setup pagination button
   const nextButton = document.getElementById('nextButton');
   if (nextButton) {
@@ -684,18 +1125,18 @@ function init() {
   
   // Setup show attachment button if it exists
   const showAttachmentButton = document.getElementById('showAttachmentButton');
-if (showAttachmentButton) {
-  showAttachmentButton.addEventListener('click', () => {
-    const attachmentIdList = sessionStorage.getItem('AttachmentIdList');
-    if (attachmentIdList) {
-      
-      sessionStorage.setItem('attachmentSource', 'LeadReport');
-      window.location.href = 'displayLsAttachmentList.html';
-    } else {
-      alert('No attachments available for this report.');
-    }
-  });
-}
+    if (showAttachmentButton) {
+      showAttachmentButton.addEventListener('click', () => {
+        const attachmentIdList = sessionStorage.getItem('AttachmentIdList');
+        if (attachmentIdList) {
+          
+          sessionStorage.setItem('attachmentSource', 'LeadReport');
+          window.location.href = 'displayLsAttachmentList.html';
+        } else {
+          alert('No attachments available for this report.');
+        }
+      });
+  }
 }
 
 // Initialize the application when DOM is loaded
