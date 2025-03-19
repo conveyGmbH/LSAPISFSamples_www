@@ -3,6 +3,7 @@ const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const jsforce = require('jsforce');
 const dotenv = require('dotenv');
+const path = require('path');
 
 dotenv.config();
 
@@ -32,7 +33,130 @@ const SF_LOGIN_URL = process.env.SF_LOGIN_URL || 'https://login.salesforce.com';
 const tokenStore = new Map();
 
 // API router
-const apiRouter = express.Router();
+const apiRouter = express.Router(); 
+
+
+
+// Welcome Page Server
+app.get('/', (req, res) => {
+  const serverInfo = {
+    status: 'online',
+    version: process.env.npm_package_version || '1.0.0',
+    environment: process.env.NODE_ENV || 'development',
+    timestamp: new Date().toISOString(),
+    uptime: `${Math.floor(process.uptime())} seconds`,
+    endpoints: [
+      { path: '/api/salesforce/auth', method: 'GET', description: 'Get Salesforce authentication URL' },
+      { path: '/api/oauth2/callback', method: 'GET', description: 'OAuth2 callback for Salesforce' },
+      { path: '/api/direct-lead-transfer', method: 'POST', description: 'Transfer lead to Salesforce' }
+    ]
+  };
+
+  res.send(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>LeadSuccess API Status</title>
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <style>
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+          line-height: 1.6;
+          color: #333;
+          max-width: 800px;
+          margin: 0 auto;
+          padding: 20px;
+        }
+        h1 {
+          color: #0078d4;
+          border-bottom: 1px solid #eaeaea;
+          padding-bottom: 10px;
+        }
+        .status-card {
+          background-color: #f9f9f9;
+          border-radius: 8px;
+          padding: 20px;
+          margin-bottom: 20px;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status-indicator {
+          display: inline-block;
+          width: 12px;
+          height: 12px;
+          border-radius: 50%;
+          margin-right: 8px;
+        }
+        .status-online {
+          background-color: #5cb85c;
+        }
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-top: 20px;
+        }
+        th, td {
+          text-align: left;
+          padding: 12px;
+          border-bottom: 1px solid #ddd;
+        }
+        th {
+          background-color: #f2f2f2;
+        }
+        .api-path {
+          font-family: monospace;
+          background-color: #f5f5f5;
+          padding: 2px 4px;
+          border-radius: 4px;
+        }
+        .http-method {
+          display: inline-block;
+          padding: 2px 6px;
+          border-radius: 4px;
+          font-size: 12px;
+          font-weight: bold;
+          color: white;
+          background-color: #0078d4;
+        }
+      </style>
+    </head>
+    <body>
+      <h1>LeadSuccess API Status</h1>
+      
+      <div class="status-card">
+        <h2>
+          <span class="status-indicator status-online"></span>
+          Server Status: ${serverInfo.status}
+        </h2>
+        <p><strong>Version:</strong> ${serverInfo.version}</p>
+        <p><strong>Environment:</strong> ${serverInfo.environment}</p>
+        <p><strong>Server Time:</strong> ${new Date(serverInfo.timestamp).toLocaleString()}</p>
+        <p><strong>Uptime:</strong> ${serverInfo.uptime}</p>
+      </div>
+      
+      <h2>Available Endpoints</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Method</th>
+            <th>Path</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${serverInfo.endpoints.map(endpoint => `
+            <tr>
+              <td><span class="http-method">${endpoint.method}</span></td>
+              <td><span class="api-path">${endpoint.path}</span></td>
+              <td>${endpoint.description}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </body>
+    </html>
+  `);
+});
+
 
 // Get authentication URL
 apiRouter.get('/salesforce/auth', (req, res) => {
