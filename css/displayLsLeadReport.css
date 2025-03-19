@@ -555,7 +555,7 @@ thead th.desc span.icon-arrow {
 /* Input Field Width Adjustments */
 .input-group-float {
     position: relative;
-    /* margin-bottom: 12px; */
+   
     flex: 1;
     min-width: 300px; /* Set minimum width for all input containers */
   }
@@ -717,9 +717,7 @@ thead th.desc span.icon-arrow {
     }
 }
 
-#transferButton {
-    display: none; 
-}
+
 
 
 

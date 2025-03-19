@@ -12,7 +12,6 @@
         content="user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, width=device-width" />
     <link href="../css/displayLeadTransfer.css" rel="stylesheet">
     <link rel="icon" type="image/x-icon" href="../images/api-sf.ico">
-
 </head>
 <body>
     <header class="main-header">
@@ -33,7 +32,10 @@
 
     <div class="sub-header">
         <h1 class="head-line">Salesforce API Manager</h1>
-        <h3>Transfer Lead to Salesforce</h3>
+        <h3>API documentation available 
+            <a href="/docs/LeadSuccess_API_for SalesForce.pdf" download>here</a>
+        </h3>
+        <h2>Transfer Lead to Salesforce</h2>
     </div>
 
     <div class="page-title">
@@ -49,11 +51,25 @@
         <h2>Lead Data Preview</h2>
         <div class="sf-connection-status" id="sfConnectionStatus">
             <div class="status-indicator not-connected"></div>
-            <span>Not connected to Salesforce</span>
+            <span>Salesforce connection status</span>
         </div>
     </div>
 
     <div class="container">
+        <div id="validation-summary" style="display: none;" class="status-warning">
+            <div class="status-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                    <line x1="12" y1="9" x2="12" y2="13"/>
+                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+            </div>
+            <div>
+                <strong>Validation Issues</strong>
+                <ul id="validation-issues"></ul>
+            </div>
+        </div>
+        
         <div class="lead-preview">
             <div class="preview-header">
                 <h3>Lead Information</h3>
@@ -69,13 +85,7 @@
             </div>
             
             <div class="action-panel">
-                <button id="connectSalesforceBtn" class="sf-connect-btn">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M20 11h-8m0 0V3m0 8 8-8M4 13h8m0 0v8m0-8-8 8"/>
-                    </svg>
-                    Connect to Salesforce
-                </button>
-                <button id="transferLeadBtn" class="transfer-btn" disabled>
+                <button id="transferToSalesforceBtn" class="transfer-btn">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M12 5v14M19 12l-7 7-7-7"/>
                     </svg>
@@ -93,6 +103,25 @@
     </div>
 
     <div id="errorMessage" class="error-message" style="display: none;"></div>
+    
+    <!-- Confirmation Modal for Duplicate Detection -->
+    <div id="duplicateModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Potential Duplicate Detected</h3>
+                <span class="close-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p>We found a similar lead in Salesforce with the following information:</p>
+                <div id="duplicateLeadInfo"></div>
+                <p>Do you want to create a new lead anyway?</p>
+            </div>
+            <div class="modal-footer">
+                <button id="cancelDuplicateBtn" class="btn-secondary">Cancel</button>
+                <button id="createDuplicateBtn" class="btn-primary">Create New Lead</button>
+            </div>
+        </div>
+    </div>
 
     <script src="../js/controllers/headerController.js" type="module" defer></script>
     <script src="../js/controllers/displayLeadTransferController.js" type="module" defer></script>

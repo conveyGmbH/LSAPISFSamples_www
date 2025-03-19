@@ -1,11 +1,9 @@
-// server.js - Node.js Express Backend
 const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const jsforce = require('jsforce');
 const dotenv = require('dotenv');
 
-// Load environment variables
 dotenv.config();
 
 const app = express();
@@ -13,38 +11,36 @@ const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(express.json());
-app.use(cookieParser());  // Important pour gérer les cookies
+app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 
-// Cors Config
+// CORS configuration
 app.use(cors({
-  origin: ['http://127.0.0.1:5504'],
+  origin: true, 
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With'] 
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Cache-Control', 'X-Session-Token']
 }));
 
 // OAuth2 configuration
-const oauth2 = new jsforce.OAuth2({
-  loginUrl: process.env.SF_LOGIN_URL || 'https://login.salesforce.com',
-  clientId: process.env.SF_CLIENT_ID,
-  clientSecret: process.env.SF_CLIENT_SECRET,
-  redirectUri: process.env.SF_REDIRECT_URI || 'http://localhost:3000/api/oauth2/callback'
-});
+const SF_CLIENT_ID = process.env.SF_CLIENT_ID;
+const SF_CLIENT_SECRET = process.env.SF_CLIENT_SECRET;
+const SF_REDIRECT_URI = process.env.SF_REDIRECT_URI || 'http://localhost:3000/api/oauth2/callback';
+const SF_LOGIN_URL = process.env.SF_LOGIN_URL || 'https://login.salesforce.com';
 
-// Create API router
+// Session token storage
+const tokenStore = new Map();
+
+// API router
 const apiRouter = express.Router();
 
 // Get authentication URL
 apiRouter.get('/salesforce/auth', (req, res) => {
   try {
-    console.log('Generating auth URL with redirect URI:', oauth2.redirectUri);
-    const authUrl = oauth2.getAuthorizationUrl({
-      scope: 'api id web refresh_token',
-      prompt: 'login consent'
-    });
-    console.log('Generated authUrl:', authUrl);
+    console.log('Generating auth URL...');
+    const authUrl = `${SF_LOGIN_URL}/services/oauth2/authorize?response_type=code&client_id=${SF_CLIENT_ID}&redirect_uri=${encodeURIComponent(SF_REDIRECT_URI)}&scope=api%20id%20web%20refresh_token`;
     
+    console.log('Auth URL generated:', authUrl);
     res.json({ authUrl });
   } catch (error) {
     console.error('Error generating auth URL:', error);
@@ -52,68 +48,112 @@ apiRouter.get('/salesforce/auth', (req, res) => {
   }
 });
 
-// OAuth callback
+// OAuth2 callback
 apiRouter.get('/oauth2/callback', async (req, res) => {
   const { code } = req.query;
   
   if (!code) {
+    console.error('Authorization code missing');
     return res.status(400).send('Authorization code missing');
   }
   
   try {
-    console.log('Received auth code, attempting to authorize');
+    console.log('Received auth code, exchanging for token...');
     
-    // Exchange code for token
-    const conn = new jsforce.Connection({ oauth2 });
-    const userInfo = await conn.authorize(code);
-    
-    console.log('Authorization successful, user:', userInfo.display_name || userInfo.name);
-    
-    // Set cookies (clé de votre solution qui fonctionne)
-    res.cookie('salesforce_access_token', conn.accessToken, {
-      httpOnly: true,
-      secure: false,
-      maxAge: 2 * 60 * 60 * 1000, // 2 hours
-      domain: '127.0.0.1',
-      sameSite: 'lax'
+    // Exchange code for token directly with Salesforce API
+    const tokenResponse = await fetch(`${SF_LOGIN_URL}/services/oauth2/token`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: `grant_type=authorization_code&client_id=${SF_CLIENT_ID}&client_secret=${SF_CLIENT_SECRET}&redirect_uri=${encodeURIComponent(SF_REDIRECT_URI)}&code=${code}`
     });
-
-    res.cookie('salesforce_instance_url', conn.instanceUrl, {
-      httpOnly: true,
-      secure: false,
-      maxAge: 2 * 60 * 60 * 1000, // 2 hours
-      domain: '127.0.0.1',
-      sameSite: 'lax'
-    });
-
-    if (conn.refreshToken) {
-      res.cookie('salesforce_refresh_token', conn.refreshToken, {
-        httpOnly: true,
-        secure: false,
-        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-        domain: '127.0.0.1',
-        sameSite: 'lax'
-      });
+    
+    const tokenData = await tokenResponse.json();
+    
+    if (!tokenResponse.ok || tokenData.error) {
+      throw new Error(tokenData.error_description || tokenData.error || 'Token exchange failed');
     }
     
-    // Close the window with a success message
+    console.log('Token obtained successfully');
+    
+    const { access_token, refresh_token, instance_url } = tokenData;
+    
+    // Create a JSForce connection to get user info
+    const conn = new jsforce.Connection({
+      instanceUrl: instance_url,
+      accessToken: access_token
+    });
+    
+    // Get user information
+    const userInfo = await conn.identity();
+    console.log('User identified:', userInfo.username);
+    
+    // Generate a session token
+    const sessionToken = Date.now().toString(36) + Math.random().toString(36).substring(2);
+    
+    // Store session information
+    tokenStore.set(sessionToken, {
+      accessToken: access_token,
+      refreshToken: refresh_token,
+      instanceUrl: instance_url,
+      userInfo,
+      timestamp: Date.now()
+    });
+    
+    // Return success page
     res.send(`
       <html>
+        <head>
+          <title>Authentication Successful</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              text-align: center;
+              padding: 40px 20px;
+              background-color: #f4f7f9;
+            }
+            .success-container {
+              max-width: 500px;
+              margin: 0 auto;
+              background-color: white;
+              border-radius: 8px;
+              padding: 30px;
+              box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            }
+            h2 {
+              color: #2e844a;
+              margin-bottom: 20px;
+            }
+            p {
+              color: #54698d;
+              margin-bottom: 15px;
+              line-height: 1.5;
+            }
+          </style>
+        </head>
         <body>
-          <h2>Authentication successful!</h2>
-          <p>You can close this window and return to the application.</p>
+          <div class="success-container">
+            <h2>Authentication Successful!</h2>
+            <p>You are now connected to Salesforce as ${userInfo.username}.</p>
+            <p>This window will close automatically.</p>
+          </div>
           <script>
-            // Dispatch event to parent window if possible
+            // Pass token to parent window
             if (window.opener) {
               window.opener.postMessage({ 
                 type: 'salesforce-auth-success', 
-                userInfo: ${JSON.stringify(userInfo)}
+                userInfo: ${JSON.stringify(userInfo)},
+                sessionToken: "${sessionToken}"
               }, '*');
+              
+              // Close window after a short delay
+              setTimeout(function() {
+                window.close();
+              }, 2000);
+            } else {
+              document.body.innerHTML += '<p>Window opener not available. Please close this window manually.</p>';
             }
-            // Close window after a short delay
-            setTimeout(function() {
-              window.close();
-            }, 3000);
           </script>
         </body>
       </html>
@@ -122,14 +162,52 @@ apiRouter.get('/oauth2/callback', async (req, res) => {
     console.error('OAuth callback error:', error);
     res.status(500).send(`
       <html>
+        <head>
+          <title>Authentication Failed</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              text-align: center;
+              padding: 40px 20px;
+              background-color: #f4f7f9;
+            }
+            .error-container {
+              max-width: 500px;
+              margin: 0 auto;
+              background-color: white;
+              border-radius: 8px;
+              padding: 30px;
+              box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            }
+            h2 {
+              color: #c23934;
+              margin-bottom: 20px;
+            }
+            p {
+              color: #54698d;
+              margin-bottom: 15px;
+              line-height: 1.5;
+            }
+          </style>
+        </head>
         <body>
-          <h2>Authentication failed</h2>
-          <p>Error: ${error.message}</p>
-          <p>Please close this window and try again.</p>
+          <div class="error-container">
+            <h2>Authentication Failed</h2>
+            <p>An error occurred while connecting to Salesforce.</p>
+            <p>Error: ${error.message}</p>
+            <p>Please close this window and try again.</p>
+          </div>
           <script>
-            setTimeout(function() {
-              window.close();
-            }, 5000);
+            if (window.opener) {
+              window.opener.postMessage({ 
+                type: 'salesforce-auth-error', 
+                error: ${JSON.stringify(error.message)}
+              }, '*');
+              
+              setTimeout(function() {
+                window.close();
+              }, 5000);
+            }
           </script>
         </body>
       </html>
@@ -137,77 +215,98 @@ apiRouter.get('/oauth2/callback', async (req, res) => {
   }
 });
 
-// Check connection status
-apiRouter.get('/salesforce/connection-status', (req, res) => {
-  // Vérifier la connexion via cookies au lieu de session
-  const accessToken = req.cookies.salesforce_access_token;
-  const instanceUrl = req.cookies.salesforce_instance_url;
+
+// Add this endpoint in server.js in the apiRouter section
+
+// Session check endpoint - verify if token is still valid
+apiRouter.get('/salesforce/session-check', (req, res) => {
+  const sessionToken = req.headers['x-session-token'];
   
-  console.log("connection", accessToken)
-  if (!accessToken || !instanceUrl) {
-    console.log('Connection status: Not connected (no cookies)');
-    return res.json({ connected: false });
+  if (!sessionToken || !tokenStore.has(sessionToken)) {
+    return res.status(401).json({
+      success: false,
+      message: 'Invalid or expired session'
+    });
   }
   
-  // Create connection with existing access token to verify
-  const conn = new jsforce.Connection({
-    instanceUrl: instanceUrl,
-    accessToken: accessToken
-  });
+  // Get session data to check if it's expired
+  const session = tokenStore.get(sessionToken);
+  const now = Date.now();
   
-  // Optionally, you can verify the token is still valid
-  conn.identity((err, userInfo) => {
-    if (err) {
-      console.log('Connection status: Token invalid or expired');
-      return res.json({ connected: false });
-    }
-    
-    console.log('Connection status: Connected as', userInfo.display_name || userInfo.name);
-    res.json({ connected: !!accessToken });
+  // Optional: Check if session is older than 1 hour
+  if (now - session.timestamp > 3600000) {
+    // Remove expired session
+    tokenStore.delete(sessionToken);
+    return res.status(401).json({
+      success: false,
+      message: 'Session expired'
+    });
+  }
+  
+  // Session is valid
+  return res.json({
+    success: true,
+    message: 'Session valid'
   });
 });
 
-// server.js - Avant la route POST
-apiRouter.options('/salesforce/transfer-lead', (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', 'http://127.0.0.1:5504');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.status(200).send();
-});
 
-// Transfer lead to Salesforce
-apiRouter.post('/salesforce/transfer-lead', async (req, res) => {
 
-  const leadData = req.body;
-  const accessToken = req.cookies.salesforce_access_token;
-  const instanceUrl = req.cookies.salesforce_instance_url;
+// Direct lead transfer endpoint - improved for demo
+apiRouter.post('/direct-lead-transfer', async (req, res) => {
+  const { sessionToken, leadData } = req.body;
   
-  if (!accessToken || !instanceUrl) {
-    console.log('Transfer attempted without connection');
-    return res.status(401).json({ 
-      success: false, 
-      message: 'Not authenticated with Salesforce. Please connect first.' 
+  console.log('==== DIRECT LEAD TRANSFER (DEMO VERSION) ====');
+  console.log('Session Token:', sessionToken ? 'present' : 'absent');
+  
+  if (!sessionToken || !tokenStore.has(sessionToken)) {
+    console.error('Invalid or missing session token');
+    return res.status(401).json({
+      success: false,
+      message: 'Invalid session. Please reconnect to Salesforce.'
     });
   }
   
   if (!leadData) {
-    console.log('Transfer attempted without lead data');
-    return res.status(400).json({ 
-      success: false, 
-      message: 'No lead data provided.' 
+    console.error('Missing lead data');
+    return res.status(400).json({
+      success: false,
+      message: 'Lead data missing.'
     });
   }
   
   try {
-    console.log('Transferring lead:', leadData.FirstName, leadData.LastName);
-    // Create connection with cookie credentials
+    const session = tokenStore.get(sessionToken);
+    
+    // Create Salesforce connection
     const conn = new jsforce.Connection({
-      instanceUrl: instanceUrl,
-      accessToken: accessToken
+      instanceUrl: session.instanceUrl,
+      accessToken: session.accessToken
     });
     
-    // Prepare lead data for Salesforce
+    // Basic check for duplicate lead by email
+    if (leadData.Email) {
+      try {
+        console.log('Checking for duplicate by email:', leadData.Email);
+        const query = `SELECT Id, Name FROM Lead WHERE Email = '${leadData.Email.replace(/'/g, "\\'")}' LIMIT 1`;
+        const result = await conn.query(query);
+        
+        if (result.records.length > 0) {
+          console.log('Duplicate lead found by email:', result.records[0].Id);
+          return res.status(409).json({
+            success: false,
+            message: `A lead with this email already exists in Salesforce (ID: ${result.records[0].Id})`,
+            duplicateId: result.records[0].Id
+          });
+        }
+      } catch (dupError) {
+        console.error('Error checking for duplicate:', dupError);
+        // Continue with transfer if duplicate check fails
+      }
+    }
+    
+    // Prepare lead data for Salesforce - with improved validation
+    console.log('Preparing lead data...');
     const sfLeadData = {
       FirstName: leadData.FirstName || '',
       LastName: leadData.LastName || 'Unknown',
@@ -218,75 +317,80 @@ apiRouter.post('/salesforce/transfer-lead', async (req, res) => {
       Title: leadData.Title || '',
       Industry: leadData.Industry || '',
       Description: leadData.Description || '',
-      Street: leadData.Street || '',
-      City: leadData.City || '',
-      State: leadData.State || '',
-      PostalCode: leadData.PostalCode || '',
-      Country: leadData.Country || '',
-      // Add any custom fields that you need to map
-      LeadSource: 'LeadSuccess API',
-      External_Id__c: leadData.Id || ''
+      LeadSource: 'LeadSuccess API'
     };
+
+    // Function to clean field values before sending to Salesforce
+    const cleanField = (value) => {
+      if (!value || value === 'N/A' || value === 'undefined' || value === 'null') {
+        return ''; // Empty string is safer than null for Salesforce
+      }
+      return value;
+    };
+
+    // Add address fields only if they have valid values
+    if (leadData.Street) sfLeadData.Street = cleanField(leadData.Street);
+    if (leadData.City) sfLeadData.City = cleanField(leadData.City);
+    if (leadData.PostalCode) sfLeadData.PostalCode = cleanField(leadData.PostalCode);
+
+    // Special handling for Country field to avoid validation errors
+    if (leadData.Country && leadData.Country !== 'N/A') {
+      // List of valid countries (simplified example for demo)
+      const validCountries = ['US', 'CA', 'FR', 'DE', 'UK', 'ES', 'IT', 'JP', 'AU', 'BR'];
+      
+      // Check if country is in the list of valid countries
+      if (validCountries.includes(leadData.Country)) {
+        sfLeadData.Country = leadData.Country;
+      } else {
+        // Leave empty rather than setting a potentially invalid value
+        console.log(`Country value "${leadData.Country}" might be invalid, leaving empty`);
+      }
+    }
+
+    // Deliberately omit State/Province to avoid validation errors
     
-    // Create lead in Salesforce
-    const result = await conn.sobject('Lead').create(sfLeadData);
-    
-    if (result.success) {
-      console.log('Lead transferred successfully, SF ID:', result.id);
-      res.json({
-        success: true,
-        leadId: result.id,
-        status: 'Transferred',
-        message: 'Lead successfully transferred to Salesforce'
-      });
-    } else {
-      console.error('Lead transfer error:', result.errors);
-      res.status(400).json({
+    // Create the lead in Salesforce
+    console.log('Creating lead in Salesforce...');
+    try {
+      const result = await conn.sobject('Lead').create(sfLeadData);
+      
+      if (result.success) {
+        console.log('Lead created successfully, ID:', result.id);
+        return res.json({
+          success: true,
+          leadId: result.id,
+          status: 'Transferred',
+          message: 'Lead successfully transferred to Salesforce'
+        });
+      } else {
+        console.error('Lead creation failed:', result.errors);
+        return res.status(400).json({
+          success: false,
+          message: `Failed to create lead: ${result.errors.join(', ')}`
+        });
+      }
+    } catch (sfError) {
+      // Simplified error handling for demo
+      console.error('Salesforce API error:', sfError.message);
+      return res.status(400).json({
         success: false,
-        message: `Failed to create lead: ${result.errors.join(', ')}`
+        message: `Salesforce error: ${sfError.message}`
       });
     }
   } catch (error) {
-    console.error('Lead transfer error:', error);
-    
-    // Handle token expiration
-    if (error.errorCode === 'INVALID_SESSION_ID') {
-      // Clear cookies
-      res.clearCookie('salesforce_access_token');
-      res.clearCookie('salesforce_instance_url');
-      
-      return res.status(401).json({
-        success: false,
-        message: 'Session expired. Please reconnect to Salesforce.',
-        errorCode: 'SESSION_EXPIRED'
-      });
-    }
-    
-    res.status(500).json({
+    console.error('Error during lead transfer:', error);
+    return res.status(500).json({
       success: false,
-      message: `Error transferring lead: ${error.message}`
+      message: `Error: ${error.message}`
     });
   }
 });
 
-// Logout from Salesforce
-apiRouter.post('/salesforce/logout', async (req, res) => {
-  // Simplement supprimer les cookies
-  res.clearCookie('salesforce_access_token');
-  res.clearCookie('salesforce_instance_url');
-  res.clearCookie('salesforce_refresh_token');
-  
-  res.json({ 
-    success: true, 
-    message: 'Successfully logged out from Salesforce' 
-  });
-});
 
 // Mount API router
 app.use('/api', apiRouter);
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`Salesforce API server running on http://localhost:${PORT}`);
-  console.log(`Callback URL configured as: ${oauth2.redirectUri}`);
+  console.log(` http://localhost:${PORT}`);
 });

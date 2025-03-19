@@ -1,79 +1,164 @@
+/**
+ * Salesforce Service using a session-based approach to avoid cookie issues
+ */
 class SalesforceService {
   constructor() {
-    this.baseUrl = 'http://localhost:3000/api'; 
-    this.isConnected = false;
-    this.userInfo = null;
-  }
-
-  /**
-   * Initialize the connection to Salesforce
-   * @returns {Promise<string>} Salesforce authentication URL
-   */
-  async getAuthUrl() {
-    try {
-      const response = await fetch(`${this.baseUrl}/salesforce/auth`);
-      if (!response.ok) {
-        throw new Error(`Authentication failed: ${response.statusText}`);
-      }
-      const data = await response.json();
-      return data.authUrl;
-    } catch (error) {
-      console.error('Failed to initialize authentication:', error);
-      throw error;
-    }
+    this.apiBaseUrl = 'http://localhost:3000/api';
+    this.sessionToken = localStorage.getItem('sf_session_token') || null;
   }
 
   /**
    * Check Salesforce connection status
-   * @returns {Promise<Object>} Connection information
+   * @returns {Promise<Object>} Object containing connection status
    */
   async checkConnection() {
     try {
-      const response = await fetch(`${this.baseUrl}/salesforce/connection-status`, {
-        credentials: 'include' // Important to send cookies
+      console.log('Checking Salesforce connection status...');
+      
+      const response = await fetch(`${this.apiBaseUrl}/salesforce/connection-status`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'X-Session-Token': this.sessionToken || ''
+        }
       });
+      
       if (!response.ok) {
-        throw new Error(`Connection check failed: ${response.statusText}`);
+        throw new Error(`HTTP error: ${response.status}`);
       }
-      const data = await response.json();
-      this.isConnected = data.connected;
-      this.userInfo = data.userInfo;
-      return data;
+      
+      const status = await response.json();
+      console.log('Connection status:', status.connected ? 'Connected' : 'Not connected');
+      
+      return status;
     } catch (error) {
-      console.error('Failed to check connection:', error);
-      this.isConnected = false;
-      this.userInfo = null;
+      console.error('Connection check error:', error);
+      return { connected: false, error: error.message };
+    }
+  }
+
+  /**
+   * Get Salesforce authentication URL
+   * @returns {Promise<string>} Authentication URL
+   */
+  async getAuthUrl() {
+    try {
+      console.log('Requesting Salesforce auth URL...');
+      const response = await fetch(`${this.apiBaseUrl}/salesforce/auth`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('Auth URL received');
+      return data.authUrl;
+    } catch (error) {
+      console.error('Error getting auth URL:', error);
       throw error;
     }
   }
 
-
+  /**
+   * Set session token after successful authentication
+   * @param {string} token - Session token
+   */
+  setSessionToken(token) {
+    this.sessionToken = token;
+    if (token) {
+      localStorage.setItem('sf_session_token', token);
+      console.log('Session token saved:', token.substring(0, 6) + '...');
+    } else {
+      localStorage.removeItem('sf_session_token');
+      console.log('Session token cleared');
+    }
+  }
 
   /**
-   * Transfer a lead to Salesforce
-   * @param {Object} leadData The lead data to transfer
-   * @returns {Promise<Object>} Transfer result
+   * Transfer a lead to Salesforce with enhanced debugging
    */
   async transferLead(leadData) {
     try {
-      const response = await fetch(`${this.baseUrl}/salesforce/transfer-lead`, {
+      console.log('===== START TRANSFERLEAD =====');
+      
+      if (!this.sessionToken) {
+        console.error("Error: No session token available");
+        throw new Error('Not connected to Salesforce. Please connect first.');
+      }
+      
+      console.log('Session token:', this.sessionToken.substring(0, 8) + '...');
+      console.log('Preparing lead data:', JSON.stringify(leadData, null, 2));
+      
+      console.log('Building HTTP request...');
+      const requestOptions = {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'X-Session-Token': this.sessionToken
         },
-        body: JSON.stringify(leadData),
-        credentials: 'include' // Important to send cookies
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || `Transfer failed: ${response.statusText}`);
+        body: JSON.stringify(leadData)
+      };
+      
+      console.log('Sending request to:', `${this.apiBaseUrl}/salesforce/transfer-lead`);
+      console.log('Request options:', JSON.stringify(requestOptions, null, 2));
+      
+      try {
+        const response = await fetch(`${this.apiBaseUrl}/salesforce/transfer-lead`, requestOptions);
+        
+        console.log('Response received, HTTP status:', response.status);
+        console.log('Response headers:', JSON.stringify(Object.fromEntries([...response.headers]), null, 2));
+        
+        let resultData;
+        
+        try {
+          const responseText = await response.text();
+          console.log('Response text:', responseText);
+          
+          try {
+            resultData = JSON.parse(responseText);
+            console.log('JSON response parsed:', resultData);
+          } catch (parseError) {
+            console.error('JSON parsing error:', parseError);
+            throw new Error(`Non-JSON response: ${responseText}`);
+          }
+        } catch (textError) {
+          console.error('Error reading response text:', textError);
+          throw new Error('Unable to read server response');
+        }
+        
+        if (!response.ok) {
+          console.error('Non-OK HTTP response:', response.status, resultData);
+          
+          // If session expired, remove token
+          if (response.status === 401) {
+            console.log('Session expired, removing token');
+            this.setSessionToken(null);
+          }
+          
+          throw new Error(resultData.message || `HTTP error: ${response.status}`);
+        }
+        
+        console.log('Transfer successful:', resultData);
+        return resultData;
+      } catch (fetchError) {
+        console.error('Fetch error:', fetchError);
+        throw fetchError;
       }
-
-      return await response.json();
     } catch (error) {
-      console.error('Lead transfer failed:', error);
+      console.error('Error in transferLead:', error);
+      console.error('Stack trace:', error.stack);
       throw error;
+    } finally {
+      console.log('===== END TRANSFERLEAD =====');
     }
   }
 
@@ -83,18 +168,34 @@ class SalesforceService {
    */
   async logout() {
     try {
-      const response = await fetch(`${this.baseUrl}/salesforce/logout`, {
-        method: 'POST',
-        credentials: 'include' // Important to send cookies
-      });
-
-      if (!response.ok) {
-        throw new Error(`Logout failed: ${response.statusText}`);
+      console.log('Logging out from Salesforce...');
+      
+      if (!this.sessionToken) {
+        return { success: true, message: 'Already logged out' };
       }
-
-      return await response.json();
+      
+      const response = await fetch(`${this.apiBaseUrl}/salesforce/logout`, {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'X-Session-Token': this.sessionToken
+        }
+      });
+      
+      // Remove session token
+      this.setSessionToken(null);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      return result;
     } catch (error) {
-      console.error('Logout failed:', error);
+      console.error('Logout error:', error);
+      // Even in case of error, remove local token
+      this.setSessionToken(null);
       throw error;
     }
   }

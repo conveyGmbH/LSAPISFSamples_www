@@ -1,43 +1,49 @@
-// Contrôleur simplifié pour le transfert de leads vers Salesforce
+// Controller simplified for demo - Lead transfer to Salesforce
 import SalesforceService from '../services/salesforceService.js';
 
-// Initialisation du service Salesforce
+// Initialize Salesforce service
 const sfService = new SalesforceService();
 
-// Variables globales
+// Global variables
 let selectedLeadData = null;
 let leadSource = null;
 let authWindow = null;
+let isTransferInProgress = false;
+let sessionToken = localStorage.getItem('sf_session_token');
 
-/**
- * Initialisation lors du chargement de la page
- */
+// Initialization when page loads
 document.addEventListener('DOMContentLoaded', async () => {
-  const connectSalesforceBtn = document.getElementById('connectSalesforceBtn');
-  const transferLeadBtn = document.getElementById('transferLeadBtn');
-  const logoutBtn = document.getElementById('logoutButton');
+  console.log('Lead transfer page loaded');
   
-  // Vérifier l'état de connexion Salesforce
-  await checkSalesforceConnection();
+  const transferBtn = document.getElementById('transferToSalesforceBtn');
+  const backButton = document.getElementById('backButton');
   
-  // Charger les données du lead
+  // Load lead data
   loadLeadData();
   
-  // Écouter les messages d'authentification réussie
   window.addEventListener('message', (event) => {
     if (event.data && event.data.type === 'salesforce-auth-success') {
-      console.log('Received auth success message:', event.data);
-      onAuthSuccess(event.data);
+      console.log('Received auth success message');
+      
+      // Save session token
+      if (event.data.sessionToken) {
+        sessionToken = event.data.sessionToken;
+        localStorage.setItem('sf_session_token', sessionToken);
+        
+        // Update interface
+        updateConnectionStatus('connected', `Connected to Salesforce`);
+        
+        // Continue transfer if in progress
+        if (isTransferInProgress) {
+          continueTransferWithToken();
+        }
+      }
     }
   });
   
-  // Ajouter les gestionnaires d'événements aux boutons
-  if (connectSalesforceBtn) {
-    connectSalesforceBtn.addEventListener('click', connectToSalesforce);
-  }
-  
-  if (transferLeadBtn) {
-    transferLeadBtn.addEventListener('click', transferLeadToSalesforce);
+  // Add event handlers to buttons
+  if (transferBtn) {
+    transferBtn.addEventListener('click', handleTransferButtonClick);
   }
   
   if (backButton) {
@@ -46,63 +52,222 @@ document.addEventListener('DOMContentLoaded', async () => {
       window.location.href = source === 'LeadReport' ? 'displayLsLeadReport.html' : 'displayLsLead.html';
     });
   }
+  
+  // Check if already connected
+  if (sessionToken) {
+    updateConnectionStatus('connected', 'Connected to Salesforce');
+  } else {
+    updateConnectionStatus('not-connected', 'Not connected to Salesforce');
+  }
 });
 
-/**
- * Vérifier l'état de connexion Salesforce
- */
-async function checkSalesforceConnection() {
-  try {
-    const status = await sfService.checkConnection();
-    updateConnectionStatus(status.connected ? 'connected' : 'not-connected', 
-      status.connected ? `Connecté en tant que ${status.userInfo?.display_name || status.userInfo?.name || 'Utilisateur Salesforce'}` : 'Non connecté à Salesforce');
-    
-    // Activer/désactiver le bouton de transfert selon l'état de connexion
-    document.getElementById('transferLeadBtn').disabled = !status.connected;
-  } catch (error) {
-    console.error('Échec de la vérification de connexion:', error);
-    updateConnectionStatus('not-connected', 'Statut de connexion inconnu');
+// Handle click on transfer button
+async function handleTransferButtonClick() {
+  if (isTransferInProgress) return;
+  
+  const transferBtn = document.getElementById('transferToSalesforceBtn');
+  const transferResults = document.getElementById('transferResults');
+  const transferStatus = document.getElementById('transferStatus');
+  
+  if (!selectedLeadData) {
+    showError('No lead data available.');
+    return;
   }
-}
-
-/**
- * Se connecter à Salesforce
- */
-async function connectToSalesforce() {
+  
+  isTransferInProgress = true;
+  transferBtn.disabled = true;
+  transferBtn.innerHTML = `
+    <div class="spinner"></div>
+    Connecting and transferring...
+  `;
+  
   try {
-    updateConnectionStatus('connecting', 'Connexion à Salesforce...');
+    // Show progress indicator
+    transferResults.style.display = 'block';
     
-    const authUrl = await sfService.getAuthUrl();
-    authWindow = window.open(authUrl, 'salesforceAuth', 'width=600,height=700');
-    
-    if (!authWindow) {
-      throw new Error('Popup bloqué! Veuillez autoriser les popups pour ce site.');
+    // If no session token, start authentication
+    if (!sessionToken) {
+      updateConnectionStatus('connecting', 'Connecting to Salesforce...');
+      
+      transferStatus.innerHTML = `
+        <div class="transfer-pending">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+          </svg>
+          Salesforce authentication in progress...
+        </div>
+      `;
+      
+      // Start authentication
+      const authUrl = await fetch('http://localhost:3000/api/salesforce/auth')
+        .then(response => response.json())
+        .then(data => data.authUrl);
+      
+      authWindow = window.open(authUrl, 'salesforceAuth', 'width=600,height=700');
+      
+      if (!authWindow) {
+        throw new Error('Popup blocked! Please allow popups for this site.');
+      }
+      
+      // Process will continue when authentication message is received
+      return;
     }
+    
+    // Otherwise, proceed directly to transfer
+    await continueTransferWithToken();
   } catch (error) {
-    console.error('Erreur d\'authentification:', error);
-    updateConnectionStatus('not-connected', 'Échec de la connexion');
-    showError(`Échec de la connexion à Salesforce: ${error.message}`);
+    console.error('Process failure:', error);
+    
+    // Show error
+    transferStatus.innerHTML = `
+      <div class="status-error">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="15" y1="9" x2="9" y2="15"/>
+          <line x1="9" y1="9" x2="15" y2="15"/>
+        </svg>
+        Transfer failed: ${error.message || 'Unknown error'}
+      </div>
+    `;
+    
+    // Reset button
+    isTransferInProgress = false;
+    transferBtn.disabled = false;
+    transferBtn.innerHTML = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 5v14M19 12l-7 7-7-7"/>
+      </svg>
+      Transfer to Salesforce
+    `;
+  }
+}
+
+// Continue transfer with token
+ 
+async function continueTransferWithToken() {
+  const transferStatus = document.getElementById('transferStatus');
+  const transferBtn = document.getElementById('transferToSalesforceBtn');
+  
+  try {
+    // Show transfer status
+    transferStatus.innerHTML = `
+      <div class="transfer-pending">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <polyline points="12 6 12 12 16 14"/>
+        </svg>
+        Lead transfer in progress...
+      </div>
+    `;
+    
+    // Direct call to transfer API
+    console.log('Direct transfer with token:', sessionToken);
+    
+    const leadDataToSend = {...selectedLeadData};
+
+    delete leadDataToSend.State; 
+    for (let field in leadDataToSend) {
+      // Check if value is invalid
+      if (
+        leadDataToSend[field] === 'N/A' || 
+        leadDataToSend[field] === 'null' || 
+        leadDataToSend[field] === 'undefined' ||
+        leadDataToSend[field] === null ||
+        leadDataToSend[field] === undefined
+      ) {
+        // Remove field completely instead of sending invalid value
+        delete leadDataToSend[field];
+      }
+    }
+
+    // Special handling for required fields
+    if (!leadDataToSend.LastName || leadDataToSend.LastName === 'N/A') {
+      leadDataToSend.LastName = 'Unknown';
+    }
+
+    if (!leadDataToSend.Company || leadDataToSend.Company === 'N/A') {
+      leadDataToSend.Company = 'Unknown';
+    }
+
+    // Special handling for Country
+    if (leadDataToSend.Country === 'N/A') {
+      delete leadDataToSend.Country;
+    }
+    
+    const response = await fetch('http://localhost:3000/api/direct-lead-transfer', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        sessionToken,
+        leadData: leadDataToSend
+      })
+    });
+    
+    const result = await response.json();
+    
+    if (!response.ok) {
+      // If session expired, remove token and restart authentication
+      if (response.status === 401) {
+        localStorage.removeItem('sf_session_token');
+        sessionToken = null;
+        
+        // Restart authentication
+        handleTransferButtonClick();
+        return;
+      }
+      
+      throw new Error(result.message || `Error ${response.status}`);
+    }
+    
+    // Show result
+    transferStatus.innerHTML = `
+      <div class="status-success">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+          <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        Lead successfully transferred to Salesforce
+      </div>
+      <div class="status-details">
+        <p><strong>Salesforce ID:</strong> ${result.leadId}</p>
+        <p><strong>Status:</strong> ${result.status}</p>
+        <p><strong>Message:</strong> ${result.message}</p>
+      </div>
+    `;
+    
+    // Update connection status
+    updateConnectionStatus('connected', 'Connected to Salesforce');
+  } catch (error) {
+    console.error('Error during transfer:', error);
+    
+    transferStatus.innerHTML = `
+      <div class="status-error">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="15" y1="9" x2="9" y2="15"/>
+          <line x1="9" y1="9" x2="15" y2="15"/>
+        </svg>
+        Transfer failed: ${error.message || 'Unknown error'}
+      </div>
+    `;
+  } finally {
+    // Reset button state
+    isTransferInProgress = false;
+    transferBtn.disabled = false;
+    transferBtn.innerHTML = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 5v14M19 12l-7 7-7-7"/>
+      </svg>
+      Transfer to Salesforce
+    `;
   }
 }
 
 /**
- * Gérer le succès de l'authentification
- */
-function onAuthSuccess(data) {
-  // Fermer la fenêtre d'authentification si elle est encore ouverte
-  if (authWindow && !authWindow.closed) {
-    authWindow.close();
-  }
-  
-  const userInfo = data.userInfo || {};
-  const displayName = userInfo.display_name || userInfo.name || 'Utilisateur Salesforce';
-  
-  updateConnectionStatus('connected', `Connecté en tant que ${displayName}`);
-  document.getElementById('transferLeadBtn').disabled = false;
-}
-
-/**
- * Charger les données du lead depuis la session
+ * Load lead data from session
  */
 function loadLeadData() {
   try {
@@ -117,16 +282,16 @@ function loadLeadData() {
       return;
     }
     
-    // Mettre à jour la source du lead
+    // Update lead source
     const leadSourceElement = document.getElementById('leadSource');
     if (leadSourceElement) {
       leadSourceElement.textContent = leadSource === 'LeadReport' ? 'Lead Report' : 'Lead';
     }
     
-    // Analyser les données du lead
+    // Parse lead data
     selectedLeadData = JSON.parse(leadDataStr);
     
-    // Afficher les données
+    // Display data
     displayLeadData(selectedLeadData);
   } catch (error) {
     console.error('Error loading lead data:', error);
@@ -135,7 +300,50 @@ function loadLeadData() {
 }
 
 /**
- * Afficher les données du lead dans l'interface
+ * Verify if the session token is still valid
+ */
+async function verifySessionToken() {
+  if (!sessionToken) {
+    updateConnectionStatus('not-connected', 'Not connected to Salesforce');
+    return false;
+  }
+  
+  try {
+    // Quick ping to check if token is valid
+    const response = await fetch('http://localhost:3000/api/salesforce/session-check', {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'X-Session-Token': sessionToken
+      }
+    });
+    
+    if (!response.ok) {
+      // Token is invalid or expired
+      sessionToken = null;
+      localStorage.removeItem('sf_session_token');
+      updateConnectionStatus('not-connected', 'Session expired. Please reconnect');
+      return false;
+    }
+    
+    // Token is valid
+    updateConnectionStatus('connected', 'Connected to Salesforce');
+    return true;
+  } catch (error) {
+    console.error('Error verifying session:', error);
+    
+    // If server is not responding, better to assume we're not connected
+    sessionToken = null;
+    localStorage.removeItem('sf_session_token');
+    updateConnectionStatus('not-connected', 'Connection error. Please reconnect');
+    return false;
+  }
+}
+
+
+
+/**
+ * Display lead data in interface
  */
 function displayLeadData(data) {
   const leadDataContainer = document.getElementById('leadData');
@@ -148,22 +356,22 @@ function displayLeadData(data) {
       return;
     }
     
-    // Créer la grille d'informations
+    // Create info grid
     const infoGrid = document.createElement('div');
     infoGrid.className = 'lead-info-grid';
     
-    // Définir les champs prioritaires
+    // Define priority fields
     const priorityFields = ['Id', 'FirstName', 'LastName', 'Email', 'Company', 'Phone', 'MobilePhone', 'Title', 'Industry'];
     const excludedFields = ['__metadata', 'KontaktViewId'];
     
-    // Afficher d'abord les champs prioritaires
+    // Display priority fields first
     priorityFields.forEach(field => {
       if (data[field]) {
         infoGrid.appendChild(createFieldElement(field, data[field]));
       }
     });
     
-    // Puis les autres champs
+    // Then other fields
     Object.keys(data).forEach(field => {
       if (
         !priorityFields.includes(field) && 
@@ -180,7 +388,7 @@ function displayLeadData(data) {
 }
 
 /**
- * Créer un élément pour afficher un champ du lead
+ * Create element to display lead field
  */
 function createFieldElement(label, value) {
   const fieldElement = document.createElement('div');
@@ -193,7 +401,7 @@ function createFieldElement(label, value) {
   const valueElement = document.createElement('div');
   valueElement.className = 'field-value';
   
-  // Formatter les dates si nécessaire
+  // Format dates if needed
   if (label.includes('Date') || label === 'SystemModstamp') {
     try {
       const date = new Date(value);
@@ -212,135 +420,88 @@ function createFieldElement(label, value) {
 }
 
 /**
- * Transférer le lead vers Salesforce
- */
-async function transferLeadToSalesforce() {
-  const transferLeadBtn = document.getElementById('transferLeadBtn');
-  const transferResults = document.getElementById('transferResults');
-  const transferStatus = document.getElementById('transferStatus');
-  
-  if (!selectedLeadData) {
-    showError('Aucune donnée de lead disponible.');
-    return;
-  }
-  
-  try {
-    // Désactiver le bouton pendant le transfert
-    transferLeadBtn.disabled = true;
-    transferLeadBtn.textContent = 'Transfert en cours...';
-    
-    // Afficher l'indicateur de progression
-    transferResults.style.display = 'block';
-    transferStatus.innerHTML = `
-      <div class="transfer-pending">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"/>
-          <polyline points="12 6 12 12 16 14"/>
-        </svg>
-        Traitement du transfert...
-      </div>
-    `;
-    
-    // Effectuer le transfert
-    const result = await sfService.transferLead(selectedLeadData);
-
-    console.log("result", result)
-    
-    // Afficher le résultat
-    transferStatus.innerHTML = `
-      <div class="status-success">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-          <polyline points="22 4 12 14.01 9 11.01"/>
-        </svg>
-        Lead transféré avec succès vers Salesforce
-      </div>
-      <div class="status-details">
-        <p><strong>ID Salesforce:</strong> ${result.leadId}</p>
-        <p><strong>Statut:</strong> ${result.status}</p>
-        <p><strong>Message:</strong> ${result.message}</p>
-      </div>
-    `;
-  } catch (error) {
-    console.error('Échec du transfert:', error);
-    
-    // Vérifier si l'erreur est liée à l'authentification
-    if (error.message.includes('Not connected') || error.message.includes('expired')) {
-      // Tenter une reconnexion
-      updateConnectionStatus('not-connected', 'Session expirée. Reconnexion nécessaire.');
-    }
-    
-    transferStatus.innerHTML = `
-      <div class="status-error">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"/>
-          <line x1="15" y1="9" x2="9" y2="15"/>
-          <line x1="9" y1="9" x2="15" y2="15"/>
-        </svg>
-        Échec du transfert
-      </div>
-      <div class="status-details">
-        <p><strong>Erreur:</strong> ${error.message || 'Erreur inconnue'}</p>
-      </div>
-    `;
-  } finally {
-    // Réactiver le bouton
-    transferLeadBtn.disabled = false;
-    transferLeadBtn.innerHTML = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12 5v14M19 12l-7 7-7-7"/>
-      </svg>
-      Transférer vers Salesforce
-    `;
-  }
-}
-
-/**
- * Mettre à jour l'indicateur de statut de connexion
+ * Update connection status indicator
  */
 function updateConnectionStatus(status, message) {
   const statusIndicator = document.querySelector('.status-indicator');
   const statusText = document.querySelector('.sf-connection-status span');
-  const connectSalesforceBtn = document.getElementById('connectSalesforceBtn');
-  const transferLeadBtn = document.getElementById('transferLeadBtn');
   
-  statusIndicator.className = 'status-indicator';
-  statusIndicator.classList.add(status);
-  statusText.textContent = message;
-  
-  if (status === 'connected') {
-    if (connectSalesforceBtn) {
-      connectSalesforceBtn.textContent = 'Connected to Salesforce';
-      connectSalesforceBtn.disabled = true;
-    }
-    if (transferLeadBtn) {
-      transferLeadBtn.disabled = false;
-    }
-  } else {
-    if (connectSalesforceBtn) {
-      connectSalesforceBtn.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M20 11h-8m0 0V3m0 8 8-8M4 13h8m0 0v8m0-8-8 8"/>
-        </svg>
-        Connect to Salesforce
-      `;
-      connectSalesforceBtn.disabled = false;
-    }
-    if (transferLeadBtn) {
-      transferLeadBtn.disabled = true;
-    }
+  if (statusIndicator && statusText) {
+    statusIndicator.className = 'status-indicator';
+    statusIndicator.classList.add(status);
+    statusText.textContent = message;
   }
 }
 
 /**
- * Afficher un message d'erreur
+ * Show error message
  */
 function showError(message) {
   const errorElement = document.getElementById('errorMessage');
-  errorElement.textContent = message;
-  errorElement.style.display = 'block';
-  
-  setTimeout(() => {
-    errorElement.style.display = 'none';
-  }, 5000);
+  if (errorElement) {
+    errorElement.textContent = message;
+    errorElement.style.display = 'block';
+    
+    setTimeout(() => {
+      errorElement.style.display = 'none';
+    }, 5000);
+  } else {
+    console.error('Error message element not found:', message);
+    alert(message);
+  }
 }
+
+document.addEventListener('DOMContentLoaded', async () => {
+  console.log('Lead transfer page loaded');
+  
+  // Get DOM elements
+  const transferBtn = document.getElementById('transferToSalesforceBtn');
+  const backButton = document.getElementById('backButton');
+  
+  // Load lead data
+  loadLeadData();
+  
+  // Listen for authentication messages
+  window.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'salesforce-auth-success') {
+      console.log('Received auth success message');
+      
+      // Save session token
+      if (event.data.sessionToken) {
+        sessionToken = event.data.sessionToken;
+        localStorage.setItem('sf_session_token', sessionToken);
+        
+        // Update interface
+        updateConnectionStatus('connected', `Connected to Salesforce`);
+        
+        // Continue transfer if in progress
+        if (isTransferInProgress) {
+          continueTransferWithToken();
+        }
+      }
+    }
+  });
+  
+  // Add event handlers to buttons
+  if (transferBtn) {
+    transferBtn.addEventListener('click', handleTransferButtonClick);
+  }
+  
+  if (backButton) {
+    backButton.addEventListener('click', () => {
+      const source = sessionStorage.getItem('selectedLeadSource');
+      window.location.href = source === 'LeadReport' ? 'displayLsLeadReport.html' : 'displayLsLead.html';
+    });
+  }
+  
+  // Check if already connected and verify token
+  if (sessionToken) {
+    // Show connecting status while we verify
+    updateConnectionStatus('connecting', 'Verifying connection...');
+    
+    // Verify if the token is still valid
+    await verifySessionToken();
+  } else {
+    updateConnectionStatus('not-connected', 'Not connected to Salesforce');
+  }
+});
