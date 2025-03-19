@@ -1,4 +1,17 @@
-/* Reset and common styles */
+
+:root {
+    --primary-color: #d9613f;
+    --background-color: rgb(215, 229, 241);
+    --secondary-color: #2d3446;
+    --text-color: #2d3446;
+    --accent-color: #d9613f;
+    --border-color: rgba(45, 52, 70, 0.2);
+    --hover-color: rgba(217, 97, 63, 0.1);
+    --white: #ffffff;
+    --purple: #6c00bd;
+    --gray: #6c757d;
+    --light-gray: #ccc;
+}
 * {
     margin: 0;
     padding: 0;
@@ -55,6 +68,7 @@ body {
     background-color: #f0f2f5;
     padding: 1rem 2rem;
     border-bottom: 1px solid #e0e0e0;
+    text-align: center;
 }
 
 .head-line {
@@ -67,6 +81,10 @@ body {
     font-weight: normal;
     color: #666;
     margin-top: 0.25rem;
+}
+
+.sub-header h2{
+    font-size: 1.3rem;
 }
 
 .page-title {
@@ -91,20 +109,27 @@ body {
 }
 
 .action-button {
+    background-color: var(--primary-color);
+    color: var(--white);
+    border: none;
+    padding: 0 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s ease;
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
-    background-color: #f0f2f5;
-    border: none;
-    padding: 8px 15px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.9rem;
-    transition: background-color 0.2s;
+    height: 48px;
 }
-
-.action-button:hover {
-    background-color: #e0e0e0;
+action-button:disabled {
+    background-color: var(--light-gray);
+    cursor: not-allowed;
+}
+  
+.action-button:hover:not(:disabled) {
+    background-color: #c55535;
 }
 
 /* Salesforce connection status */
@@ -241,6 +266,18 @@ body {
 .transfer-btn {
     background-color: #0d6efd;
     color: white;
+    padding: 10px 20px;
+    border-radius: 4px;
+    border: none;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    /* width: 100%; */
+    margin-top: 20px;
+    transition: background-color 0.3s ease;
 }
 
 .transfer-btn:hover:not(:disabled) {
@@ -250,6 +287,106 @@ body {
 .transfer-btn:disabled {
     background-color: #a9c4f5;
     cursor: not-allowed;
+}
+
+.transfer-btn:hover {
+    background-color: #0b5ed7;
+}
+
+.transfer-btn:disabled {
+    background-color: #6c757d;
+    cursor: not-allowed;
+}
+
+.action-panel {
+    margin-top: 20px;
+}
+
+/* Field validation styles */
+.field-required {
+    position: relative;
+}
+
+.field-required .field-label::after {
+    content: "*";
+    color: #dc3545;
+    margin-left: 4px;
+}
+
+.field-invalid {
+    border-left: 3px solid #dc3545;
+}
+
+.field-valid {
+    border-left: 3px solid #198754;
+}
+
+.field-warning {
+    border-left: 3px solid #ffc107;
+}
+
+.validation-message {
+    color: #dc3545;
+    font-size: 0.85rem;
+    margin-top: 5px;
+}
+
+/* Enhanced status messages */
+.status-pending, .status-success, .status-error, .status-warning {
+    display: flex;
+    align-items: flex-start;
+    padding: 12px 15px;
+    border-radius: 4px;
+    margin-bottom: 15px;
+}
+
+.status-pending {
+    background-color: #cfe2ff;
+    color: #084298;
+}
+
+.status-success {
+    background-color: #d1e7dd;
+    color: #0f5132;
+}
+
+.status-error {
+    background-color: #f8d7da;
+    color: #842029;
+}
+
+.status-warning {
+    background-color: #fff3cd;
+    color: #664d03;
+}
+
+.status-details {
+    background-color: #f8f9fa;
+    padding: 12px 15px;
+    border-radius: 4px;
+    margin-top: 10px;
+}
+
+/* Additional icon styles */
+.status-icon {
+    margin-right: 10px;
+    flex-shrink: 0;
+}
+
+/* Loading spinner */
+.spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(0,0,0,0.1);
+    border-radius: 50%;
+    border-top-color: #0d6efd;
+    animation: spin 1s ease-in-out infinite;
+    margin-right: 10px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
 }
 
 /* Transfer Results */
@@ -310,4 +447,10 @@ body {
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
     max-width: 80%;
     text-align: center;
+}
+
+@media (max-width: 768px) {
+    .transfer-btn{
+        width: 100%;
+    }
 }
