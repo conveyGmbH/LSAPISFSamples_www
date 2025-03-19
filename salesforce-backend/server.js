@@ -511,6 +511,16 @@ apiRouter.post('/direct-lead-transfer', async (req, res) => {
 });
 
 
+// Endpoint simple 
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    timestamp: Date.now(),
+    service: 'leadSuccess-api'
+  });
+});
+
+
 // Mount API router
 app.use('/api', apiRouter);
 
