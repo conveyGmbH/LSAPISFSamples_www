@@ -5,6 +5,10 @@ const jsforce = require('jsforce');
 const dotenv = require('dotenv');
 const path = require('path');
 
+// Detection Environment
+const isProduction = process.env.NODE_ENV === 'production';
+
+
 dotenv.config();
 
 const app = express();
@@ -30,7 +34,9 @@ app.use(cors({
 // OAuth2 configuration
 const SF_CLIENT_ID = process.env.SF_CLIENT_ID;
 const SF_CLIENT_SECRET = process.env.SF_CLIENT_SECRET;
-const SF_REDIRECT_URI = process.env.SF_REDIRECT_URI || 'http://localhost:3000/api/oauth2/callback';
+const SF_REDIRECT_URI = isProduction
+  ? 'https://lsapisamplesbackend-bhesadgtbja4dmgq.germanywestcentral-01.azurewebsites.net/api/oauth2/callback'
+  : 'http://localhost:3000/api/oauth2/callback';
 const SF_LOGIN_URL = process.env.SF_LOGIN_URL || 'https://login.salesforce.com';
 
 // Session token storage
@@ -165,7 +171,11 @@ app.get('/', (req, res) => {
 // Get authentication URL
 apiRouter.get('/salesforce/auth', (req, res) => {
   try {
+    
+    console.log('Current environment:', process.env.NODE_ENV || 'development');
+    console.log('Using redirect URI:', SF_REDIRECT_URI);
     console.log('Generating auth URL...');
+
     const authUrl = `${SF_LOGIN_URL}/services/oauth2/authorize?response_type=code&client_id=${SF_CLIENT_ID}&redirect_uri=${encodeURIComponent(SF_REDIRECT_URI)}&scope=api%20id%20web%20refresh_token`;
     
     console.log('Auth URL generated:', authUrl);
