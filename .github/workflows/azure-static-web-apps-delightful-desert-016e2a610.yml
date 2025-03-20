@@ -22,12 +22,9 @@ jobs:
       # Step to generate the configuration file
       - name: Inject environment variables
         run: |
-          echo "// Automatically generated configuration" > config.js
-          echo "window.APP_CONFIG = {" >> config.js
-          echo "  __BACKEND_API_URL__: '${{ secrets.__BACKEND_API_URL__ || 'https://lsapisamplesbackend-bhesadgtbja4dmgq.germanywestcentral-01.azurewebsites.net/api' }}'," >> config.js
-          echo "  ENVIRONMENT: '${{ secrets.ENVIRONMENT || 'production' }}'" >> config.js
-          echo "};" >> config.js
-          cat config.js
+          echo "// Configuration générée automatiquement" > js/config/config.js
+          echo "window.BACKEND_API_URL = '${{ secrets.BACKEND_API_URL || 'https://lsapisamplesbackend-bhesadgtbja4dmgq.germanywestcentral-01.azurewebsites.net/api' }}';" >> js/config/config.js
+          cat js/config/config.js
           
       - name: Build And Deploy
         id: builddeploy
