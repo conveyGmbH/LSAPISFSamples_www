@@ -1,12 +1,14 @@
-/**
- * Salesforce Service using a session-based approach to avoid cookie issues
- */
+import { appConfig } from "../config/salesforceConfig.js";
+
+
+
 class SalesforceService {
   constructor() {
-    this.apiBaseUrl = process.env.NODE_ENV === 'production' 
-    ? 'https://lsapisamplesbackend-bhesadgtbja4dmgq.germanywestcentral-01.azurewebsites.net/api'
-    : 'http://localhost:3000/api';
+    this.apiBaseUrl = appConfig.apiBaseUrl;
     this.sessionToken = localStorage.getItem('sf_session_token') || null;
+
+    console.log('SalesforceService initialized with API URL:', this.apiBaseUrl);
+
   }
 
   /**

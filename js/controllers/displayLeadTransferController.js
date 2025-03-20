@@ -1,5 +1,8 @@
 // Controller simplified for demo - Lead transfer to Salesforce
+import { appConfig } from '../config/salesforceConfig.js';
 import SalesforceService from '../services/salesforceService.js';
+
+
 
 // Initialize Salesforce service
 const sfService = new SalesforceService();
@@ -100,7 +103,7 @@ async function handleTransferButtonClick() {
       `;
       
       // Start authentication
-      const authUrl = await fetch('http://localhost:3000/api/salesforce/auth')
+      const authUrl = await fetch(`${appConfig.apiBaseUrl}/salesforce/auth`)
         .then(response => response.json())
         .then(data => data.authUrl);
       
@@ -195,7 +198,7 @@ async function continueTransferWithToken() {
       delete leadDataToSend.Country;
     }
     
-    const response = await fetch('http://localhost:3000/api/direct-lead-transfer', {
+    const response = await fetch(`${appConfig.apiBaseUrl}/direct-lead-transfer`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -310,7 +313,7 @@ async function verifySessionToken() {
   
   try {
     // Quick ping to check if token is valid
-    const response = await fetch('http://localhost:3000/api/salesforce/session-check', {
+    const response = await fetch(`${appConfig.apiBaseUrl}salesforce/session-check`, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
