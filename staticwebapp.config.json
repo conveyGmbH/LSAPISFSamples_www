@@ -1,0 +1,19 @@
+{
+    "routes": [
+      {
+        "route": "/*",
+        "headers": {
+          "Content-Security-Policy": "default-src 'self'; connect-src 'self' blob: http://*.convey.de https://*.convey.de ws://127.0.0.1:5504 http://localhost:3000 https://lsapisamplesbackend-bhesadgtbja4dmgq.germanywestcentral-01.azurewebsites.net; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:;"
+        }
+      }
+    ],
+    "navigationFallback": {
+      "rewrite": "/index.html",
+      "exclude": ["/images/*.{png,jpg,gif}", "/css/*", "/js/*"]
+    },
+    "globalHeaders": {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Session-Token"
+    }
+  }
