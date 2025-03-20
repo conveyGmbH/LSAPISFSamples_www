@@ -50,7 +50,7 @@ app.get('/', (req, res) => {
     timestamp: new Date().toISOString(),
     uptime: `${Math.floor(process.uptime())} seconds`,
     endpoints: [
-      { path: '/api/salesforce/auth', method: 'GET', description: 'Get Salesforce authentication URL' },
+      { path: '/api/salesforce/auth', method: 'GET', description: 'Get Salesforce authentication URL 2000' },
       { path: '/api/oauth2/callback', method: 'GET', description: 'OAuth2 callback for Salesforce' },
       { path: '/api/direct-lead-transfer', method: 'POST', description: 'Transfer lead to Salesforce' }
     ]
