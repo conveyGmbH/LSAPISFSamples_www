@@ -3,7 +3,9 @@
  */
 class SalesforceService {
   constructor() {
-    this.apiBaseUrl = 'http://localhost:3000/api';
+    this.apiBaseUrl = process.env.NODE_ENV === 'production' 
+    ? 'https://lsapisamplesbackend-bhesadgtbja4dmgq.germanywestcentral-01.azurewebsites.net/api'
+    : 'http://localhost:3000/api';
     this.sessionToken = localStorage.getItem('sf_session_token') || null;
   }
 
