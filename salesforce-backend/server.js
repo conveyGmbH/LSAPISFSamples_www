@@ -17,7 +17,11 @@ app.use(express.urlencoded({ extended: true }));
 
 // CORS configuration
 app.use(cors({
-  origin: ['https://delightful-desert-016e2a610.4.azurestaticapps.net', 'http://localhost:3000'],
+  origin: [
+    'https://delightful-desert-016e2a610.4.azurestaticapps.net', 
+    'http://localhost:3000',
+    'http://127.0.0.1:5504'
+  ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Cache-Control', 'X-Session-Token']

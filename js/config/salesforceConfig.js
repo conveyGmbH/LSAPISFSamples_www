@@ -1,11 +1,21 @@
-// js/config/salesforceConfig.js
-const salesforceConfig = {
-    clientId: '3MVG9rZjd7MXFdLjcmv2WrBcFvYgqfMxJzyW7.osW1KAWiHjC4Oh_C31c_DOCfKp0d.knPO6fvApDr8Y5qfgl',
-    clientSecret: 'D63BDD0A7C0DD06A57DAE136320DD52317D99F54FF9DB8867257ADC420F356AD',
-    redirectUri: 'http://localhost:3000/api/oauth2/callback',
-    loginUrl: 'https://login.salesforce.com', 
-    version: 'v57.0'
-  };
+export const appConfig = {
+  // Automatic detection of the environment
+  isProduction: window.location.hostname !== 'localhost' && 
+                window.location.hostname !== '127.0.0.1',
   
-  // Exportez la configuration pour l'utiliser dans d'autres fichiers
-  export default salesforceConfig;
+  // Environment-specific configuration
+  get apiBaseUrl() {
+    return this.isProduction
+      ? 'https://lsapisamplesbackend-bhesadgtbja4dmgq.germanywestcentral-01.azurewebsites.net/api' // Base URL for production
+      : 'http://localhost:3000/api'; // Base URL for development
+  },
+  
+  // Add other settings as needed
+  get environmentName() {
+    return this.isProduction ? 'production' : 'development'; // Returns the current environment name
+  }
+};
+
+// Logs to the console for debugging purposes
+console.log(`Application running in ${appConfig.environmentName} mode`);
+console.log(`API Base URL: ${appConfig.apiBaseUrl}`);
