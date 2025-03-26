@@ -3,10 +3,6 @@ const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const jsforce = require('jsforce');
 const dotenv = require('dotenv');
-const path = require('path');
-
-// Detection Environment
-const isProduction = process.env.NODE_ENV === 'production';
 
 
 dotenv.config();
