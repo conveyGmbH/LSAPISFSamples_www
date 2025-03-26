@@ -1,0 +1,326 @@
+{
+    "info": {
+      "name": "LeadSuccess API Testing",
+      "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+      {
+        "name": "1. Login Page",
+        "request": {
+          "method": "POST",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"serverName\": \"{{serverName}}\",\n  \"apiName\": \"{{apiName}}\",\n  \"userName\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}"
+          },
+          "url": {
+            "raw": "https://{{serverName}}/{{apiName}}",
+            "protocol": "https",
+            "host": ["{{serverName}}"],
+            "path": ["{{apiName}}"]
+          },
+          "description": "Simulates login to the API"
+        },
+        "event": [
+          {
+            "listen": "test",
+            "script": {
+              "exec": [
+                "// Generate Base64 credentials",
+                "const username = pm.environment.get('username');",
+                "const password = pm.environment.get('password');",
+                "const credentials = btoa(username + ':' + password);",
+                "pm.environment.set('credentials', credentials);",
+                "console.log(\"Credentials generated:\", credentials);"
+              ],
+              "type": "text/javascript"
+            }
+          }
+        ]
+      },
+      {
+        "name": "2. Fetch Events (display.html)",
+        "request": {
+          "method": "GET",
+          "header": [
+            {
+              "key": "Authorization",
+              "value": "Basic {{credentials}}"
+            },
+            {
+              "key": "Accept",
+              "value": "application/json"
+            }
+          ],
+          "url": {
+            "raw": "https://{{serverName}}/{{apiName}}/LS_Event?$format=json",
+            "protocol": "https",
+            "host": ["{{serverName}}"],
+            "path": ["{{apiName}}", "LS_Event"],
+            "query": [
+              {
+                "key": "$format",
+                "value": "json"
+              }
+            ]
+          },
+          "description": "Retrieves the list of events"
+        },
+        "event": [
+          {
+            "listen": "test",
+            "script": {
+              "exec": [
+                "if (pm.response.code === 200) {",
+                "    const jsonData = pm.response.json();",
+                "    if (jsonData && jsonData.d && jsonData.d.results && jsonData.d.results.length > 0) {",
+                "        const eventId = jsonData.d.results[0].Id;",
+                "        pm.environment.set(\"eventId\", eventId);",
+                "        console.log(\"Event ID extracted:\", eventId);",
+                "    }",
+                "}"
+              ],
+              "type": "text/javascript"
+            }
+          }
+        ]
+      },
+      {
+        "name": "3. Fetch Leads (displayLsLead.html)",
+        "request": {
+          "method": "GET",
+          "header": [
+            {
+              "key": "Authorization",
+              "value": "Basic {{credentials}}"
+            },
+            {
+              "key": "Accept",
+              "value": "application/json"
+            }
+          ],
+          "url": {
+            "raw": "https://{{serverName}}/{{apiName}}/LS_Lead?$format=json&$filter=EventId eq '{{eventId}}'",
+            "protocol": "https",
+            "host": ["{{serverName}}"],
+            "path": ["{{apiName}}", "LS_Lead"],
+            "query": [
+              {
+                "key": "$format",
+                "value": "json"
+              },
+              {
+                "key": "$filter",
+                "value": "EventId eq '{{eventId}}'"
+              }
+            ]
+          },
+          "description": "Retrieves leads for a specific event"
+        },
+        "event": [
+          {
+            "listen": "test",
+            "script": {
+              "exec": [
+                "if (pm.response.code === 200) {",
+                "    const jsonData = pm.response.json();",
+                "    if (jsonData && jsonData.d && jsonData.d.results && jsonData.d.results.length > 0) {",
+                "        const leadId = jsonData.d.results[0].Id;",
+                "        pm.environment.set(\"leadId\", leadId);",
+                "        console.log(\"Lead ID extracted:\", leadId);",
+                "        ",
+                "        // Store complete lead data for transfer",
+                "        const leadData = jsonData.d.results[0];",
+                "        pm.environment.set(\"leadData\", JSON.stringify(leadData));",
+                "        console.log(\"Lead data stored for transfer\");",
+                "    }",
+                "}"
+              ],
+              "type": "text/javascript"
+            }
+          }
+        ]
+      },
+      {
+        "name": "4. Fetch Lead Reports (displayLsLeadReport.html)",
+        "request": {
+          "method": "GET",
+          "header": [
+            {
+              "key": "Authorization",
+              "value": "Basic {{credentials}}"
+            },
+            {
+              "key": "Accept",
+              "value": "application/json"
+            }
+          ],
+          "url": {
+            "raw": "https://{{serverName}}/{{apiName}}/LS_LeadReport?$format=json&$filter=EventId eq '{{eventId}}'",
+            "protocol": "https",
+            "host": ["{{serverName}}"],
+            "path": ["{{apiName}}", "LS_LeadReport"],
+            "query": [
+              {
+                "key": "$format",
+                "value": "json"
+              },
+              {
+                "key": "$filter",
+                "value": "EventId eq '{{eventId}}'"
+              }
+            ]
+          },
+          "description": "Retrieves lead reports for a specific event"
+        }
+      },
+      {
+        "name": "5. Fetch Attachments (displayLsAttachmentList.html)",
+        "request": {
+          "method": "GET",
+          "header": [
+            {
+              "key": "Authorization",
+              "value": "Basic {{credentials}}"
+            },
+            {
+              "key": "Accept",
+              "value": "application/json"
+            }
+          ],
+          "url": {
+            "raw": "https://{{serverName}}/{{apiName}}/LS_AttachmentById?Id='{{attachmentId}}'&$format=json",
+            "protocol": "https",
+            "host": ["{{serverName}}"],
+            "path": ["{{apiName}}", "LS_AttachmentById"],
+            "query": [
+              {
+                "key": "Id",
+                "value": "'{{attachmentId}}'"
+              },
+              {
+                "key": "$format",
+                "value": "json"
+              }
+            ]
+          },
+          "description": "Retrieves attachments for a specific ID"
+        }
+      },
+      {
+        "name": "6. Get Salesforce Auth URL",
+        "request": {
+          "method": "GET",
+          "header": [],
+          "url": {
+            "raw": "https://{{backendUrl}}/api/salesforce/auth",
+            "protocol": "https",
+            "host": ["{{backendUrl}}"],
+            "path": ["api", "salesforce", "auth"]
+          },
+          "description": "Gets the Salesforce authentication URL"
+        },
+        "event": [
+          {
+            "listen": "test",
+            "script": {
+              "exec": [
+                "if (pm.response.code === 200) {",
+                "    const jsonData = pm.response.json();",
+                "    if (jsonData && jsonData.authUrl) {",
+                "        pm.environment.set(\"authUrl\", jsonData.authUrl);",
+                "        console.log(\"Auth URL received:\", jsonData.authUrl);",
+                "    }",
+                "}"
+              ],
+              "type": "text/javascript"
+            }
+          }
+        ]
+      },
+      {
+        "name": "7. Session Token Verification",
+        "request": {
+          "method": "GET",
+          "header": [
+            {
+              "key": "X-Session-Token",
+              "value": "{{sessionToken}}"
+            }
+          ],
+          "url": {
+            "raw": "https://{{backendUrl}}/api/salesforce/session-check",
+            "protocol": "https",
+            "host": ["{{backendUrl}}"],
+            "path": ["api", "salesforce", "session-check"]
+          },
+          "description": "Checks if the session token is still valid"
+        },
+        "event": [
+          {
+            "listen": "test",
+            "script": {
+              "exec": [
+                "if (pm.response.code === 200) {",
+                "    const jsonData = pm.response.json();",
+                "    if (jsonData && jsonData.success) {",
+                "        console.log(\"Session token is valid\");",
+                "    } else {",
+                "        console.log(\"Session token is invalid\");",
+                "    }",
+                "}"
+              ],
+              "type": "text/javascript"
+            }
+          }
+        ]
+      },
+      {
+        "name": "8. Transfer Lead to Salesforce",
+        "request": {
+          "method": "POST",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"sessionToken\": \"{{sessionToken}}\",\n  \"leadData\": {\n    \"FirstName\": \"John\",\n    \"LastName\": \"Doe\",\n    \"Company\": \"Example Inc\",\n    \"Email\": \"john.doe@example.com\",\n    \"Phone\": \"123-456-7890\",\n    \"MobilePhone\": \"098-765-4321\",\n    \"Title\": \"CEO\",\n    \"Industry\": \"Technology\",\n    \"Street\": \"123 Main St\",\n    \"PostalCode\": \"12345\",\n    \"City\": \"Anytown\",\n    \"Country\": \"US\",\n    \"Description\": \"Test lead from Postman\"\n  }\n}"
+          },
+          "url": {
+            "raw": "https://{{backendUrl}}/api/direct-lead-transfer",
+            "protocol": "https",
+            "host": ["{{backendUrl}}"],
+            "path": ["api", "direct-lead-transfer"]
+          },
+          "description": "Transfers a lead to Salesforce"
+        },
+        "event": [
+          {
+            "listen": "test",
+            "script": {
+              "exec": [
+                "if (pm.response.code === 200) {",
+                "    const jsonData = pm.response.json();",
+                "    if (jsonData && jsonData.success) {",
+                "        console.log(\"Lead transfer successful, ID:\", jsonData.leadId);",
+                "        pm.environment.set(\"salesforceLeadId\", jsonData.leadId);",
+                "    } else {",
+                "        console.log(\"Lead transfer failed:\", jsonData.message);",
+                "    }",
+                "}"
+              ],
+              "type": "text/javascript"
+            }
+          }
+        ]
+      }
+    ]
+  }

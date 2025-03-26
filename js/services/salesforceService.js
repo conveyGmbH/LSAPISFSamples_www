@@ -1,7 +1,5 @@
 import { appConfig } from "../config/salesforceConfig.js";
 
-
-
 class SalesforceService {
   constructor() {
     this.apiBaseUrl = appConfig.apiBaseUrl;
@@ -18,7 +16,7 @@ class SalesforceService {
   async checkConnection() {
     try {
       console.log('Checking Salesforce connection status...');
-      
+
       const response = await fetch(`${this.apiBaseUrl}/salesforce/connection-status`, {
         method: 'GET',
         headers: {
@@ -27,14 +25,14 @@ class SalesforceService {
           'X-Session-Token': this.sessionToken || ''
         }
       });
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error: ${response.status}`);
       }
-      
+
       const status = await response.json();
       console.log('Connection status:', status.connected ? 'Connected' : 'Not connected');
-      
+
       return status;
     } catch (error) {
       console.error('Connection check error:', error);

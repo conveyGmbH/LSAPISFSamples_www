@@ -48,16 +48,19 @@ body {
 }
 
 .logout-button {
-    background: transparent;
-    color: white;
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    padding: 0.5rem 1rem;
-    border-radius: 4px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    transition: background-color 0.2s;
+    background-color: var(--white);
+  color: var(--primary-color);
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 5px 0;
 }
 
 .logout-button:hover {
@@ -76,12 +79,17 @@ body {
     color: #444;
 }
 
+.sub-header {
+    padding: 15px 20px;
+    z-index: 9;
+    width: 100%;
+    text-align: center;
+  }
+
 .sub-header h3 {
-    font-size: 1rem;
-    font-weight: normal;
-    color: #666;
-    margin-top: 0.25rem;
-}
+    margin-top: 0;
+    font-size: 16px;
+  }
 
 .sub-header h2{
     font-size: 1.3rem;

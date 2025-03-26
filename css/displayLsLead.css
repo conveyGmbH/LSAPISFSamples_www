@@ -101,6 +101,10 @@ body {
     text-decoration: underline;
 }
 
+table {
+    width: 100%;
+}
+
 /* Main Area */
 main.table {
     display: flex;
@@ -110,7 +114,6 @@ main.table {
     backdrop-filter: blur(7px);
     box-shadow: 0 .4rem .8rem #0005;
     border-radius: .8rem;
-    margin: 1rem;
     overflow: hidden;
     max-height: calc(100vh - 150px); 
     width: 98%;
@@ -193,14 +196,17 @@ main.table {
     width: 100%;
     flex: 1;
     background-color: #fffb;
-    overflow: auto; 
     margin: .8rem auto;
     position: relative;
+    height: 500px;
+    max-height: 70vh;
+    overflow: auto !important ; 
 }
 
 .table__body::-webkit-scrollbar {
     width: 0.5rem;
     height: 0.5rem;
+    display: block;
 }
 
 .table__body::-webkit-scrollbar-thumb {
@@ -211,6 +217,7 @@ main.table {
 
 .table__body:hover::-webkit-scrollbar-thumb { 
     visibility: visible;
+    background-color: var(--primary-color);
 }
 
 .table__body table {
@@ -538,10 +545,12 @@ thead th.desc span.icon-arrow {
     opacity: 0.7;
 }
 
+
+
 /* Responsive Styles */
 @media (max-width: 768px) {
     body {
-        overflow-y: auto;
+        overflow: auto;
         height: auto;
     }
     
@@ -552,6 +561,7 @@ thead th.desc span.icon-arrow {
         overflow: visible;
         display: flex;
         flex-direction: column;
+        min-height: calc(100vh - 200px);
     }
     
     .table__header {
@@ -582,7 +592,7 @@ thead th.desc span.icon-arrow {
     
     .input-group-float {
         width: 100%;
-        min-width: 100% !important; /* Override specific field widths */
+        min-width: 100% !important; 
     }
     
     .input-group-float input,
@@ -594,7 +604,6 @@ thead th.desc span.icon-arrow {
         width: 100%;
         margin-left: 0;
         flex-direction: row;
-        /* justify-content: space-between; */
         margin-top: 16px;
     }
     
@@ -603,16 +612,17 @@ thead th.desc span.icon-arrow {
     .reset-button,
     .apply-filter,
     .reset-filter {
-        /* flex: 1; */
         min-width: 0;
     }
     
     /* Table display on mobile */
     .table__body {
-        overflow-x: auto;
+        overflow-x: auto !important;
+        overflow-y: auto !important;
         margin: 8px 0;
         width: 100%;
         flex: 1;
+        min-height: 300px;
     }
     
     .table__body table {
@@ -642,6 +652,10 @@ thead th.desc span.icon-arrow {
     .table__header .actions {
         flex-direction: column;
     }
+
+    .table__body {
+        min-height: 250px;
+    }
     
     .action-button {
         width: 100%;
@@ -660,3 +674,13 @@ thead th.desc span.icon-arrow {
         width: 100%;
     }
 }
+
+@media (max-width: 600px) {
+    .table__body {
+        min-height: 500px;
+    }
+    main.table {
+        min-height: calc(100vh - 150px);
+    }
+}
+
