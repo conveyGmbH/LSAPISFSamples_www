@@ -88,17 +88,12 @@ class SalesforceService {
    */
   async transferLead(leadData) {
     try {
-      console.log('===== START TRANSFERLEAD =====');
-      
+
       if (!this.sessionToken) {
         console.error("Error: No session token available");
         throw new Error('Not connected to Salesforce. Please connect first.');
       }
-      
-      console.log('Session token:', this.sessionToken.substring(0, 8) + '...');
-      console.log('Preparing lead data:', JSON.stringify(leadData, null, 2));
-      
-      console.log('Building HTTP request...');
+
       const requestOptions = {
         method: 'POST',
         headers: {
@@ -109,18 +104,13 @@ class SalesforceService {
         },
         body: JSON.stringify(leadData)
       };
-      
-      console.log('Sending request to:', `${this.apiBaseUrl}/salesforce/transfer-lead`);
-      console.log('Request options:', JSON.stringify(requestOptions, null, 2));
-      
+
       try {
         const response = await fetch(`${this.apiBaseUrl}/salesforce/transfer-lead`, requestOptions);
-        
-        console.log('Response received, HTTP status:', response.status);
-        console.log('Response headers:', JSON.stringify(Object.fromEntries([...response.headers]), null, 2));
-        
+
+
         let resultData;
-        
+
         try {
           const responseText = await response.text();
           console.log('Response text:', responseText);

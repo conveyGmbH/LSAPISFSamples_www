@@ -192,7 +192,8 @@ function displayAttachment(attachment) {
           type="application/pdf"
           style="width: 100%; height: 100%; border: none;"
         >
-          <p>Votre navigateur ne supporte pas l'affichage des PDF. <a href="${dataUrl}" download="${fileName}">Téléchargez le PDF</a> pour le visualiser.</p>
+         <p>Your browser does not support displaying PDFs. <a href="${dataUrl}" download="${fileName}">Download the PDF</a> to view it.</p>
+
         </iframe>`;
     } else if (fileType.startsWith('audio/')) {
       attachmentContainer.innerHTML = `
