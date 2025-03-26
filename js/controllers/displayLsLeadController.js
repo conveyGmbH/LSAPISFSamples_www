@@ -90,13 +90,9 @@ async function fetchLsLeadData() {
 }
 
 
-// Fonction pour améliorer l'affichage responsive de la table
-function enhanceTableDisplay() {
+function enhanceTableResponsiveness() {
   const tableBody = document.querySelector('.table__body');
   if (!tableBody) return;
-  
-  // Set a minimum height for the table body
-  tableBody.style.minHeight = '200px';
   
   const table = tableBody.querySelector('table');
   if (!table) return;
@@ -113,19 +109,16 @@ function enhanceTableDisplay() {
     // Adjust cell sizes for better mobile viewing
     const allCells = table.querySelectorAll('th, td');
     allCells.forEach(cell => {
-      // Limit maximum width for better readability
-      cell.style.maxWidth = '250px';
       cell.style.padding = '8px 10px';
     });
     
-    // Make sure the table wrapper doesn't overflow the viewport
     tableBody.style.width = 'calc(100% - 16px)';
     tableBody.style.margin = '8px';
   } else {
     // Desktop view
     table.style.width = '100%';
     table.style.minWidth = '100%';
-    tableBody.style.overflowX = '';
+    tableBody.style.overflowX = 'auto';
     
     // Reset cell sizes
     const allCells = table.querySelectorAll('th, td');
@@ -157,7 +150,6 @@ function enhanceTableDisplay() {
     const width = config[headerText];
     
     if (width) {
-      // Apply width to header
       header.style.width = width;
       
       // Apply same width to all cells in this column
@@ -167,137 +159,6 @@ function enhanceTableDisplay() {
       });
     }
   });
-}
-
- // Improved responsive layout function
- function handleResponsiveLayout() {
-  const isMobile = window.innerWidth <= 768;
-  
-  // Fix body overflow on mobile to allow scrolling
-  if (isMobile) {
-    document.body.style.overflow = 'auto';
-    document.body.style.height = 'auto';
-    
-    // Fix main container height
-    const mainTable = document.querySelector('main.table');
-    if (mainTable) {
-      mainTable.style.maxHeight = 'none';
-      mainTable.style.overflow = 'visible';
-    }
-  } else {
-    document.body.style.overflow = 'hidden';
-    document.body.style.height = '100vh';
-    
-    // Reset main container
-    const mainTable = document.querySelector('main.table');
-    if (mainTable) {
-      mainTable.style.maxHeight = 'calc(100vh - 150px)';
-      mainTable.style.overflow = 'hidden';
-    }
-  }
-  
-  // Handle table header responsive layout
-  const tableHeader = document.querySelector('.table__header');
-  if (tableHeader) {
-    if (isMobile) {
-      tableHeader.classList.add('mobile-header');
-      
-      // Make action buttons responsive
-      const actions = tableHeader.querySelector('.actions');
-      if (actions) {
-        actions.style.width = '100%';
-        actions.style.flexDirection = 'row';
-        actions.style.flexWrap = 'wrap';
-        actions.style.gap = '8px';
-        
-        const buttons = actions.querySelectorAll('button');
-        buttons.forEach(button => {
-          button.style.flex = '1';
-          button.style.minWidth = '120px';
-          button.style.margin = '0';
-        });
-      }
-    } else {
-      tableHeader.classList.remove('mobile-header');
-      
-      // Reset desktop styles
-      const actions = tableHeader.querySelector('.actions');
-      if (actions) {
-        actions.style.width = '';
-        actions.style.flexDirection = '';
-        actions.style.flexWrap = '';
-        actions.style.gap = '10px';
-        
-        const buttons = actions.querySelectorAll('button');
-        buttons.forEach(button => {
-          button.style.flex = '';
-          button.style.minWidth = '';
-          button.style.margin = '0';
-        });
-      }
-    }
-  }
-  
-  // Handle filter container responsive layout
-  const filterContainer = document.querySelector('.filter-container, .filter-inputs');
-  if (filterContainer) {
-    if (isMobile) {
-      filterContainer.classList.add('mobile-filters');
-      filterContainer.style.flexDirection = 'column';
-      filterContainer.style.width = 'calc(100% - 16px)';
-      filterContainer.style.margin = '8px';
-      
-      // Make all input groups full width
-      const inputGroups = filterContainer.querySelectorAll('.input-group-float');
-      inputGroups.forEach(group => {
-        group.style.width = '100%';
-        group.style.minWidth = '100%';
-        
-        // Ensure date inputs are full width
-        const dateInput = group.querySelector('input[type="date"]');
-        if (dateInput) {
-          dateInput.style.width = '100%';
-        }
-      });
-      
-      // Handle filter buttons on mobile
-      const filterButtons = filterContainer.querySelector('.filter-buttons');
-      if (filterButtons) {
-        filterButtons.style.width = '100%';
-        filterButtons.style.marginLeft = '0';
-        filterButtons.style.marginTop = '12px';
-      }
-    } else {
-      filterContainer.classList.remove('mobile-filters');
-      filterContainer.style.flexDirection = 'row';
-      filterContainer.style.width = 'calc(100% - 24px)';
-      filterContainer.style.margin = '12px';
-      
-      // Reset input groups
-      const inputGroups = filterContainer.querySelectorAll('.input-group-float');
-      inputGroups.forEach(group => {
-        group.style.width = '';
-        group.style.minWidth = '300px';
-        
-        // Reset date inputs
-        const dateInput = group.querySelector('input[type="date"]');
-        if (dateInput) {
-          dateInput.style.width = '';
-        }
-      });
-      
-      // Reset filter buttons
-      const filterButtons = filterContainer.querySelector('.filter-buttons');
-      if (filterButtons) {
-        filterButtons.style.width = '';
-        filterButtons.style.marginLeft = 'auto';
-        filterButtons.style.marginTop = '';
-      }
-    }
-  }
-  
-  // Improve table display
-  enhanceTableDisplay();
 }
 
 
@@ -344,6 +205,8 @@ document.addEventListener('DOMContentLoaded', () => {
   addTransferButton();
   
 });
+
+
 // Function to get the configured width of a column
 function getColumnWidth(header, entity) {
 
@@ -354,6 +217,7 @@ function getColumnWidth(header, entity) {
 
   return null;
 }
+
 
 // Function to sort the table using OData
 async function sortTable(index, th) {
@@ -539,39 +403,7 @@ function getItemFromRow(row) {
   return item;
 }
 
-// function restoreRowSelection(previousItem) {
-//   if (!previousItem || !previousItem.Id) return;
-  
-//   const rows = document.querySelectorAll('tbody tr');
-//   let matchFound = false;
-  
-//   rows.forEach(row => {
-//     const rowItem = getItemFromRow(row);
-//     if (rowItem.Id === previousItem.Id) {
-//       row.click(); 
-//       matchFound = true;
-//     }
-//   });
-  
-//   if (!matchFound) {
-//     const showAttachmentButton = document.getElementById('showAttachmentButton');
-//     if (showAttachmentButton) {
-//       showAttachmentButton.disabled = true;
-//       showAttachmentButton.textContent = 'Show Attachment';
-//       sessionStorage.removeItem('AttachmentIdList');
-//     }
 
-//       // Insérer le bouton dans le DOM
-//     if (showAttachmentButton && showAttachmentButton.parentNode) {
-//       showAttachmentButton.parentNode.insertBefore(transferButton, showAttachmentButton.nextSibling);
-//     } else {
-//       // Sinon, l'ajouter à la fin du groupe de boutons
-//       buttonGroup.appendChild(transferButton);
-//     }
-//   }
-// }
-
-// Fixed version of restoreRowSelection to avoid reference error
 function restoreRowSelection(previousItem) {
   if (!previousItem || !previousItem.Id) return;
   
@@ -729,286 +561,7 @@ function initSearch() {
   });
 }
 
-// function displayLeadFilters() {
-//   const filterInputs = document.getElementById('filterInputs');
-//   if (!filterInputs) return;
-  
-//   filterInputs.innerHTML = ''; 
-//   filterInputs.classList.add('filter-container');
-  
-//   const textFields = ['Id', 'CreateById', 'LastModifiedById','FirstName', 'LastName', 'Company', 'Email'];
-//   const dateFields = ['CreatedDate', 'LastModifiedDate', 'SystemModstamp'];
-  
-//   const storedFilters = JSON.parse(localStorage.getItem('LS_Lead_Filters')) || {};
-  
-//   textFields.forEach(field => {
-//     const input = document.createElement('input');
-//     input.type = 'text';
-//     input.placeholder = field;
-//     input.id = `filter-${field}`;
-//     input.classList.add('filter-input');
-//     input.classList.add(`filter-${field.toLowerCase()}`);
-    
-//     if (storedFilters[field]) {
-//       input.value = storedFilters[field];
-//     }
-    
-//     input.addEventListener('input', updateResetButtonState);
-//     filterInputs.appendChild(input);
-//   });
-  
-//   dateFields.forEach(field => {
-//     const dateWrapper = document.createElement('div');
-//     dateWrapper.classList.add('date-wrapper');
-//     dateWrapper.classList.add(`date-wrapper-${field.toLowerCase()}`); 
-    
-//     const input = document.createElement('input');
-//     input.type = 'date';
-//     input.id = `filter-${field}`;
-//     input.classList.add('filter-input', 'filter-date');
-    
-//     if (storedFilters[field]) {
-//       input.value = storedFilters[field];
-//     }
-    
-//     input.addEventListener('input', updateResetButtonState);
-    
-//     const label = document.createElement('span');
-//     label.textContent = field;
-//     label.classList.add('date-label');
-    
-//     dateWrapper.appendChild(input);
-//     dateWrapper.appendChild(label);
-//     filterInputs.appendChild(dateWrapper);
-//   });
-  
-//   const buttonWrapper = document.createElement('div');
-//   buttonWrapper.classList.add('filter-buttons');
-  
-//   const applyButton = document.createElement('button');
-//   applyButton.textContent = 'Apply Filters';
-//   applyButton.classList.add('filter-button', 'apply-filter');
-//   applyButton.addEventListener('click', () => applyLeadFilters([...textFields, ...dateFields]));
-//   buttonWrapper.appendChild(applyButton);
-  
-//   const resetButton = document.createElement('button');
-//   resetButton.textContent = 'Reset Filters';
-//   resetButton.id = 'resetFiltersButton';
-//   resetButton.classList.add('filter-button', 'reset-filter');
-  
-//   const hasActiveFilters = Object.values(storedFilters).some(value => value && value.trim() !== '');
-//   resetButton.disabled = !hasActiveFilters;
-  
-//   resetButton.addEventListener('click', () => resetLeadFilters([...textFields, ...dateFields]));
-//   buttonWrapper.appendChild(resetButton);
-  
-//   filterInputs.appendChild(buttonWrapper);
-// }
 
-// Fonction pour afficher les filtres LS_Lead avec labels flottants
-// function displayLeadFilters() {
-//   const filterInputs = document.getElementById('filterInputs');
-//   if (!filterInputs) return;
-  
-//   filterInputs.innerHTML = ''; 
-//   filterInputs.className = 'filter-container';
-  
-//   const textFields = ['Id', 'FirstName', 'LastName', 'Company', 'Email'];
-//   const dateFields = ['CreatedDate', 'LastModifiedDate', 'SystemModstamp'];
-  
-//   const storedFilters = JSON.parse(localStorage.getItem('LS_Lead_Filters')) || {};
-  
-//   // Création des champs texte avec labels flottants
-//   textFields.forEach(field => {
-//     const inputGroup = document.createElement('div');
-//     inputGroup.classList.add('input-group-float');
-    
-//     const input = document.createElement('input');
-//     input.type = 'text';
-//     input.id = `filter-${field}`;
-//     input.classList.add('filter-input');
-    
-//     // Ajouter le label flottant
-//     const label = document.createElement('label');
-//     label.setAttribute('for', `filter-${field}`);
-//     label.textContent = field;
-    
-//     // Restaurer les valeurs stockées
-//     if (storedFilters[field]) {
-//       input.value = storedFilters[field];
-//     }
-    
-//     input.addEventListener('input', updateResetButtonState);
-    
-//     inputGroup.appendChild(input);
-//     inputGroup.appendChild(label);
-//     filterInputs.appendChild(inputGroup);
-//   });
-  
-//   // Création des champs de date avec labels flottants
-//   dateFields.forEach(field => {
-//     const inputGroup = document.createElement('div');
-//     inputGroup.classList.add('input-group-float');
-    
-//     const input = document.createElement('input');
-//     input.type = 'date';
-//     input.id = `filter-${field}`;
-//     input.classList.add('filter-input');
-    
-//     // Ajouter le label flottant
-//     const label = document.createElement('label');
-//     label.setAttribute('for', `filter-${field}`);
-//     label.textContent = field;
-    
-//     // Restaurer les valeurs stockées
-//     if (storedFilters[field]) {
-//       input.value = storedFilters[field];
-//     }
-    
-//     input.addEventListener('input', updateResetButtonState);
-    
-//     inputGroup.appendChild(input);
-//     inputGroup.appendChild(label);
-//     filterInputs.appendChild(inputGroup);
-//   });
-  
-//   // Ajouter le groupe de boutons
-//   const buttonGroup = document.createElement('div');
-//   buttonGroup.classList.add('filter-buttons');
-  
-//   const applyButton = document.createElement('button');
-//   applyButton.textContent = 'Apply Filters';
-//   applyButton.classList.add('filter-button');
-//   applyButton.addEventListener('click', () => applyLeadFilters([...textFields, ...dateFields]));
-//   buttonGroup.appendChild(applyButton);
-  
-//   const resetButton = document.createElement('button');
-//   resetButton.textContent = 'Reset Filters';
-//   resetButton.id = 'resetFiltersButton';
-//   resetButton.classList.add('filter-button', 'reset-button');
-  
-//   const hasActiveFilters = Object.values(storedFilters).some(value => value && value.trim() !== '');
-//   resetButton.disabled = !hasActiveFilters;
-  
-//   resetButton.addEventListener('click', () => resetLeadFilters([...textFields, ...dateFields]));
-//   buttonGroup.appendChild(resetButton);
-  
-//   filterInputs.appendChild(buttonGroup);
-// }
-
-
-// Updated function for displaying LS_Lead filters with floating labels
-// function displayLeadFilters() {
-//   const filterInputs = document.getElementById('filterInputs');
-//   if (!filterInputs) return;
-  
-//   filterInputs.innerHTML = ''; 
-//   filterInputs.className = 'filter-container';
-  
-//   const textFields = ['Id', 'FirstName', 'LastName', 'Company', 'Email'];
-//   const dateFields = ['CreatedDate', 'LastModifiedDate', 'SystemModstamp'];
-  
-//   const storedFilters = JSON.parse(localStorage.getItem('LS_Lead_Filters')) || {};
-  
-//   // Create text fields with floating labels
-//   textFields.forEach(field => {
-//     const inputGroup = document.createElement('div');
-//     inputGroup.classList.add('input-group-float');
-    
-//     // Create input element first (order is important for floating labels)
-//     const input = document.createElement('input');
-//     input.type = 'text';
-//     input.id = `filter-${field}`;
-//     input.classList.add('filter-input');
-//     input.placeholder = " "; // Empty space placeholder is required for the CSS selector to work
-    
-//     // Create label element
-//     const label = document.createElement('label');
-//     label.setAttribute('for', `filter-${field}`);
-//     label.textContent = field;
-    
-//     // Restore stored values if they exist
-//     if (storedFilters[field]) {
-//       input.value = storedFilters[field];
-//     }
-    
-//     input.addEventListener('input', updateResetButtonState);
-    
-//     // Add elements to the DOM in correct order (input first, then label)
-//     inputGroup.appendChild(input);
-//     inputGroup.appendChild(label);
-//     filterInputs.appendChild(inputGroup);
-//   });
-  
-//   // Create date fields with floating labels
-//   dateFields.forEach(field => {
-//     const inputGroup = document.createElement('div');
-//     inputGroup.classList.add('input-group-float');
-    
-//     // Create date input first
-//     const input = document.createElement('input');
-//     input.type = 'date';
-//     input.id = `filter-${field}`;
-//     input.classList.add('filter-input');
-//     input.placeholder = " "; // Empty space placeholder
-    
-//     // Create label
-//     const label = document.createElement('label');
-//     label.setAttribute('for', `filter-${field}`);
-//     label.textContent = field;
-    
-//     // Restore stored values
-//     if (storedFilters[field]) {
-//       input.value = storedFilters[field];
-//       // This class helps with styling when a date is already selected
-//       inputGroup.classList.add('has-value');
-//     }
-    
-//     input.addEventListener('input', () => {
-//       updateResetButtonState();
-//       // Add or remove has-value class when date is selected or cleared
-//       if (input.value) {
-//         inputGroup.classList.add('has-value');
-//       } else {
-//         inputGroup.classList.remove('has-value');
-//       }
-//     });
-    
-//     // Add elements to DOM in correct order
-//     inputGroup.appendChild(input);
-//     inputGroup.appendChild(label);
-//     filterInputs.appendChild(inputGroup);
-//   });
-  
-//   // Add button group
-//   const buttonGroup = document.createElement('div');
-//   buttonGroup.classList.add('filter-buttons');
-  
-//   // Apply filters button
-//   const applyButton = document.createElement('button');
-//   applyButton.textContent = 'Apply Filters';
-//   applyButton.classList.add('filter-button');
-//   applyButton.addEventListener('click', () => applyLeadFilters([...textFields, ...dateFields]));
-//   buttonGroup.appendChild(applyButton);
-  
-//   // Reset filters button
-//   const resetButton = document.createElement('button');
-//   resetButton.textContent = 'Reset Filters';
-//   resetButton.id = 'resetFiltersButton';
-//   resetButton.classList.add('filter-button', 'reset-button');
-  
-//   // Check if there are any active filters
-//   const hasActiveFilters = Object.values(storedFilters).some(value => value && value.trim() !== '');
-//   resetButton.disabled = !hasActiveFilters;
-  
-//   resetButton.addEventListener('click', () => resetLeadFilters([...textFields, ...dateFields]));
-//   buttonGroup.appendChild(resetButton);
-  
-//   // Add button group to filters container
-//   filterInputs.appendChild(buttonGroup);
-// }
-
-// Updated function for displaying LS_Lead filters with floating labels and proper input IDs
 function displayLeadFilters() {
   const filterInputs = document.getElementById('filterInputs');
   if (!filterInputs) return;
@@ -1197,76 +750,6 @@ async function applyLeadFilters(fields) {
   }
 }
 
-async function applyLeadReportFilters(fields) {
-  const eventId = sessionStorage.getItem('selectedEventId');
-  if (!eventId) {
-    alert('No EventId found. Please return to the main page and select an event.');
-    return;
-  }
-
-  const filters = {};
-  let hasFilters = false;
-
-  fields.forEach(field => {
-    const value = document.getElementById(`filter-${field}`).value.trim();
-    if (value) {
-      filters[field] = value;
-      hasFilters = true;
-    }
-  });
-
-  localStorage.setItem('LS_LeadReport_Filters', JSON.stringify(filters));
-
-  if (!hasFilters) {
-    return fetchLsLeadReportData();
-  }
-
-  const filterParts = [`EventId eq '${escapeODataValue(eventId)}'`];
-
-  Object.entries(filters).forEach(([field, value]) => {
-    if (field.includes('Date') || field.includes('SystemModstamp')) {      
-      const date = new Date(value);
-      if (!isNaN(date.getTime())) {
-        const formattedDate = formatDateForOData(date);
-        const nextDay = new Date(date);
-        nextDay.setDate(nextDay.getDate() + 1);
-        const formattedNextDay = formatDateForOData(nextDay);
-
-        filterParts.push(`(${field} ge datetime'${formattedDate}T00:00:00' and ${field} lt datetime'${formattedNextDay}T00:00:00')`);
-      }
-    } else if (field === 'Id') {
-      filterParts.push(`substringof('${escapeODataValue(value)}', ${field})`);
-    } else if (field === 'Email') {
-      filterParts.push(`substringof('${escapeODataValue(value)}', ${field})`);
-    } else if (field === 'FirstName' || field === 'LastName' || field === 'Company') {
-      filterParts.push(`substringof('${escapeODataValue(value)}', ${field})`);
-    }
-  });
-
-  const filterQuery = filterParts.join(' and ');
-
-  let endpoint = `LS_LeadReport?$format=json&$filter=${encodeURIComponent(filterQuery)}`;
-
-  if (lastSortedColumn) {
-    const sortOrder = lastSortDirection === 'asc' ? lastSortedColumn : `${lastSortedColumn} desc`;
-    endpoint = `LS_LeadReport?$orderby=${sortOrder}&$format=json&$filter=${encodeURIComponent(filterQuery)}`;
-  }
-
-  try {
-    const data = await apiService.request('GET', endpoint);
-    if (data && data.d && data.d.results) {
-      displayData(data.d.results);
-      pagination.updateNextUrl(data);
-    } else {
-      displayData([]);
-      document.getElementById('noDataMessage').textContent = 'No data found with the provided filters.';
-    }
-  } catch (error) {
-    console.error('Error applying filters:', error);
-    console.error('Error details:', error.message);
-    alert('An error occurred while fetching filtered data.');
-  }
-}
 
 function resetLeadFilters(fields) {
   localStorage.removeItem('LS_Lead_Filters');
@@ -1297,7 +780,6 @@ function updateResetButtonState() {
   resetButton.disabled = !hasValue;
 }
 
-// Initialisation lors du chargement de la page
 document.addEventListener('DOMContentLoaded', () => {
   const showAttachmentButton = document.getElementById('showAttachmentButton');
   showAttachmentButton.addEventListener('click', () => {
@@ -1310,11 +792,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // display button transfert to salesforce
     addTransferButton();
 
 
-  // Initialiser la pagination
   pagination.initPagination();
 
   fetchLsLeadData();
@@ -1327,8 +807,3 @@ backButton.addEventListener('click', () => {
   window.location.href = 'display.html';
 });
 
-// Ajouter des écouteurs d'événements pour le redimensionnement et le chargement
-window.addEventListener('resize', handleResponsiveLayout);
-document.addEventListener('DOMContentLoaded', () => {
-   handleResponsiveLayout();
-});

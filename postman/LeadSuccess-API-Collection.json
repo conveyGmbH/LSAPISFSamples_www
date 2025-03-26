@@ -1,0 +1,169 @@
+{
+    "info": {
+      "name": "LeadSuccess API Testing",
+      "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+      {
+        "name": "Authentication",
+        "item": [
+          {
+            "name": "Login",
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"serverName\": \"{{serverName}}\",\n  \"apiName\": \"{{apiName}}\",\n  \"userName\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}"
+              },
+              "url": {
+                "raw": "https://{{serverName}}/{{apiName}}",
+                "protocol": "https",
+                "host": ["{{serverName}}"],
+                "path": ["{{apiName}}"]
+              }
+            }
+          }
+        ]
+      },
+      {
+        "name": "Events",
+        "item": [
+          {
+            "name": "Get All Events",
+            "request": {
+              "method": "GET",
+              "header": [
+                {
+                  "key": "Authorization",
+                  "value": "Basic {{credentials}}"
+                }
+              ],
+              "url": {
+                "raw": "https://{{serverName}}/{{apiName}}/LS_Event?$format=json",
+                "protocol": "https",
+                "host": ["{{serverName}}"],
+                "path": ["{{apiName}}", "LS_Event"],
+                "query": [
+                  {
+                    "key": "$format",
+                    "value": "json"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      {
+        "name": "Leads",
+        "item": [
+          {
+            "name": "Get Leads by Event",
+            "request": {
+              "method": "GET",
+              "header": [
+                {
+                  "key": "Authorization",
+                  "value": "Basic {{credentials}}"
+                }
+              ],
+              "url": {
+                "raw": "https://{{serverName}}/{{apiName}}/LS_Lead?$format=json&$filter=EventId eq '{{eventId}}'",
+                "protocol": "https",
+                "host": ["{{serverName}}"],
+                "path": ["{{apiName}}", "LS_Lead"],
+                "query": [
+                  {
+                    "key": "$format",
+                    "value": "json"
+                  },
+                  {
+                    "key": "$filter",
+                    "value": "EventId eq '{{eventId}}'"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      {
+        "name": "Lead Reports",
+        "item": [
+          {
+            "name": "Get Lead Reports by Event",
+            "request": {
+              "method": "GET",
+              "header": [
+                {
+                  "key": "Authorization",
+                  "value": "Basic {{credentials}}"
+                }
+              ],
+              "url": {
+                "raw": "https://{{serverName}}/{{apiName}}/LS_LeadReport?$format=json&$filter=EventId eq '{{eventId}}'",
+                "protocol": "https",
+                "host": ["{{serverName}}"],
+                "path": ["{{apiName}}", "LS_LeadReport"],
+                "query": [
+                  {
+                    "key": "$format",
+                    "value": "json"
+                  },
+                  {
+                    "key": "$filter",
+                    "value": "EventId eq '{{eventId}}'"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      {
+        "name": "Salesforce Integration",
+        "item": [
+          {
+            "name": "Get Auth URL",
+            "request": {
+              "method": "GET",
+              "url": {
+                "raw": "https://{{backendUrl}}/api/salesforce/auth",
+                "protocol": "https",
+                "host": ["{{backendUrl}}"],
+                "path": ["api", "salesforce", "auth"]
+              }
+            }
+          },
+          {
+            "name": "Transfer Lead",
+            "request": {
+              "method": "POST",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"sessionToken\": \"{{sessionToken}}\",\n  \"leadData\": {\n    \"FirstName\": \"John\",\n    \"LastName\": \"Doe\",\n    \"Company\": \"Example Inc\",\n    \"Email\": \"john.doe@example.com\",\n    \"Phone\": \"123-456-7890\"\n  }\n}"
+              },
+              "url": {
+                "raw": "https://{{backendUrl}}/api/direct-lead-transfer",
+                "protocol": "https",
+                "host": ["{{backendUrl}}"],
+                "path": ["api", "direct-lead-transfer"]
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }

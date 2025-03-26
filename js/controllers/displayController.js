@@ -9,9 +9,8 @@ const credentials = sessionStorage.getItem('credentials');
 // Column width config
 const columnConfig = {
   LS_Country: {
-    Id: "100px",
-    Name: "300px",
-    Code: "100px"
+    Id: "200px",
+    Name: "400px",
   },
   LS_User: {
     Id: "500px",
@@ -28,11 +27,11 @@ const columnConfig = {
     EventId: "500px"
   },
   LS_Event: {
-    Id: "400px",
+    Id: "500px",
     CreatedDate: "200px",
     LastModifiedDate: "200px",
     Subject: "300px",
-    StartDate: "200px",
+    StartDate: "300px",
     EndDate: "200px",
     Type: "400px",
     EventSubtype: "300px",
@@ -57,78 +56,49 @@ let currentEntity = '';
 let nextUrl = '';
 
 
-
-function enhanceHeaderLayout() {
-  const tableHeader = document.querySelector('.table__header');
-  if (!tableHeader) return;
-  
-  // S'assurer que les boutons d'action ont la bonne structure
-  const actions = tableHeader.querySelector('.actions');
-  if (actions) {
-    // Ajouter une classe pour la mise en page mobile
-    actions.classList.add('action-buttons-container');
-    
-    // S'assurer que tous les boutons ont les bonnes classes et styles
-    const buttons = actions.querySelectorAll('button');
-    buttons.forEach(button => {
-      button.classList.add('action-button');
-      // Uniformiser la hauteur des boutons
-      button.style.height = '44px';
-    });
-  }
-  
-  // Améliorer la structure du sélecteur d'entités
-  const viewSelector = tableHeader.querySelector('.view-selector');
-  if (viewSelector) {
-    const select = viewSelector.querySelector('select');
-    if (select) {
-      // Uniformiser la hauteur du sélecteur
-      select.style.height = '44px';
-    }
-  }
-}
-
- function enhanceTableResponsiveness() {
+function enhanceTableResponsiveness() {
   const tableBody = document.querySelector('.table__body');
   if (!tableBody) return;
   
-  // Vérifier si l'écran est en mode mobile
   const isMobile = window.innerWidth <= 768;
   
   if (isMobile) {
-    // Permettre le défilement horizontal sur mobile
     tableBody.style.overflowX = 'auto';
-    
-    // S'assurer que la table a une largeur minimum convenable
+    tableBody.style.minHeight = '300px'; 
     const table = tableBody.querySelector('table');
     if (table) {
       table.style.minWidth = 'max-content';
     }
   } else {
-    // Sur desktop, laisser la table s'adapter normalement
-    tableBody.style.overflowX = '';
+    tableBody.style.minHeight = '300px';
+    
+    if (currentEntity !== 'LS_Country') {
+      tableBody.style.overflowX = 'auto';
+    } else {
+      tableBody.style.overflowX = 'hidden';
+    }
     
     const table = tableBody.querySelector('table');
     if (table) {
+      table.style.tableLayout = 'fixed';
+       table.style.width = 'max-content';
       table.style.minWidth = '100%';
     }
   }
 }
 
-  function handleResponsiveLayout() {
-    enhanceHeaderLayout();
-    enhanceTableResponsiveness();
-    
-    // Adapter les conteneurs de filtres
-    const filterContainer = document.querySelector('.filter-container, .filter-inputs');
-    if (filterContainer) {
-      if (window.innerWidth <= 768) {
-        filterContainer.classList.add('mobile-filters');
-      } else {
-        filterContainer.classList.remove('mobile-filters');
-      }
+function handleResponsiveLayout() {
+  enhanceTableResponsiveness();
+
+  const filterContainer = document.querySelector('.filter-container, .filter-inputs');
+  if (filterContainer) {
+    if (window.innerWidth <= 768) {
+      filterContainer.classList.add('mobile-filters');
+    } else {
+      filterContainer.classList.remove('mobile-filters');
     }
   }
+}
 
 function displayFilterInputs(entity) {
   const filterInputs = document.getElementById('filterInputs');
@@ -156,7 +126,7 @@ function displayFilterInputs(entity) {
     const input = document.createElement('input');
     input.id = `filter-${field}`;
     input.classList.add('filter-input');
-    input.placeholder = " "; // Espace requis pour le sélecteur CSS
+    input.placeholder = " "; 
     
     if (field === 'StartDate' || field === 'EndDate') {
       input.type = 'date';
@@ -167,7 +137,7 @@ function displayFilterInputs(entity) {
     const label = document.createElement('label');
     label.setAttribute('for', `filter-${field}`);
     label.textContent = field;
-    
+
     if (storedFilters[field]) {
       input.value = storedFilters[field];
       if (input.type === 'date') {
@@ -177,7 +147,6 @@ function displayFilterInputs(entity) {
 
     input.addEventListener('input', () => {
       updateResetButtonState(entity, fields);
-      // Ajouter ou supprimer la classe has-value pour les dates
       if (input.type === 'date') {
         if (input.value) {
           inputGroup.classList.add('has-value');
@@ -186,8 +155,7 @@ function displayFilterInputs(entity) {
         }
       }
     });
-    
-    // Ajouter les éléments au DOM dans le bon ordre (input d'abord, puis label)
+
     inputGroup.appendChild(input);
     inputGroup.appendChild(label);
     filterInputs.appendChild(inputGroup);
@@ -447,11 +415,10 @@ async function updateData() {
   const noDataMessage = document.getElementById('noDataMessage');
   noDataMessage.textContent = '';
 
-
-
   const isActivatingEntity = currentEntity === ACTIVATING_ENTITY;
   const hasSelection = selectedEventId !== null;
   updateButtonState(isActivatingEntity && hasSelection);
+
 
   if (selectedEntity) {
     if (selectedEntity === 'LS_User' || selectedEntity === 'LS_Event') {
@@ -485,7 +452,6 @@ async function updateData() {
 
   initSearch();
 }
-
 
 // Function to initialize search functionality
 function initSearch() {
@@ -524,7 +490,6 @@ function initSearch() {
   });
 }
 
-
 // Function to fetch data for the selected entity or with a custom endpoint
 async function fetchData(endpoint) {
   if (!endpoint) {
@@ -548,8 +513,10 @@ async function fetchData(endpoint) {
 
 function getColumnWidth(header, entity) {
   if (columnConfig[entity] && columnConfig[entity][header] !== undefined) {
+
     return columnConfig[entity][header];
   }
+
   return null;
 }
 
@@ -666,41 +633,33 @@ function displayData(data, append = false) {
 
   noDataMessage.textContent = '';
 
-  // Extract column headers excluding metadata fields
   const headers = Object.keys(data[0]).filter(header => 
     header !== '__metadata' && !header.endsWith('ViewId')
   );
 
-  // Create table header row if not appending
   if (!append) {
     const headerRow = document.createElement('tr');
-    
+
     headers.forEach((header, index) => {
       const th = document.createElement('th');
-      
-      // Apply column width if configured
+
       const width = getColumnWidth(header, currentEntity);
       if (width) {
         th.style.width = width;
-       
       }
-      
-      // Add header text
+
       const headerText = document.createTextNode(header);
       th.appendChild(headerText);
 
-      // Add sorting icon
       const span = document.createElement('span');
       span.classList.add('icon-arrow');
       span.innerHTML = '&UpArrow;';
-      
-      // Highlight sorted column
+
       if (header === lastSortedColumn) {
         th.classList.add(lastSortDirection, 'active');
       }
-      
+
       th.appendChild(span);
-      
       th.style.position = 'sticky';
       th.style.top = '0';
       th.addEventListener('click', () => sortTable(index, th));
@@ -710,19 +669,16 @@ function displayData(data, append = false) {
     tableHead.appendChild(headerRow);
   }
 
-  // Populate table rows with data
   data.forEach(item => {
     const row = document.createElement('tr');
 
     headers.forEach(header => {
       const td = document.createElement('td');
       
-      // Highlight sorted column cells
       if (header === lastSortedColumn) {
         td.classList.add('active');
       }
       
-      // Apply column width if configured
       const width = getColumnWidth(header, currentEntity);
       if (width) {
         td.style.width = width;
@@ -738,7 +694,6 @@ function displayData(data, append = false) {
       row.appendChild(td);
     });
 
-    // Add event listeners based on entity type
     if (currentEntity === ACTIVATING_ENTITY) {
       row.style.cursor = 'pointer';
       row.classList.add('event-row');
@@ -748,7 +703,7 @@ function displayData(data, append = false) {
     } else if (currentEntity === 'LS_Country' || currentEntity === 'LS_User') {
       row.style.cursor = 'default';
     }
-    
+
     tableBody.appendChild(row);
   });
   
@@ -789,7 +744,6 @@ function handleRowClick(item, event) {
   }
 }
 
-// Update the state of the action buttons
 function updateButtonState(enabled) {
   const viewLeadsButton = document.getElementById('viewLeadsButton');
   const viewLeadReportsButton = document.getElementById('viewLeadReportsButton');
@@ -799,8 +753,6 @@ function updateButtonState(enabled) {
     viewLeadReportsButton.disabled = !enabled;
   }
 }
-
-// Function to load next rows
 
 async function loadNextRows() {
   if (!nextUrl) {
@@ -836,8 +788,6 @@ async function loadNextRows() {
   }
 }
 
-
-// Initialize the application
 function init() {
   populateApiSelector();
 
@@ -867,25 +817,21 @@ function init() {
 
 }
 
-  // Écouter les changements de taille d'écran
-  window.addEventListener('resize', handleResponsiveLayout);
-  
-  // Exécuter au chargement de la page
-  document.addEventListener('DOMContentLoaded', () => {
-    handleResponsiveLayout();
-    
-    // Observer les mutations du DOM pour appliquer les améliorations 
-    // lorsque new éléments sont ajoutés (comme les filtres)
-    const observer = new MutationObserver((mutations) => {
-      for (const mutation of mutations) {
-        if (mutation.type === 'childList') {
-          handleResponsiveLayout();
-        }
+window.addEventListener('resize', handleResponsiveLayout);
+
+document.addEventListener('DOMContentLoaded', () => {
+  handleResponsiveLayout();
+
+  const observer = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+      if (mutation.type === 'childList') {
+        handleResponsiveLayout();
       }
-    });
-    
-    observer.observe(document.body, { childList: true, subtree: true });
+    }
   });
+
+  observer.observe(document.body, { childList: true, subtree: true });
+});
 
 
 // Initialize the application

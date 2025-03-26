@@ -110,7 +110,7 @@ main.table {
     backdrop-filter: blur(7px);
     box-shadow: 0 .4rem .8rem #0005;
     border-radius: .8rem;
-    margin: 1rem;
+    /* margin: 1rem; */
     overflow: hidden;
     max-height: calc(100vh - 150px); 
     width: 98%;
@@ -130,7 +130,7 @@ main.table {
 }
 
 /* View Selector */
-.view-selector select {
+/* .view-selector select {
     appearance: none; 
     background-color: #f1f1f1;
     border: 1px solid #e0e0e0;
@@ -150,7 +150,7 @@ main.table {
 .view-selector select:focus {
     border-color: var(--primary-color);
     outline: none;   
-}
+} */
 
 /* Action Buttons */
 .actions {
@@ -229,6 +229,7 @@ main.table {
 
 .table__body:hover::-webkit-scrollbar-thumb { 
     visibility: visible;
+    background-color: var(--primary-color);
 }
 
 .table__body table {
