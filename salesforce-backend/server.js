@@ -19,6 +19,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cors({
   origin: [
     'https://delightful-desert-016e2a610.4.azurestaticapps.net', 
+	'https://brave-bush-0041ef403.6.azurestaticapps.net',
     'http://localhost:3000',
     'http://127.0.0.1:5504'
   ],
@@ -30,8 +31,7 @@ app.use(cors({
 // OAuth2 configuration
 const SF_CLIENT_ID = process.env.SF_CLIENT_ID;
 const SF_CLIENT_SECRET = process.env.SF_CLIENT_SECRET;
-const SF_REDIRECT_URI = 'https://lsapisamplesbackend-bhesadgtbja4dmgq.germanywestcentral-01.azurewebsites.net/api/oauth2/callback';
-  // : 'http://localhost:3000/api/oauth2/callback';
+const SF_REDIRECT_URI = process.env.SF_REDIRECT_URI;
 const SF_LOGIN_URL = process.env.SF_LOGIN_URL || 'https://login.salesforce.com';
 
 // Session token storage
