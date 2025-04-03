@@ -194,157 +194,6 @@ apiRouter.get('/salesforce/auth', (req, res) => {
 });
 
 // OAuth2 callback
-// apiRouter.get('/oauth2/callback', async (req, res) => {
-//   const { code } = req.query;
-  
-//   if (!code) {
-//     console.error('Authorization code missing');
-//     return res.status(400).send('Authorization code missing');
-//   }
-  
-//   try {
-//     console.log('Received auth code, exchanging for token...');
-    
-//     // Exchange code for token directly with Salesforce API
-//     const tokenResponse = await fetch(`${SF_LOGIN_URL}/services/oauth2/token`, {
-//       method: 'POST',
-//       headers: {
-//         'Content-Type': 'application/x-www-form-urlencoded'
-//       },
-//       body: `grant_type=authorization_code&client_id=${SF_CLIENT_ID}&client_secret=${SF_CLIENT_SECRET}&redirect_uri=${encodeURIComponent(SF_REDIRECT_URI)}&code=${code}`
-//     });
-    
-//     const tokenData = await tokenResponse.json();
-    
-//     if (!tokenResponse.ok || tokenData.error) {
-//       throw new Error(tokenData.error_description || tokenData.error || 'Token exchange failed');
-//     }
-    
-//     console.log('Token obtained successfully');
-    
-//     const { access_token, refresh_token, instance_url } = tokenData;
-    
-//     // Create a JSForce connection to get user info
-//     const conn = new jsforce.Connection({
-//       instanceUrl: instance_url,
-//       accessToken: access_token
-//     });
-    
-//     // Get user information
-//     const userInfo = await conn.identity();
-//     console.log('User identified:', userInfo.username);
-    
-//     // Generate a session token
-//     const sessionToken = Date.now().toString(36) + Math.random().toString(36).substring(2);
-    
-//     // Store session information
-//     tokenStore.set(sessionToken, {
-//       accessToken: access_token,
-//       refreshToken: refresh_token,
-//       instanceUrl: instance_url,
-//       userInfo,
-//       timestamp: Date.now()
-//     });
-    
-//     // Return success page
-//     res.send(`
-//       <html>
-//         <head>
-//           <title>Authentication Successful</title>
-//           <style>
-//             body {
-//               font-family: Arial, sans-serif;
-//               text-align: center;
-//               padding: 40px 20px;
-//               background-color: #f4f7f9;
-//             }
-//             .success-container {
-//               max-width: 500px;
-//               margin: 0 auto;
-//               background-color: white;
-//               border-radius: 8px;
-//               padding: 30px;
-//               box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-//             }
-//             h2 {
-//               color: #2e844a;
-//               margin-bottom: 20px;
-//             }
-//             p {
-//               color: #54698d;
-//               margin-bottom: 15px;
-//               line-height: 1.5;
-//             }
-//           </style>
-//         </head>
-//         <body>
-//           <div class="success-container">
-//             <h2>Authentication Successful!</h2>
-//             <p>You are now connected to Salesforce as ${userInfo.username}.</p>
-//             <p>This window will close automatically.</p>
-//           </div>
-       
-//         </body>
-//       </html>
-//     `);
-//   } catch (error) {
-//     console.error('OAuth callback error:', error);
-//     res.status(500).send(`
-//       <html>
-//         <head>
-//           <title>Authentication Failed</title>
-//           <style>
-//             body {
-//               font-family: Arial, sans-serif;
-//               text-align: center;
-//               padding: 40px 20px;
-//               background-color: #f4f7f9;
-//             }
-//             .error-container {
-//               max-width: 500px;
-//               margin: 0 auto;
-//               background-color: white;
-//               border-radius: 8px;
-//               padding: 30px;
-//               box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-//             }
-//             h2 {
-//               color: #c23934;
-//               margin-bottom: 20px;
-//             }
-//             p {
-//               color: #54698d;
-//               margin-bottom: 15px;
-//               line-height: 1.5;
-//             }
-//           </style>
-//         </head>
-//         <body>
-//           <div class="error-container">
-//             <h2>Authentication Failed</h2>
-//             <p>An error occurred while connecting to Salesforce.</p>
-//             <p>Error: ${error.message}</p>
-//             <p>Please close this window and try again.</p>
-//           </div>
-//           <script>
-//             if (window.opener) {
-//               window.opener.postMessage({ 
-//                 type: 'salesforce-auth-error', 
-//                 error: ${JSON.stringify(error.message)}
-//               }, '*');
-              
-//               setTimeout(function() {
-//                 window.close();
-//               }, 5000);
-//             }
-//           </script>
-//         </body>
-//       </html>
-//     `);
-//   }
-// });
-
-
 apiRouter.get('/oauth2/callback', async (req, res) => {
   const { code } = req.query;
   
@@ -397,7 +246,7 @@ apiRouter.get('/oauth2/callback', async (req, res) => {
       timestamp: Date.now()
     });
     
-    // Return simple success page without showing tokens
+    // Return success page
     res.send(`
       <html>
         <head>
@@ -426,28 +275,15 @@ apiRouter.get('/oauth2/callback', async (req, res) => {
               margin-bottom: 15px;
               line-height: 1.5;
             }
-            .spinner {
-              margin: 20px auto;
-              width: 40px;
-              height: 40px;
-              border: 4px solid #f3f3f3;
-              border-top: 4px solid #2e844a;
-              border-radius: 50%;
-              animation: spin 1s linear infinite;
-            }
-            @keyframes spin {
-              0% { transform: rotate(0deg); }
-              100% { transform: rotate(360deg); }
-            }
           </style>
         </head>
         <body>
           <div class="success-container">
             <h2>Authentication Successful!</h2>
-            <p>You are now connected to Salesforce.</p>
-            <div class="spinner"></div>
-            <p>This window will close automatically...</p>
+            <p>You are now connected to Salesforce as ${userInfo.username}.</p>
+            <p>This window will close automatically.</p>
           </div>
+       
         </body>
       </html>
     `);
@@ -487,13 +323,14 @@ apiRouter.get('/oauth2/callback', async (req, res) => {
           <div class="error-container">
             <h2>Authentication Failed</h2>
             <p>An error occurred while connecting to Salesforce.</p>
+            <p>Error: ${error.message}</p>
             <p>Please close this window and try again.</p>
           </div>
           <script>
             if (window.opener) {
               window.opener.postMessage({ 
-                type: 'salesforce-auth-error',
-                error: 'Authentication failed'
+                type: 'salesforce-auth-error', 
+                error: ${JSON.stringify(error.message)}
               }, '*');
               
               setTimeout(function() {
@@ -507,12 +344,9 @@ apiRouter.get('/oauth2/callback', async (req, res) => {
   }
 });
 
+
 apiRouter.get('/salesforce/auth', (req, res) => {
   try {
-    
-    console.log('Current environment:', process.env.NODE_ENV || 'development');
-    console.log('Using redirect URI:', SF_REDIRECT_URI);
-    console.log('Generating auth URL...');
 
     const authUrl = `${SF_LOGIN_URL}/services/oauth2/authorize?response_type=code&client_id=${SF_CLIENT_ID}&redirect_uri=${encodeURIComponent(SF_REDIRECT_URI)}&scope=api%20id%20web%20refresh_token`;
     
@@ -524,6 +358,8 @@ apiRouter.get('/salesforce/auth', (req, res) => {
   }
 });
 
+//  Get Org URL from Lightning component
+window.location.hostname = 'https://orgfarm-0fb60c8e1f-dev-ed.develop.lightning.force.com'
 
 
 /* TOKEN VERIFICATION & DEBUGGING ROUTES */
