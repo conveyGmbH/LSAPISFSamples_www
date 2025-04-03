@@ -1,46 +1,63 @@
+/**
+ * LeadSuccess API Server
+ * Handles Salesforce OAuth authentication and data transfer
+ */
+
 const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const jsforce = require('jsforce');
+const compression = require('compression');
 const dotenv = require('dotenv');
+const fetch = require('node-fetch');
 
-
+// Load environment variables
 dotenv.config();
 
+// Initialize Express application
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
-app.use(express.json());
+
+// Standard middleware
+app.use(express.json({ limit: '100mb' }));
+app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 app.use(cookieParser());
-app.use(express.urlencoded({ extended: true }));
+app.use(compression());
 
 // CORS configuration
 app.use(cors({
   origin: [
-    'https://delightful-desert-016e2a610.4.azurestaticapps.net', 
+    // Development origins
+    'http://127.0.0.1:5504',
+    'http://localhost:5504',
     'http://localhost:3000',
-    'http://127.0.0.1:5504'
+    // Production origins
+    'https://delightful-desert-016e2a610.4.azurestaticapps.net',
+    'https://brave-bush-0041ef403.6.azurestaticapps.net'
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Cache-Control', 'X-Session-Token']
 }));
 
+/* SALESFORCE CONFIGURATION */
+
 // OAuth2 configuration
 const SF_CLIENT_ID = process.env.SF_CLIENT_ID;
 const SF_CLIENT_SECRET = process.env.SF_CLIENT_SECRET;
 const SF_REDIRECT_URI = 'https://lsapisamplesbackend-bhesadgtbja4dmgq.germanywestcentral-01.azurewebsites.net/api/oauth2/callback';
-  // : 'http://localhost:3000/api/oauth2/callback';
 const SF_LOGIN_URL = process.env.SF_LOGIN_URL || 'https://login.salesforce.com';
 
-// Session token storage
+// In-memory token storage 
 const tokenStore = new Map();
 
-// API router
+
+/* API ROUTER SETUP */
 const apiRouter = express.Router();
 
-// Welcome Page Server
+
+/* WELCOME PAGE SERVER */
 app.get('/', (req, res) => {
   const serverInfo = {
     status: 'online',
@@ -49,9 +66,14 @@ app.get('/', (req, res) => {
     timestamp: new Date().toISOString(),
     uptime: `${Math.floor(process.uptime())} seconds`,
     endpoints: [
-      { path: '/api/salesforce/auth', method: 'GET', description: 'Get Salesforce authentication URL 2000' },
+      { path: '/api/salesforce/auth', method: 'GET', description: 'Get Salesforce authentication URL' },
       { path: '/api/oauth2/callback', method: 'GET', description: 'OAuth2 callback for Salesforce' },
-      { path: '/api/direct-lead-transfer', method: 'POST', description: 'Transfer lead to Salesforce' }
+      { path: '/api/salesforce/test-token', method: 'GET', description: 'Test Salesforce token validity' },
+      { path: '/api/salesforce/token-details', method: 'GET', description: 'Get Salesforce token details' },
+      { path: '/api/debug/token-info', method: 'GET', description: 'Debug token information (dev only)' },
+      { path: '/api/direct-lead-transfer', method: 'POST', description: 'Transfer lead to Salesforce' },
+      { path: '/api/attachment', method: 'POST', description: 'Transfer attachment to Salesforce' },
+      { path: '/api/salesforce/upload-file', method: 'POST', description: 'Upload file using ContentVersion' }
     ]
   };
 
@@ -161,17 +183,12 @@ app.get('/', (req, res) => {
 });
 
 
+/* AUTHENTICATION ROUTES */
+
 // Get authentication URL
 apiRouter.get('/salesforce/auth', (req, res) => {
   try {
-    
-    console.log('Current environment:', process.env.NODE_ENV || 'development');
-    console.log('Using redirect URI:', SF_REDIRECT_URI);
-    console.log('Generating auth URL...');
-
     const authUrl = `${SF_LOGIN_URL}/services/oauth2/authorize?response_type=code&client_id=${SF_CLIENT_ID}&redirect_uri=${encodeURIComponent(SF_REDIRECT_URI)}&scope=api%20id%20web%20refresh_token`;
-    
-    console.log('Auth URL generated:', authUrl);
     res.json({ authUrl });
   } catch (error) {
     console.error('Error generating auth URL:', error);
@@ -261,6 +278,16 @@ apiRouter.get('/oauth2/callback', async (req, res) => {
               margin-bottom: 15px;
               line-height: 1.5;
             }
+            .token-info {
+              text-align: left;
+              background-color: #f5f5f5;
+              padding: 15px;
+              border-radius: 5px;
+              margin-top: 20px;
+              font-family: monospace;
+              font-size: 12px;
+              overflow-wrap: break-word;
+            }
           </style>
         </head>
         <body>
@@ -268,20 +295,32 @@ apiRouter.get('/oauth2/callback', async (req, res) => {
             <h2>Authentication Successful!</h2>
             <p>You are now connected to Salesforce as ${userInfo.username}.</p>
             <p>This window will close automatically.</p>
+            
+            <!-- DEVELOPMENT ONLY: Remove this section in production -->
+            <div class="token-info">
+              <p><strong>Session Token:</strong> ${sessionToken}</p>
+              <p><strong>Access Token:</strong> ${access_token.substring(0, 10)}...</p>
+              <p><strong>Instance URL:</strong> ${instance_url}</p>
+            </div>
           </div>
           <script>
             // Pass token to parent window
             if (window.opener) {
               window.opener.postMessage({ 
                 type: 'salesforce-auth-success', 
-                userInfo: ${JSON.stringify(userInfo)},
+                userInfo: ${JSON.stringify({
+                  ...userInfo,
+                  // Only include partial token for debugging
+                  accessToken: access_token.substring(0, 10) + '...',
+                  instanceUrl: instance_url
+                })},
                 sessionToken: "${sessionToken}"
               }, '*');
               
               // Close window after a short delay
               setTimeout(function() {
                 window.close();
-              }, 2000);
+              }, 5000); // 5 seconds delay to see the token info
             } else {
               document.body.innerHTML += '<p>Window opener not available. Please close this window manually.</p>';
             }
@@ -347,7 +386,7 @@ apiRouter.get('/oauth2/callback', async (req, res) => {
 });
 
 
-// Add this endpoint in server.js in the apiRouter section
+/* TOKEN VERIFICATION & DEBUGGING ROUTES */
 
 // Session check endpoint - verify if token is still valid
 apiRouter.get('/salesforce/session-check', (req, res) => {
@@ -364,7 +403,7 @@ apiRouter.get('/salesforce/session-check', (req, res) => {
   const session = tokenStore.get(sessionToken);
   const now = Date.now();
   
-  // Optional: Check if session is older than 1 hour
+  // Check if session is older than 1 hour
   if (now - session.timestamp > 3600000) {
     // Remove expired session
     tokenStore.delete(sessionToken);
@@ -381,32 +420,146 @@ apiRouter.get('/salesforce/session-check', (req, res) => {
   });
 });
 
-
-
-// Direct lead transfer endpoint - improved for demo
-apiRouter.post('/direct-lead-transfer', async (req, res) => {
-  const { sessionToken, leadData } = req.body;
-  
-  console.log('==== DIRECT LEAD TRANSFER (DEMO VERSION) ====');
-  console.log('Session Token:', sessionToken ? 'present' : 'absent');
+// Test token endpoint
+apiRouter.get('/salesforce/test-token', async (req, res) => {
+  const sessionToken = req.headers['x-session-token'];
   
   if (!sessionToken || !tokenStore.has(sessionToken)) {
-    console.error('Invalid or missing session token');
     return res.status(401).json({
       success: false,
-      message: 'Invalid session. Please reconnect to Salesforce.'
-    });
-  }
-  
-  if (!leadData) {
-    console.error('Missing lead data');
-    return res.status(400).json({
-      success: false,
-      message: 'Lead data missing.'
+      message: 'Invalid or expired token'
     });
   }
   
   try {
+    const session = tokenStore.get(sessionToken);
+    
+    // Create a Salesforce connection
+    const conn = new jsforce.Connection({
+      instanceUrl: session.instanceUrl,
+      accessToken: session.accessToken
+    });
+    
+    // Test connection by getting user info
+    const userInfo = await conn.identity();
+    
+    // Return session and user info
+    return res.json({
+      success: true,
+      message: 'Token valid',
+      userInfo: userInfo,
+      session: {
+        instanceUrl: session.instanceUrl,
+        accessToken: session.accessToken.substring(0, 10) + '...' // Mask for security
+      }
+    });
+  } catch (error) {
+    console.error('Token test error:', error);
+    return res.status(500).json({
+      success: false,
+      message: `Error testing token: ${error.message}`
+    });
+  }
+});
+
+// Get token details
+apiRouter.get('/salesforce/token-details', (req, res) => {
+  const sessionToken = req.headers['x-session-token'];
+  
+  if (!sessionToken || !tokenStore.has(sessionToken)) {
+    return res.status(401).json({
+      success: false,
+      message: 'Invalid or expired token'
+    });
+  }
+  
+  const session = tokenStore.get(sessionToken);
+  
+  // Return non-sensitive details only
+  return res.json({
+    success: true,
+    tokenDetails: {
+      instanceUrl: session.instanceUrl,
+      userInfo: session.userInfo,
+      timestamp: session.timestamp,
+      expires: new Date(session.timestamp + 3600000).toISOString()
+    }
+  });
+});
+
+// Debug token info (DEVELOPMENT ONLY) - Remove in production
+apiRouter.get('/debug/token-info', (req, res) => {
+  const sessionToken = req.headers['x-session-token'];
+  
+  if (!sessionToken || !tokenStore.has(sessionToken)) {
+    return res.status(401).json({
+      success: false,
+      message: 'Invalid or expired token'
+    });
+  }
+  
+  // Get complete session info
+  const session = tokenStore.get(sessionToken);
+  
+  // WARNING: This exposes the complete access token!
+  return res.json({
+    success: true,
+    debug: true,
+    warning: "This endpoint exposes sensitive data. Do not use in production.",
+    tokenInfo: {
+      sessionToken: sessionToken,
+      accessToken: session.accessToken,
+      refreshToken: session.refreshToken ? "present" : "absent",
+      instanceUrl: session.instanceUrl,
+      userInfo: session.userInfo,
+      timestamp: session.timestamp,
+      created: new Date(session.timestamp).toISOString(),
+      expires: new Date(session.timestamp + 3600000).toISOString()
+    }
+  });
+});
+
+
+/* SF DATA TRANSFER ROUTES  */
+
+// Attachment transfer endpoint
+apiRouter.post('/attachment', async (req, res) => {
+  console.log('Transfer attachment endpoint called');
+  
+  try {
+    const { sessionToken, leadId, attachment } = req.body;
+    
+    // Log request details
+    console.log(`Received attachment transfer request for lead: ${leadId}`);
+    console.log(`Attachment name: ${attachment?.Name || 'unnamed'}`);
+    console.log(`Session token present: ${!!sessionToken}`);
+    
+    // Validate required parameters
+    if (!leadId) {
+      console.error('Missing leadId in request');
+      return res.status(400).json({
+        success: false,
+        message: 'Missing leadId parameter.'
+      });
+    }
+    
+    if (!attachment || !attachment.Name || !attachment.Body) {
+      console.error('Missing or invalid attachment data');
+      return res.status(400).json({
+        success: false,
+        message: 'Missing or invalid attachment data. Name and Body are required.'
+      });
+    }
+    
+    // Session token validation
+    if (!sessionToken || !tokenStore.has(sessionToken)) {
+      console.error('Invalid or missing session token');
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid session. Please reconnect to Salesforce.'
+      });
+    }
+    
     const session = tokenStore.get(sessionToken);
     
     // Create Salesforce connection
@@ -415,101 +568,34 @@ apiRouter.post('/direct-lead-transfer', async (req, res) => {
       accessToken: session.accessToken
     });
     
-    // Basic check for duplicate lead by email
-    if (leadData.Email) {
-      try {
-        console.log('Checking for duplicate by email:', leadData.Email);
-        const query = `SELECT Id, Name FROM Lead WHERE Email = '${leadData.Email.replace(/'/g, "\\'")}' LIMIT 1`;
-        const result = await conn.query(query);
-        
-        if (result.records.length > 0) {
-          console.log('Duplicate lead found by email:', result.records[0].Id);
-          return res.status(409).json({
-            success: false,
-            message: `A lead with this email already exists in Salesforce (ID: ${result.records[0].Id})`,
-            duplicateId: result.records[0].Id
-          });
-        }
-      } catch (dupError) {
-        console.error('Error checking for duplicate:', dupError);
-        // Continue with transfer if duplicate check fails
-      }
-    }
+    console.log('Using authenticated Salesforce connection');
     
-    // Prepare lead data for Salesforce - with improved validation
-    console.log('Preparing lead data...');
-    const sfLeadData = {
-      FirstName: leadData.FirstName || '',
-      LastName: leadData.LastName || 'Unknown',
-      Company: leadData.Company || 'Unknown',
-      Email: leadData.Email || '',
-      Phone: leadData.Phone || '',
-      MobilePhone: leadData.MobilePhone || '',
-      Title: leadData.Title || '',
-      Industry: leadData.Industry || '',
-      Description: leadData.Description || '',
-      LeadSource: 'LeadSuccess API'
-    };
-
-    // Function to clean field values before sending to Salesforce
-    const cleanField = (value) => {
-      if (!value || value === 'N/A' || value === 'undefined' || value === 'null') {
-        return ''; // Empty string is safer than null for Salesforce
-      }
-      return value;
-    };
-
-    // Add address fields only if they have valid values
-    if (leadData.Street) sfLeadData.Street = cleanField(leadData.Street);
-    if (leadData.City) sfLeadData.City = cleanField(leadData.City);
-    if (leadData.PostalCode) sfLeadData.PostalCode = cleanField(leadData.PostalCode);
-
-    // Special handling for Country field to avoid validation errors
-    if (leadData.Country && leadData.Country !== 'N/A') {
-      // List of valid countries (simplified example for demo)
-      const validCountries = ['US', 'CA', 'FR', 'DE', 'UK', 'ES', 'IT', 'JP', 'AU', 'BR'];
-      
-      // Check if country is in the list of valid countries
-      if (validCountries.includes(leadData.Country)) {
-        sfLeadData.Country = leadData.Country;
-      } else {
-        // Leave empty rather than setting a potentially invalid value
-        console.log(`Country value "${leadData.Country}" might be invalid, leaving empty`);
-      }
-    }
-
-    // Deliberately omit State/Province to avoid validation errors
+    // Create the attachment in Salesforce
+    console.log('Creating attachment in Salesforce');
+    const attachmentResult = await conn.sobject('Attachment').create({
+      Name: attachment.Name,
+      Body: attachment.Body,
+      ContentType: attachment.ContentType || 'application/octet-stream',
+      ParentId: leadId
+    });
     
-    // Create the lead in Salesforce
-    console.log('Creating lead in Salesforce...');
-    try {
-      const result = await conn.sobject('Lead').create(sfLeadData);
-      
-      if (result.success) {
-        console.log('Lead created successfully, ID:', result.id);
-        return res.json({
-          success: true,
-          leadId: result.id,
-          status: 'Transferred',
-          message: 'Lead successfully transferred to Salesforce'
-        });
-      } else {
-        console.error('Lead creation failed:', result.errors);
-        return res.status(400).json({
-          success: false,
-          message: `Failed to create lead: ${result.errors.join(', ')}`
-        });
-      }
-    } catch (sfError) {
-      // Simplified error handling for demo
-      console.error('Salesforce API error:', sfError.message);
+    console.log('Salesforce attachment creation result:', attachmentResult);
+    
+    if (attachmentResult.success) {
+      return res.json({
+        success: true,
+        attachmentId: attachmentResult.id,
+        message: `Attachment ${attachment.Name} successfully transferred`
+      });
+    } else {
+      console.error('Salesforce error:', attachmentResult.errors);
       return res.status(400).json({
         success: false,
-        message: `Salesforce error: ${sfError.message}`
+        message: `Failed to create attachment: ${attachmentResult.errors.join(', ')}`
       });
     }
   } catch (error) {
-    console.error('Error during lead transfer:', error);
+    console.error('Error processing attachment transfer:', error);
     return res.status(500).json({
       success: false,
       message: `Error: ${error.message}`
@@ -517,8 +603,9 @@ apiRouter.post('/direct-lead-transfer', async (req, res) => {
   }
 });
 
+/*UTILITY ROUTES */
 
-// Endpoint simple 
+// Health check endpoint
 apiRouter.get('/health', (req, res) => {
   res.status(200).json({
     status: 'ok',
@@ -527,14 +614,23 @@ apiRouter.get('/health', (req, res) => {
   });
 });
 
+// Simple test route
+apiRouter.get('/test', (req, res) => {
+  res.json({ message: 'API route is working!' });
+});
+
+// Root API route
 apiRouter.get('/', (req, res) => {
   res.status(200).send("LeadSuccess API Server is running. See /api/health for details.");
 });
 
-// Mount API router
+
+/* Mount API router */
 app.use('/api', apiRouter);
 
 // Start server
 app.listen(PORT, () => {
-  console.log(` http://localhost:${PORT}`);
+  console.log(`Server running at http://localhost:${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`API base path: /api`);
 });
