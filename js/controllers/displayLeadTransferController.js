@@ -1,11 +1,8 @@
 // Controller simplified for demo - Lead transfer to Salesforce
 import { appConfig } from '../config/salesforceConfig.js';
-import SalesforceService from '../services/salesforceService.js';
 import ApiService from '../services/apiService.js';
 
 
-// Initialize Salesforce service
-const sfService = new SalesforceService();
 
 // Global variables
 let selectedLeadData = null;
@@ -14,87 +11,6 @@ let authWindow = null;
 let isTransferInProgress = false;
 let sessionToken = localStorage.getItem('sf_session_token');
 
-// Initialization when page loads
-document.addEventListener('DOMContentLoaded', async () => {
-  console.log('Lead transfer page loaded');
-  
-  const transferBtn = document.getElementById('transferToSalesforceBtn');
-  const backButton = document.getElementById('backButton');
-  
-  // Load lead data
-  loadLeadData();
-
-
-window.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'salesforce-auth-success') {
-    console.log('Received auth success message');
-    
-    // Save session token
-    if (event.data.sessionToken) {
-      sessionToken = event.data.sessionToken;
-      localStorage.setItem('sf_session_token', sessionToken);
-      
-      // Update interface
-      updateConnectionStatus('connected', `Connected to Salesforce`);
-      
-      // Continue transfer if in progress
-      if (isTransferInProgress) {
-        continueTransferWithToken();
-      }
-    }
-  }
-});
-
-
-
-  
-  window.addEventListener('message', (event) => {
-    if (event.data && event.data.type === 'salesforce-auth-success') {
-      console.log('Received auth success message');
-      
-      // Save session token
-      if (event.data.sessionToken) {
-        sessionToken = event.data.sessionToken;
-        localStorage.setItem('sf_session_token', sessionToken);
-
-         // Afficher le token en console
-      console.log("TOKEN:", sessionToken);
-      console.log("event:", event);
-      console.log("ACCESS TOKEN:", event.data.userInfo?.accessToken || "Not available");
-        
-        // Update interface
-        updateConnectionStatus('connected', `Connected to Salesforce`);
-        
-        // Continue transfer if in progress
-        if (isTransferInProgress) {
-          continueTransferWithToken();
-        }
-      }
-    }
-  });
-  
-  // Add event handlers to buttons
-  if (transferBtn) {
-    transferBtn.addEventListener('click', handleTransferButtonClick);
-  }
-  
-  if (backButton) {
-    backButton.addEventListener('click', () => {
-      const source = sessionStorage.getItem('selectedLeadSource');
-      window.location.href = source === 'LeadReport' ? 'displayLsLeadReport.html' : 'displayLsLead.html';
-    });
-  }
-  
-  // Check if already connected
-  if (sessionToken) {
-    updateConnectionStatus('connected', 'Connected to Salesforce');
-  } else {
-    updateConnectionStatus('not-connected', 'Not connected to Salesforce');
-  }
-
-
-  
-});
 
 // Handle click on transfer button
 async function handleTransferButtonClick() {
@@ -175,6 +91,7 @@ async function handleTransferButtonClick() {
     `;
   }
 }
+
 
 async function displayAttachmentsPreview() {
   // Check if the lead contains attachments
@@ -475,7 +392,7 @@ async function continueTransferWithToken() {
         body: JSON.stringify({
           sessionToken,
           leadData: leadDataToSend,
-          attachments: attachments  // Include all attachments in this call
+          attachments: attachments  
         })
       });
       
@@ -776,165 +693,60 @@ function createFieldElement(label, value) {
   return fieldElement;
 }
 
-// Fonction pour tester le token
-async function testSalesforceToken() {
-  const statusElement = document.getElementById('tokenTestStatus');
-  const tokenDetailsElement = document.getElementById('tokenDetails');
-  
-  if (!statusElement || !tokenDetailsElement) {
-    console.error('Éléments de test de token introuvables');
-    return;
+async function fetchAttachments(attachmentIds) {
+  if (!attachmentIds || attachmentIds.length === 0) {
+    return [];
   }
   
-  // Afficher indicateur de chargement
-  statusElement.innerHTML = `
+  const transferStatus = document.getElementById('transferStatus');
+  const attachments = [];
+  
+  transferStatus.innerHTML += `
     <div class="transfer-pending">
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="12" cy="12" r="10"/>
         <polyline points="12 6 12 12 16 14"/>
       </svg>
-      Test du token en cours...
+      Récupération des pièces jointes (${attachmentIds.length})...
     </div>
   `;
+
+  const serverName = sessionStorage.getItem('serverName');
+  const apiName = sessionStorage.getItem('apiName');
+  const apiService = new ApiService(serverName, apiName);
   
-  // Récupérer le token de session
-  const sessionToken = localStorage.getItem('sf_session_token');
-  
-  if (!sessionToken) {
-    statusElement.innerHTML = `
-      <div class="status-error">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"/>
-          <line x1="15" y1="9" x2="9" y2="15"/>
-          <line x1="9" y1="9" x2="15" y2="15"/>
-        </svg>
-        Aucun token disponible. Veuillez vous connecter à Salesforce.
-      </div>
-    `;
-    tokenDetailsElement.innerHTML = '';
-    return;
-  }
-  
-  try {
-    // Tester le token
-    const response = await fetch(`${appConfig.apiBaseUrl}/salesforce/token-details`, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'X-Session-Token': sessionToken
+  for (let i = 0; i < attachmentIds.length; i++) {
+    const attachmentId = attachmentIds[i];
+    try {
+      const endpoint = `LS_AttachmentById?Id=%27${encodeURIComponent(attachmentId)}%27&$format=json`;
+      const data = await apiService.request('GET', endpoint);
+      
+      let attachmentData = null;
+      if (data && data.d && data.d.results && data.d.results.length > 0) {
+        attachmentData = data.d.results[0];
+      } else if (data && data.d) {
+        attachmentData = data.d;
       }
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Erreur ${response.status}: ${response.statusText}`);
+      
+      if (attachmentData && attachmentData.Body) {
+
+         // File compression base64 
+         const compressedBody = btoa(unescape(encodeURIComponent(attachmentData.Body)))
+        attachments.push({
+          Name: attachmentData.Name || `Attachment_${i + 1}`,
+          Body: compressedBody,
+          ContentType: attachmentData.ContentType || 'application/octet-stream'
+        });
+      }
+    } catch (error) {
+      console.error(`Error fetching attachment ${attachmentId}:`, error);
     }
-    
-    const data = await response.json();
-    
-    if (data.success) {
-      // Afficher le succès
-      statusElement.innerHTML = `
-        <div class="status-success">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-            <polyline points="22 4 12 14.01 9 11.01"/>
-          </svg>
-          Token Salesforce valide
-        </div>
-      `;
-      
-      // Afficher les détails du token
-      const tokenDetails = data.tokenDetails;
-      const formattedTime = new Date(tokenDetails.timestamp).toLocaleString();
-      const expiresTime = new Date(tokenDetails.expires).toLocaleString();
-      
-      // Afficher les détails dans la console pour debugging
-      console.log('Session Token (identifiant)', sessionToken);
-      console.log('Token Details', tokenDetails);
-      
-      // Créer un tableau des détails du token pour l'affichage
-      tokenDetailsElement.innerHTML = `
-        <div class="token-details-card">
-          <h4>Détails du Token Salesforce</h4>
-          <div class="token-detail-item">
-            <span class="detail-label">Identifiant de session :</span>
-            <span class="detail-value">${sessionToken}</span>
-          </div>
-          <div class="token-detail-item">
-            <span class="detail-label">Instance URL :</span>
-            <span class="detail-value">${tokenDetails.instanceUrl}</span>
-          </div>
-          <div class="token-detail-item">
-            <span class="detail-label">Créé le :</span>
-            <span class="detail-value">${formattedTime}</span>
-          </div>
-          <div class="token-detail-item">
-            <span class="detail-label">Expire le :</span>
-            <span class="detail-value">${expiresTime}</span>
-          </div>
-          <div class="token-detail-item">
-            <span class="detail-label">Utilisateur :</span>
-            <span class="detail-value">${tokenDetails.userInfo.username}</span>
-          </div>
-        </div>
-      `;
-    } else {
-      throw new Error(data.message || 'Échec du test de token');
-    }
-  } catch (error) {
-    console.error('Erreur lors du test du token:', error);
-    
-    statusElement.innerHTML = `
-      <div class="status-error">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"/>
-          <line x1="15" y1="9" x2="9" y2="15"/>
-          <line x1="9" y1="9" x2="15" y2="15"/>
-        </svg>
-        Erreur : ${error.message}
-      </div>
-    `;
-    tokenDetailsElement.innerHTML = '';
   }
+  
+  return attachments;
 }
 
 
-async function connectToSalesforce() {
-  try {
-    // Récupérer l'URL d'authentification
-    const response = await fetch(`${appConfig.apiBaseUrl}/salesforce/auth`);
-    
-    if (!response.ok) {
-      throw new Error(`Erreur serveur: ${response.status}`);
-    }
-    
-    const data = await response.json();
-    
-    if (!data.authUrl) {
-      throw new Error('URL d\'authentification non disponible');
-    }
-    
-    console.log('Ouverture de la fenêtre d\'authentification Salesforce...');
-    
-    // Ouvrir la fenêtre d'authentification
-    authWindow = window.open(data.authUrl, 'salesforceAuth', 'width=600,height=700');
-    
-    if (!authWindow) {
-      throw new Error('Popup bloquée ! Veuillez autoriser les popups pour ce site.');
-    }
-    
-    // Mettre à jour le statut
-    updateConnectionStatus('connecting', 'Connexion à Salesforce en cours...');
-    
-    // Le token sera récupéré via l'événement message window.addEventListener('message', ...)
-    // qui est déjà configuré dans votre code
-  } catch (error) {
-    console.error('Erreur lors de la connexion à Salesforce:', error);
-    updateConnectionStatus('error', `Erreur: ${error.message}`);
-    
-    alert(`Erreur de connexion: ${error.message}`);
-  }
-}
 
 
 /* Update connection status indicator */
@@ -965,21 +777,6 @@ function showError(message) {
   }
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 document.addEventListener('DOMContentLoaded', async () => {
   console.log('Lead transfer page loaded');
   
@@ -991,8 +788,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   // Listen for authentication messages
   window.addEventListener('message', (event) => {
-    if (event.data && event.data.type === 'salesforce-auth-success') {
+    if (event.data.type === 'salesforce-auth-success') {
       console.log('Received auth success message');
+
+      sessionToken = event.data.sessionToken;
+      localStorage.setItem('sf_session_token', sessionToken);
       
       // Save session token
       if (event.data.sessionToken) {
@@ -1032,18 +832,4 @@ document.addEventListener('DOMContentLoaded', async () => {
   } else {
     updateConnectionStatus('not-connected', 'Not connected to Salesforce');
   }
-
-
-
-  // À ajouter après l'ajout des event handlers dans le DOMContentLoaded
-    const testTokenBtn = document.getElementById('testTokenBtn');
-    if (testTokenBtn) {
-      testTokenBtn.addEventListener('click', testSalesforceToken);
-    }
-
-    const connectSalesforceBtn = document.getElementById('connectSalesforceBtn');
-if (connectSalesforceBtn) {
-  connectSalesforceBtn.addEventListener('click', connectToSalesforce);
-}
-
 });

@@ -17,6 +17,7 @@ export const appConfig = {
   
   // Environment-specific configuration
   get apiBaseUrl() {
+
     return this.isProduction
       ? 'https://lsapisamplesbackend-bhesadgtbja4dmgq.germanywestcentral-01.azurewebsites.net/api' 
       : 'http://localhost:3000/api';
@@ -26,12 +27,7 @@ export const appConfig = {
   get environmentName() {
     return this.isProduction ? 'production' : 'development';
   },
-  
-  // Salesforce settings
-  salesforce: {
-    clientId: '3MVG9rZjd7MXFdLjcmv2WrBcFvYgqfMxJzyW7.osW1KAWiHjC4Oh_C31c_DOCfKp0d.knPO6fvApDr8Y5qfgl',
-    scopes: 'api id web refresh_token'
-  }
+
 };
 
 // Logs for debugging
