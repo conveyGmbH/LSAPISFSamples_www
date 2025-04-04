@@ -19,7 +19,8 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cors({
   origin: [
     'https://delightful-desert-016e2a610.4.azurestaticapps.net', 
-	'https://brave-bush-0041ef403.6.azurestaticapps.net',
+    'https://lsapisfsamples.convey.de',
+	  'https://brave-bush-0041ef403.6.azurestaticapps.net',
     'http://localhost:3000',
     'http://127.0.0.1:5504'
   ],
@@ -387,7 +388,6 @@ apiRouter.get('/salesforce/session-check', (req, res) => {
 apiRouter.post('/direct-lead-transfer', async (req, res) => {
   const { sessionToken, leadData } = req.body;
   
-  console.log('==== DIRECT LEAD TRANSFER (DEMO VERSION) ====');
   console.log('Session Token:', sessionToken ? 'present' : 'absent');
   
   if (!sessionToken || !tokenStore.has(sessionToken)) {
@@ -432,7 +432,6 @@ apiRouter.post('/direct-lead-transfer', async (req, res) => {
         }
       } catch (dupError) {
         console.error('Error checking for duplicate:', dupError);
-        // Continue with transfer if duplicate check fails
       }
     }
     
@@ -478,8 +477,7 @@ apiRouter.post('/direct-lead-transfer', async (req, res) => {
       }
     }
 
-    // Deliberately omit State/Province to avoid validation errors
-    
+   
     // Create the lead in Salesforce
     console.log('Creating lead in Salesforce...');
     try {

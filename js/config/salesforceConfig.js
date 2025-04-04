@@ -5,10 +5,8 @@ export const appConfig = {
   
   // Environment-specific configuration
   get apiBaseUrl() {
-    return 'https://lsapisamplesbackend-bhesadgtbja4dmgq.germanywestcentral-01.azurewebsites.net/api'
-    // return this.isProduction
-    //   ? 'https://lsapisamplesbackend-bhesadgtbja4dmgq.germanywestcentral-01.azurewebsites.net/api' // Base URL for production
-    //   : 'http://localhost:3000/api'; // Base URL for development
+    return 'https://lsapisfbackend.convey.de/api'
+    
   },
   
   // Add other settings as needed
