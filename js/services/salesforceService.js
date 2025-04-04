@@ -105,7 +105,6 @@ class SalesforceService {
       try {
         const response = await fetch(`${this.apiBaseUrl}/salesforce/transfer-lead`, requestOptions);
 
-
         let resultData;
 
         try {
