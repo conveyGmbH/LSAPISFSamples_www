@@ -11,7 +11,7 @@ export const appConfig = {
   
   // Add other settings as needed
   get environmentName() {
-    return this.isProduction ? 'production' : 'development'; // Returns the current environment name
+    return this.isProduction ? 'production' : 'development'; 
   }
 };
 
