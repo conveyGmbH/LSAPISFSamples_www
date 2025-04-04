@@ -9,10 +9,7 @@ class SalesforceService {
 
   }
 
-  /**
-   * Check Salesforce connection status
-   * @returns {Promise<Object>} Object containing connection status
-   */
+  /* Check Salesforce connection status */
   async checkConnection() {
     try {
       console.log('Checking Salesforce connection status...');

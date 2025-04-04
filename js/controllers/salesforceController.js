@@ -1,15 +1,12 @@
 
 class SalesforceService {
   constructor() {
-    this.baseUrl = '/salesforce-api'; // URL du backend Node.js
+    this.baseUrl = '/salesforce-api'; 
     this.isConnected = false;
     this.userInfo = null;
   }
 
-  /**
-   * Initialiser la connexion à Salesforce
-   * @returns {Promise<string>} URL d'authentification Salesforce
-   */
+ 
   async initAuth() {
     try {
       const response = await fetch(`${this.baseUrl}/auth`);
@@ -24,10 +21,7 @@ class SalesforceService {
     }
   }
 
-  /**
-   * Vérifier l'état de connexion à Salesforce
-   * @returns {Promise<Object>} Informations de connexion
-   */
+ 
   async checkConnection() {
     try {
       const response = await fetch(`${this.baseUrl}/connection-status`);
@@ -46,11 +40,7 @@ class SalesforceService {
     }
   }
 
-  /**
-   * Valider les données d'un lead pour Salesforce
-   * @param {Object} leadData Les données du lead à valider
-   * @returns {Promise<Object>} Résultat de la validation
-   */
+ 
   async validateLeadData(leadData) {
     try {
       const response = await fetch(`${this.baseUrl}/validate-lead`, {
@@ -73,11 +63,7 @@ class SalesforceService {
     }
   }
 
-  /**
-   * Transférer un lead vers Salesforce
-   * @param {Object} leadData Les données du lead à transférer
-   * @returns {Promise<Object>} Résultat du transfert
-   */
+  
   async transferLead(leadData) {
     try {
       const response = await fetch(`${this.baseUrl}/transfer-lead`, {
@@ -100,11 +86,7 @@ class SalesforceService {
     }
   }
 
-  /**
-   * Récupérer le statut d'un transfert
-   * @param {string} transferId ID du transfert
-   * @returns {Promise<Object>} Statut du transfert
-   */
+  
   async getTransferStatus(transferId) {
     try {
       const response = await fetch(`${this.baseUrl}/transfer-status/${transferId}`);
