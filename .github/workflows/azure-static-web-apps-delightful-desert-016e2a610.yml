@@ -19,13 +19,7 @@ jobs:
         with:
           submodules: true
           lfs: false
-      # Step to generate the configuration file
-      - name: Inject environment variables
-        run: |
-          echo "// Configuration générée automatiquement" > js/config/config.js
-          echo "window.BACKEND_API_URL = '${{ secrets.BACKEND_API_URL || 'https://lsapisamplesbackend-bhesadgtbja4dmgq.germanywestcentral-01.azurewebsites.net/api' }}';" >> js/config/config.js
-          cat js/config/config.js
-          
+      # Step to generate the configuration file        
       - name: Build And Deploy
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
