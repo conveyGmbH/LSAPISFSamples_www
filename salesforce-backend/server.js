@@ -45,7 +45,7 @@ app.use(cors({
 /* SALESFORCE CONFIGURATION */
 const SF_CLIENT_ID = process.env.SF_CLIENT_ID;
 const SF_CLIENT_SECRET = process.env.SF_CLIENT_SECRET;
-const SF_REDIRECT_URI = process.env.SF_REDIRECT_URI;
+const SF_REDIRECT_URI = process.env.SF_REDIRECT_URI || 'http://localhost:3000/api/oauth2/callback';
 const SF_LOGIN_URL = process.env.SF_LOGIN_URL || 'https://login.salesforce.com';
 
 /* API ROUTER SETUP */
