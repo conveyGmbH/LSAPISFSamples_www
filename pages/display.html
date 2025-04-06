@@ -4,7 +4,7 @@
         <title>Lead Success API for Salesforce Samples - Display Data </title>
         <meta charset="utf-8" />
         <meta http-equiv="Content-Security-Policy" 
-        content="default-src 'self' data: gap: https://ssl.gstatic.com 'unsafe-eval' 'unsafe-inline' https://brave-bush-0041ef403.6.azurestaticapps.net/ https://delightful-desert-016e2a610.4.azurestaticapps.net/ https://lsapisamplesbackend-bhesadgtbja4dmgq.germanywestcentral-01.azurewebsites.net/; style-src 'self' 'unsafe-inline'; media-src 'self' data: https://*.convey.de http://*.convey.de; object-src 'self' blob: data:; frame-src 'self' blob: data:; connect-src 'self' blob: http://*.convey.de https://*.convey.de ws://127.0.0.1:5504 http://localhost:3000 https://delightful-desert-016e2a610.4.azurestaticapps.net/ https://lsapisamplesbackend-bhesadgtbja4dmgq.germanywestcentral-01.azurewebsites.net/;" />
+        content="default-src 'self' data: gap: https://ssl.gstatic.com 'unsafe-eval' 'unsafe-inline' https://delightful-desert-016e2a610.4.azurestaticapps.net/ https://lsapisamplesbackend-bhesadgtbja4dmgq.germanywestcentral-01.azurewebsites.net/; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: https://*.convey.de http://*.convey.de; object-src 'self' blob: data:; frame-src 'self' blob: data:; connect-src 'self' blob: http://*.convey.de https://*.convey.de ws://127.0.0.1:5504 http://localhost:3000 https://delightful-desert-016e2a610.4.azurestaticapps.net/ https://lsapisamplesbackend-bhesadgtbja4dmgq.germanywestcentral-01.azurewebsites.net/;" />
         <meta name="viewport" 
             content="user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, width=device-width" />
         <link href="../css/display.css" rel="stylesheet">
@@ -100,107 +100,6 @@
 
         <script src="/js/controllers/headerController.js" type="module" defer></script>
         <script src="/js/controllers/displayController.js" type="module" defer></script>
-        <!-- Postman -->
-        <!-- <script>
-            document.addEventListener('DOMContentLoaded', function() {
-                const postmanButton = document.getElementById('postmanButton');
-                
-                if (postmanButton) {
-                    postmanButton.addEventListener('click', function() {
-                        // Create and display modal
-                        const modal = document.createElement('div');
-                        modal.className = 'postman-modal';
-                        modal.innerHTML = `
-                            <div class="postman-modal-content">
-                                <div class="modal-header">
-                                    <h2>LeadSuccess API Collection</h2>
-                                    <button id="closeModalBtn" class="close-button">&times;</button>
-                                </div>
-                                <p class="modal-description">
-                                    Click the button below to download our API collection.
-                                    You can import this file into Postman to test all API endpoints.
-                                </p>
-                                <div class="modal-footer">
-                                    <button id="cancelBtn" class="cancel-button">Cancel</button>
-                                    <button id="downloadBtn" class="download-button">
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                        </svg>
-                                        Download Collection
-                                    </button>
-                                </div>
-                            </div>
-                        `;
-                        
-                        document.body.appendChild(modal);
-                        
-                        // Close modal buttons
-                        document.getElementById('closeModalBtn').addEventListener('click', function() {
-                            modal.remove();
-                        });
-                        
-                        document.getElementById('cancelBtn').addEventListener('click', function() {
-                            modal.remove();
-                        });
-                        
-                        // Download collection button
-                        document.getElementById('downloadBtn').addEventListener('click', function() {
-                            // Path to JSON collection file
-                            const jsonFileUrl = `${window.location.origin}/postman/LeadSuccess-API-Collection.json`;
-                            
-                            // Create download link
-                            const downloadLink = document.createElement('a');
-                            downloadLink.href = jsonFileUrl;
-                            downloadLink.download = 'LeadSuccess-API-Collection.json';
-                            document.body.appendChild(downloadLink);
-                            downloadLink.click();
-                            document.body.removeChild(downloadLink);
-                            
-                            // Change modal content after download
-                            const modalContent = document.querySelector('.postman-modal-content');
-                            modalContent.innerHTML = `
-                                <div class="modal-header">
-                                    <h2>Collection Downloaded</h2>
-                                    <button id="closeModalAfterBtn" class="close-button">&times;</button>
-                                </div>
-                                <p class="modal-description">
-                                    The collection has been downloaded successfully.
-                                    Would you like to open Postman now?
-                                </p>
-                                <div class="modal-footer">
-                                    <button id="closeBtn" class="cancel-button">Close</button>
-                                    <button id="openPostmanBtn" class="open-postman-button">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                            <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/>
-                                        </svg>
-                                        Open Postman
-                                    </button>
-                                </div>
-                            `;
-                            
-                            // Add event listeners for the new buttons
-                            document.getElementById('closeModalAfterBtn').addEventListener('click', function() {
-                                modal.remove();
-                            });
-                            
-                            document.getElementById('closeBtn').addEventListener('click', function() {
-                                modal.remove();
-                            });
-                            
-                            document.getElementById('openPostmanBtn').addEventListener('click', function() {
-                                // Try to open Postman application
-                                window.location.href = 'postman://';
-                                
-                                // Close the modal
-                                setTimeout(function() {
-                                    modal.remove();
-                                }, 1000);
-                            });
-                        });
-                    });
-                }
-            });
-        </script> -->
         <script src="/js/controllers/postman-integration.js" type="module" defer></script>
     </body>
 

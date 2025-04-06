@@ -21,7 +21,6 @@ async function fetchAttachmentData() {
   }
 
   const attachmentIds = attachmentIdList.split(',');
-  console.log("Attachment IDs:", attachmentIds);
   
   // Create tabs for all attachments
   createAttachmentTabs(attachmentIds);
@@ -60,20 +59,16 @@ async function loadAttachment(attachmentId) {
     
     // Construct the endpoint URL
     const endpoint = `LS_AttachmentById?Id=%27${encodeURIComponent(attachmentId)}%27&$format=json`;
-    console.log("Fetching attachment with endpoint:", endpoint);
 
     const data = await apiService.request('GET', endpoint);
-    console.log("Attachment data received:", data);
 
     // Check response structure
     let attachmentData = null;
     
     if (data && data.d && data.d.results && data.d.results.length > 0) {
       attachmentData = data.d.results[0];
-      console.log("Processing attachment for display:", attachmentData);
     } else if (data && data.d) {
       attachmentData = data.d;
-      console.log("Processing attachment for display:", attachmentData);
     }
     
     if (attachmentData) {
@@ -81,7 +76,6 @@ async function loadAttachment(attachmentId) {
       if (attachmentData.Body) {
         displayAttachment(attachmentData);
       } else {
-        console.warn("Attachment exists but has no file content:", attachmentId);
         attachmentContainer.innerHTML = `
           <div class="no-data">
             <p>The attachment record exists (ID: ${attachmentId}), but no file content is available.</p>
@@ -96,7 +90,6 @@ async function loadAttachment(attachmentId) {
         }
       }
     } else {
-      console.error("No attachment found for ID:", attachmentId);
       attachmentContainer.innerHTML = '<div class="no-data"><p>No attachment data found.</p></div>';
       fileNameElement.textContent = 'No file';
     }
@@ -266,6 +259,11 @@ function showError(message) {
   }
 }
 
+window.addEventListener('load', () => {
+  // Initialize by fetching attachment data
+  fetchAttachmentData();
+});
+
 // Initialize event listeners
 document.addEventListener('DOMContentLoaded', () => {
   const backButton = document.getElementById('backButton');
@@ -273,6 +271,4 @@ document.addEventListener('DOMContentLoaded', () => {
     navigateBack();
   });
 
-  // Initialize by fetching attachment data
-  fetchAttachmentData();
 });
