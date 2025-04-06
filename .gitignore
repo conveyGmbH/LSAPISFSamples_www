@@ -16,6 +16,10 @@
 # Mono auto generated files
 mono_crash.*
 
+# dev files
+./config.txt
+.config.txt
+
 # Build results
 [Dd]ebug/
 [Dd]ebugPublic/
@@ -47,6 +51,10 @@ salesforce-backend/.env
 Generated\ Files/
 
 ./js/struct.txt
+./salesforce-backend/.env
+salesforce-backend/.env
+**/.env
+
 
 # MSTest test Results
 [Tt]est[Rr]esult*/

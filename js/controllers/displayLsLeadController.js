@@ -72,8 +72,6 @@ async function fetchLsLeadData() {
   try {
     const data = await apiService.request('GET', endpoint);
     if (data && data.d && data.d.results) {
-      console.log(`[DEBUG] Nombre de lignes chargées: ${data.d.results.length}`);
-      console.log(`[DEBUG] URL pagination: ${data.d.__next ? "Disponible" : "Non disponible"}`);
 
       displayData(data.d.results);
 
@@ -139,7 +137,7 @@ function enhanceTableResponsiveness() {
   if (!tableHead || !tableBody) return;
   
   // Add fallback for currentEntity since it's not defined
-  const currentEntity = 'LS_Lead'; // Default to LS_Lead
+  const currentEntity = 'LS_Lead'; 
   
   const config = columnConfig[currentEntity] || {};
   
