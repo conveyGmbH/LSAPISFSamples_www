@@ -32,11 +32,9 @@ app.use(cors({
     // Development origins
     'http://127.0.0.1:5504',
     'http://localhost:5504',
-    'https://delightful-desert-016e2a610.4.azurestaticapps.net', 
-    'https://lsapisfsamples.convey.de',
-	  'https://brave-bush-0041ef403.6.azurestaticapps.net',
     'http://localhost:3000',
     // Production origins
+    'https://lsapisfsamples.convey.de',
     'https://delightful-desert-016e2a610.4.azurestaticapps.net',
     'https://brave-bush-0041ef403.6.azurestaticapps.net'
   ],
@@ -65,7 +63,6 @@ app.get('/', (req, res) => {
     endpoints: [
       { path: '/api/salesforce/auth', method: 'GET', description: 'Get Salesforce authentication URL' },
       { path: '/api/oauth2/callback', method: 'GET', description: 'OAuth2 callback for Salesforce' },
-      { path: '/api/salesforce/test-token', method: 'GET', description: 'Test Salesforce token validity' },
       { path: '/api/salesforce/leads', method: 'POST', description: 'Create lead in Salesforce' },
       { path: '/api/salesforce/userinfo', method: 'GET', description: 'Get Salesforce user information' },
       { path: '/api/direct-lead-transfer', method: 'POST', description: 'Transfer lead with attachments to Salesforce' }
@@ -456,7 +453,6 @@ apiRouter.post('/direct-lead-transfer', async (req, res) => {
   console.log('Token present:', !!accessToken);
   console.log('Instance URL:', !!instanceUrl);
   console.log('Attachments count:', attachments ? attachments.length : '0');
-  console.log('Session Token:', sessionToken ? 'present' : 'absent');
   
   if (!accessToken || !instanceUrl) {
     console.error('Missing authentication data');
@@ -505,6 +501,7 @@ apiRouter.post('/direct-lead-transfer', async (req, res) => {
         }
       } catch (dupError) {
         console.error('Error checking for duplicate:', dupError);
+        // Continue with transfer if duplicate check fails
       }
     }
     
@@ -538,22 +535,6 @@ apiRouter.post('/direct-lead-transfer', async (req, res) => {
     if (leadData.Country) sfLeadData.Country = cleanField(leadData.Country);
     if (leadData.State) sfLeadData.State = cleanField(leadData.State);
     
-
-    // Special handling for Country field to avoid validation errors
-    if (leadData.Country && leadData.Country !== 'N/A') {
-      // List of valid countries (simplified example for demo)
-      const validCountries = ['US', 'CA', 'FR', 'DE', 'UK', 'ES', 'IT', 'JP', 'AU', 'BR'];
-      
-      // Check if country is in the list of valid countries
-      if (validCountries.includes(leadData.Country)) {
-        sfLeadData.Country = leadData.Country;
-      } else {
-        // Leave empty rather than setting a potentially invalid value
-        console.log(`Country value "${leadData.Country}" might be invalid, leaving empty`);
-      }
-    }
-
-   
     // Create the lead in Salesforce
     console.log('Creating lead in Salesforce...');
     
