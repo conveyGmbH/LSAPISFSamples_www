@@ -20,7 +20,7 @@ mono_crash.*
 ./salesforce-backend/.env
 **/.env
 ./salesforce-backend/.env
-./salesforce-backend/config.txt
+./config.txt
 
 # dev files
 ./config.txt
