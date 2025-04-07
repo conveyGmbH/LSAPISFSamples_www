@@ -17,7 +17,7 @@ export const appConfig = {
   
   // Environment-specific configuration
   get apiBaseUrl() {
-    return 'https://lsapisfbackend.convey.de/api'
+    return 'https://lsapisfbackend-hdasa3g8c4cah7d2.westeurope-01.azurewebsites.net/api'
  
   },
   
