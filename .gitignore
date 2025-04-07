@@ -16,6 +16,11 @@
 # Mono auto generated files
 mono_crash.*
 
+#remove .env file
+./salesforce-backend/.env
+**/.env
+./salesforce-backend/.env
+
 # dev files
 ./config.txt
 .config.txt
