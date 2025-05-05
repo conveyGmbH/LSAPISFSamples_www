@@ -4,33 +4,22 @@ export const appConfig = {
   // Automatic environment detection
   get isProduction() {
     const host = window.location.hostname;
-    const port = window.location.port;
     
-    // Consider as a development environment if:
-    const isDevelopment = 
-      host === 'localhost' || 
-      host === '127.0.0.1' ||
-      (host === '127.0.0.1' && port === '5504');
+    // Consider as a production environment if:
+    const isProduction = 
+      host === 'lsapisfsamples.convey.de' || 
+      host.includes('convey.de');
     
-    return !isDevelopment;
+    return isProduction;
   },
   
   // Environment-specific configuration
-  // get apiBaseUrl() {
-
-  //   return 'https://lsapisamplesbackend-bhesadgtbja4dmgq.germanywestcentral-01.azurewebsites.net/api';
-
-  //   // return this.isProduction
-  //   //   ? 'https://lsapisamplesbackend-bhesadgtbja4dmgq.germanywestcentral-01.azurewebsites.net/api' 
-  //   //   : 'http://localhost:3000/api';
-  // },
+  get apiBaseUrl() {
+    return this.isProduction
+      ? 'https://lsapisfbackend.convey.de/api' 
+      : 'https://lsapisamplesbackend-bhesadgtbja4dmgq.germanywestcentral-01.azurewebsites.net/api';
+  },
   
-    // Environment-specific configuration
-    get apiBaseUrl() {
-      return this.isProduction
-        ? 'https://lsapisfbackend.convey.de/api' 
-        : 'https://lsapisamplesbackend-bhesadgtbja4dmgq.germanywestcentral-01.azurewebsites.net/api';
-    },
   // Additional information
   get environmentName() {
     return this.isProduction ? 'production' : 'development';
