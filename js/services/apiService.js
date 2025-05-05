@@ -31,7 +31,6 @@ export default class ApiService {
       };
 
       if (data) {
-
         config.body = JSON.stringify(data);
       }
 
@@ -51,28 +50,25 @@ export default class ApiService {
       return null;
     }
   }
- 
+
   // Method to get the next URL from the data
-    getNextUrl(data) {
+  getNextUrl(data) {
+    let url = "";
+    if (data && data.d) {
+      const next = data.d.__next;
 
-      let url = "";
-      if (data && data.d) {
+      if (next && typeof next === "string") {
+        const viewNamePos = next.lastIndexOf("/");
 
-        const next = data.d.__next;
-
-        if (next && typeof next === "string") {
-
-          const viewNamePos = next.lastIndexOf("/");
-
-          if (viewNamePos >= 0) {
-  
-            url = `https://${this.serverName}/${this.apiName}${next.substring(viewNamePos)}`;
-          }
+        if (viewNamePos >= 0) {
+          url = `https://${this.serverName}/${this.apiName}${next.substring(
+            viewNamePos
+          )}`;
         }
       }
-      return url;
     }
-
+    return url;
+  }
 
   // Method to fetch the next set of rows using the __next URL
   async fetchNextRows(nextUrl) {
@@ -107,7 +103,6 @@ export default class ApiService {
     }
   }
 
-
   // Logout
   logout() {
     sessionStorage.removeItem("credentials");
@@ -115,8 +110,7 @@ export default class ApiService {
     window.location.href = "/index.html";
   }
 
-
-  // Helper function Handler HttpError 
+  // Helper function Handler HttpError
   handleHttpError(status, errorData = {}) {
     const messages = {
       2: "success",

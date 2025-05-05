@@ -18,7 +18,8 @@
         </div>
         <div class="header-right">
             <button id="logoutButton" class="logout-button">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
                     <polyline points="16 17 21 12 16 7"></polyline>
                     <line x1="21" y1="12" x2="9" y2="12"></line>
@@ -30,12 +31,12 @@
 
     <div class="sub-header">
         <h1 class="head-line">Salesforce API Manager</h1>
-        <h3>API documentation available 
+        <h3>API documentation available
             <a href="/docs/LeadSuccess_API_for SalesForce.pdf" download>here</a>
-            - 
+            -
             <button id="postmanButton" class="postman-button">
                 <img src="/images/postman-icon.svg" alt="Postman" width="16" height="16">
-                Test API in Postman 
+                Test API in Postman
             </button>
         </h3>
         <h2>Transfer Lead to Salesforce</h2>
@@ -44,7 +45,8 @@
     <div class="page-title">
         <div class="button-group">
             <button id="backButton" class="action-button">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <line x1="19" y1="12" x2="5" y2="12"></line>
                     <polyline points="12 19 5 12 12 5"></polyline>
                 </svg>
@@ -61,10 +63,12 @@
     <div class="container">
         <div id="validation-summary" style="display: none;" class="status-warning">
             <div class="status-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-                    <line x1="12" y1="9" x2="12" y2="13"/>
-                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path
+                        d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                    <line x1="12" y1="9" x2="12" y2="13" />
+                    <line x1="12" y1="17" x2="12.01" y2="17" />
                 </svg>
             </div>
             <div>
@@ -72,7 +76,7 @@
                 <ul id="validation-issues"></ul>
             </div>
         </div>
-        
+
         <div class="lead-preview">
             <div class="preview-header">
                 <h3>Lead Information</h3>
@@ -81,22 +85,23 @@
                     <span id="leadSource">-</span>
                 </div>
             </div>
-            
+
             <div id="leadData" class="lead-data">
                 <!-- Lead data will be displayed here -->
                 <div class="loading">Loading lead data...</div>
             </div>
-            
+
             <div class="action-panel">
                 <button id="transferToSalesforceBtn" class="transfer-btn">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M12 5v14M19 12l-7 7-7-7"/>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 5v14M19 12l-7 7-7-7" />
                     </svg>
                     Transfer to Salesforce
                 </button>
             </div>
         </div>
-        
+
         <div class="transfer-results" id="transferResults" style="display: none;">
             <h3>Transfer Results</h3>
             <div id="transferStatus" class="transfer-status">
@@ -106,7 +111,7 @@
     </div>
 
     <div id="errorMessage" class="error-message" style="display: none;"></div>
-    
+
     <!-- Confirmation Modal for Duplicate Detection -->
     <div id="duplicateModal" class="modal" style="display: none;">
         <div class="modal-content">
@@ -125,7 +130,7 @@
             </div>
         </div>
     </div>
-    
+
 
     <script src="../js/config/salesforceConfig.js" type="module" defer></script>
     <script src="../js/controllers/postman-integration.js" type="module" defer></script>

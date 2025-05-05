@@ -16,20 +16,25 @@ export const appConfig = {
   },
   
   // Environment-specific configuration
-  get apiBaseUrl() {
+  // get apiBaseUrl() {
 
-    return 'https://lsapisamplesbackend-bhesadgtbja4dmgq.germanywestcentral-01.azurewebsites.net/api';
+  //   return 'https://lsapisamplesbackend-bhesadgtbja4dmgq.germanywestcentral-01.azurewebsites.net/api';
 
-    // return this.isProduction
-    //   ? 'https://lsapisamplesbackend-bhesadgtbja4dmgq.germanywestcentral-01.azurewebsites.net/api' 
-    //   : 'http://localhost:3000/api';
-  },
+  //   // return this.isProduction
+  //   //   ? 'https://lsapisamplesbackend-bhesadgtbja4dmgq.germanywestcentral-01.azurewebsites.net/api' 
+  //   //   : 'http://localhost:3000/api';
+  // },
   
+    // Environment-specific configuration
+    get apiBaseUrl() {
+      return this.isProduction
+        ? 'https://lsapisfbackend.convey.de/api' 
+        : 'https://lsapisamplesbackend-bhesadgtbja4dmgq.germanywestcentral-01.azurewebsites.net/api';
+    },
   // Additional information
   get environmentName() {
     return this.isProduction ? 'production' : 'development';
   },
-
 };
 
 // Logs for debugging
