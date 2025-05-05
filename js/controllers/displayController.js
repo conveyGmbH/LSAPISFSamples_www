@@ -524,7 +524,7 @@ function getColumnWidth(header, entity) {
 async function sortTable(index, th) {
 
   const headerText = th.childNodes[0].nodeValue.trim();
-  console.log("Colonne sélectionnée pour le tri:", headerText);
+  console.log("Selected column for sorting:", headerText);
   
   const previousSelectedEventId = selectedEventId;
   

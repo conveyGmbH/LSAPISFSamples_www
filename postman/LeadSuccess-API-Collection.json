@@ -1,169 +1,1224 @@
 {
-    "info": {
-      "name": "LeadSuccess API Testing",
-      "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
-    },
-    "item": [
-      {
-        "name": "Authentication",
-        "item": [
-          {
-            "name": "Login",
-            "request": {
-              "method": "POST",
-              "header": [
-                {
-                  "key": "Content-Type",
-                  "value": "application/json"
-                }
-              ],
-              "body": {
-                "mode": "raw",
-                "raw": "{\n  \"serverName\": \"{{serverName}}\",\n  \"apiName\": \"{{apiName}}\",\n  \"userName\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}"
-              },
-              "url": {
-                "raw": "https://{{serverName}}/{{apiName}}",
-                "protocol": "https",
-                "host": ["{{serverName}}"],
-                "path": ["{{apiName}}"]
-              }
-            }
-          }
-        ]
-      },
-      {
-        "name": "Events",
-        "item": [
-          {
-            "name": "Get All Events",
-            "request": {
-              "method": "GET",
-              "header": [
-                {
-                  "key": "Authorization",
-                  "value": "Basic {{credentials}}"
-                }
-              ],
-              "url": {
-                "raw": "https://{{serverName}}/{{apiName}}/LS_Event?$format=json",
-                "protocol": "https",
-                "host": ["{{serverName}}"],
-                "path": ["{{apiName}}", "LS_Event"],
-                "query": [
-                  {
-                    "key": "$format",
-                    "value": "json"
-                  }
-                ]
-              }
-            }
-          }
-        ]
-      },
-      {
-        "name": "Leads",
-        "item": [
-          {
-            "name": "Get Leads by Event",
-            "request": {
-              "method": "GET",
-              "header": [
-                {
-                  "key": "Authorization",
-                  "value": "Basic {{credentials}}"
-                }
-              ],
-              "url": {
-                "raw": "https://{{serverName}}/{{apiName}}/LS_Lead?$format=json&$filter=EventId eq '{{eventId}}'",
-                "protocol": "https",
-                "host": ["{{serverName}}"],
-                "path": ["{{apiName}}", "LS_Lead"],
-                "query": [
-                  {
-                    "key": "$format",
-                    "value": "json"
-                  },
-                  {
-                    "key": "$filter",
-                    "value": "EventId eq '{{eventId}}'"
-                  }
-                ]
-              }
-            }
-          }
-        ]
-      },
-      {
-        "name": "Lead Reports",
-        "item": [
-          {
-            "name": "Get Lead Reports by Event",
-            "request": {
-              "method": "GET",
-              "header": [
-                {
-                  "key": "Authorization",
-                  "value": "Basic {{credentials}}"
-                }
-              ],
-              "url": {
-                "raw": "https://{{serverName}}/{{apiName}}/LS_LeadReport?$format=json&$filter=EventId eq '{{eventId}}'",
-                "protocol": "https",
-                "host": ["{{serverName}}"],
-                "path": ["{{apiName}}", "LS_LeadReport"],
-                "query": [
-                  {
-                    "key": "$format",
-                    "value": "json"
-                  },
-                  {
-                    "key": "$filter",
-                    "value": "EventId eq '{{eventId}}'"
-                  }
-                ]
-              }
-            }
-          }
-        ]
-      },
-      {
-        "name": "Salesforce Integration",
-        "item": [
-          {
-            "name": "Get Auth URL",
-            "request": {
-              "method": "GET",
-              "url": {
-                "raw": "https://{{backendUrl}}/api/salesforce/auth",
-                "protocol": "https",
-                "host": ["{{backendUrl}}"],
-                "path": ["api", "salesforce", "auth"]
-              }
-            }
-          },
-          {
-            "name": "Transfer Lead",
-            "request": {
-              "method": "POST",
-              "header": [
-                {
-                  "key": "Content-Type",
-                  "value": "application/json"
-                }
-              ],
-              "body": {
-                "mode": "raw",
-                "raw": "{\n  \"sessionToken\": \"{{sessionToken}}\",\n  \"leadData\": {\n    \"FirstName\": \"John\",\n    \"LastName\": \"Doe\",\n    \"Company\": \"Example Inc\",\n    \"Email\": \"john.doe@example.com\",\n    \"Phone\": \"123-456-7890\"\n  }\n}"
-              },
-              "url": {
-                "raw": "https://{{backendUrl}}/api/direct-lead-transfer",
-                "protocol": "https",
-                "host": ["{{backendUrl}}"],
-                "path": ["api", "direct-lead-transfer"]
-              }
-            }
-          }
-        ]
-      }
-    ]
-  }
+	"info": {
+		"_postman_id": "6b9d9a5d-2bf8-4e65-b691-880f1af506cd",
+		"name": "LeadSuccess API Testing - Postman",
+		"description": "# 🧾 LeadSuccess API Documentation for Postman\n\n## Collection: LeadSuccess API Testing\n\n_**Description**_**:**\n\nA comprehensive collection of API endpoints for interacting with the **LeadSuccess system**.  \nIt allows you to retrieve, filter, and sort data related to:\n\n- 👤 Users\n    \n- 🎉 Events\n    \n- 📈 Leads\n    \n- 📊 Reports\n    \n\nThis API is **OData v2.0** compliant and supports advanced query options.\n\n---\n\n## 🌐 Base URLs\n\n| Environment | URL |\n| --- | --- |\n| Development | `https://lstest.convey.de/apisftest` |\n| Production | `https://lsapisfsamples.convey.de/[api-name]` |\n\nReplace `[api-name]` with the actual endpoint name (e.g., `LS_User`, `LS_Country`, etc).\n\n---\n\n## 🔐 Authentication\n\nThis API uses **Basic Authentication**.\n\nMake sure to provide the following credentials in your requests:\n\n- **Username:** `conveyapisf1`\n    \n- **Password:** `leadsuccess`\n    \n- Or use your environment variables securely.\n    \n\nℹ️ Tip: You can define these in Postman's **Authorization** tab at the collection level to apply them to all requests automatically.\n\n---\n\n## 🧰 Features\n\n- Supports **OData query parameters** for:\n    \n    - Filtering (`$filter`)\n        \n    - Sorting (`$orderby`)\n        \n    - Pagination (`$skip`, `$top`)\n        \n    - Projection (`$select`)\n        \n- Standard **JSON** response format\n    \n- Easily integrable with tools like Power BI, Excel, or custom frontends",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "17182298"
+	},
+	"item": [
+		{
+			"name": "LS_User",
+			"item": [
+				{
+					"name": "Get LS User",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Response status code is 200\", function () {\r",
+									"    pm.response.to.have.status(200);\r",
+									"});\r",
+									"\r",
+									"\r",
+									"pm.test(\"Response time is less than 500ms\", function () {\r",
+									"    pm.expect(pm.response.responseTime).to.be.below(500);\r",
+									"});\r",
+									"\r",
+									"\r",
+									"pm.test(\"Validate the response schema\", function () {\r",
+									"    const responseData = pm.response.json();\r",
+									"\r",
+									"    pm.expect(responseData).to.be.an('object');\r",
+									"    pm.expect(responseData.value).to.be.an('array');\r",
+									"    responseData.value.forEach(function (user) {\r",
+									"        pm.expect(user).to.have.property('FirstName').that.is.a('string');\r",
+									"        pm.expect(user).to.have.property('LastName').that.is.a('string');\r",
+									"        pm.expect(user).to.have.property('Age').that.is.a('number');\r",
+									"        pm.expect(user).to.have.property('Email').that.is.a('string');\r",
+									"        pm.expect(user).to.have.property('Address').that.is.an('object');\r",
+									"        pm.expect(user.Address).to.have.property('Street').that.is.a('string');\r",
+									"        pm.expect(user.Address).to.have.property('City').that.is.a('string');\r",
+									"        pm.expect(user.Address).to.have.property('State').that.is.a('string');\r",
+									"        pm.expect(user.Address).to.have.property('ZipCode').that.is.a('string');\r",
+									"    });\r",
+									"});\r",
+									"var template = `\r",
+									"<style type=\"text/css\">\r",
+									"    .tftable {font-size:14px;color:#333333;width:100%;border-width: 1px;border-color: #87ceeb;border-collapse: collapse;}\r",
+									"    .tftable th {font-size:18px;background-color:#87ceeb;border-width: 1px;padding: 8px;border-style: solid;border-color: #87ceeb;text-align:left;}\r",
+									"    .tftable tr {background-color:#ffffff;}\r",
+									"    .tftable td {font-size:14px;border-width: 1px;padding: 8px;border-style: solid;border-color: #87ceeb;}\r",
+									"    .tftable tr:hover {background-color:#e0ffff;}\r",
+									"</style>\r",
+									"\r",
+									"<table class=\"tftable\" border=\"1\">\r",
+									"    <tr>\r",
+									"        <th>ID</th>\r",
+									"        <th>First Name</th>\r",
+									"        <th>Last Name</th>\r",
+									"        <th>Email</th>\r",
+									"        <th>Phone</th>\r",
+									"        <th>Mobile Phone</th>\r",
+									"        <th>Street</th>\r",
+									"        <th>Postal Code</th>\r",
+									"        <th>City</th>\r",
+									"        <th>Country</th>\r",
+									"        <th>Country Code</th>\r",
+									"        <th>Status</th>\r",
+									"        <th>Event ID</th>\r",
+									"    </tr>\r",
+									"    \r",
+									"    {{#each response.d.results}}\r",
+									"        <tr>\r",
+									"            <td>{{Id}}</td>\r",
+									"            <td>{{FirstName}}</td>\r",
+									"            <td>{{LastName}}</td>\r",
+									"            <td>{{Email}}</td>\r",
+									"            <td>{{Phone}}</td>\r",
+									"            <td>{{MobilePhone}}</td>\r",
+									"            <td>{{Street}}</td>\r",
+									"            <td>{{PostalCode}}</td>\r",
+									"            <td>{{City}}</td>\r",
+									"            <td>{{Country}}</td>\r",
+									"            <td>{{CountryCode}}</td>\r",
+									"            <td>{{CurrentStatus}}</td>\r",
+									"            <td>{{EventId}}</td>\r",
+									"        </tr>\r",
+									"    {{/each}}\r",
+									"</table>\r",
+									"`;\r",
+									"\r",
+									"function constructVisualizerPayload() {\r",
+									"    return { response: pm.response.json() }\r",
+									"}\r",
+									"\r",
+									"pm.visualizer.set(template, constructVisualizerPayload());\r",
+									"// Stores the first user's ID in an environment variable\r",
+									"var firstUserId = pm.response.json().d.results[0].Id;\r",
+									"pm.environment.set(\"firstUserId\", firstUserId);"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "password",
+									"value": "{{password}}",
+									"type": "string"
+								},
+								{
+									"key": "username",
+									"value": "{{userName}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/LS_User?$orderby=FirstName&%20desc&$format=json",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"LS_User"
+							],
+							"query": [
+								{
+									"key": "$orderby",
+									"value": "FirstName"
+								},
+								{
+									"key": "%20desc",
+									"value": null
+								},
+								{
+									"key": "$format",
+									"value": "json"
+								}
+							]
+						},
+						"description": "## 📊 Request: Get Users List\n\n**Method:** `GET`\n\n**Endpoint:** `/LS_User`\n\n**URL:**\n\n``` json\n{{base_url}}/LS_User?$orderby=FirstName desc&$format=json\n\n ```\n\n**Description:**  \nRetrieves a list of all users from the system with the ability to sort by first name in descending order.\n\n**Query Parameters:**\n\n- `$orderby`: Controls sorting (e.g., `FirstName desc`)\n    \n- `$format`: Response format (use `json`)\n    \n- `$filter`: Optional filtering criteria\n    \n\n**Example Response:**\n\n``` json\njson{\n  \"d\": {\n    \"results\": [\n      {\n        \"Id\": \"user_id\",\n        \"FirstName\": \"John\",\n        \"LastName\": \"Doe\",\n        \"Email\": \"john.doe@example.com\",\n        \"Phone\": \"+1234567890\",\n        \"EventId\": \"event_id\"\n      },\n      // More users...\n    ]\n  }\n}\n\n ```\n\n**Usage Examples:**\n\n- Get all users: `/LS_User?$format=json`\n    \n- Filter by event: `/LS_User?$filter=EventId eq 'EVENT123'&$format=json`\n    \n- Search by name: `/LS_User?$filter=substringof('John', FirstName) eq true&$format=json`"
+					},
+					"response": []
+				}
+			],
+			"description": "_**Description**_**:**  \nRetrieves a list of all users from the system with the ability to sort by first name in descending order."
+		},
+		{
+			"name": "LS_Country",
+			"item": [
+				{
+					"name": "Get LS Country",
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "password",
+									"value": "{{password}}",
+									"type": "string"
+								},
+								{
+									"key": "username",
+									"value": "{{userName}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/LS_Country?$format=json",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"LS_Country"
+							],
+							"query": [
+								{
+									"key": "$format",
+									"value": "json"
+								}
+							]
+						},
+						"description": "## 🌍 Request: Get LS Country\n\n**Method:** `GET`\n\n**Endpoint:** `/LS_Country`\n\n**URL:**\n\n``` json\n{{base_url}}/LS_Country?$format=json\n\n ```\n\n_**Description**_**:**  \nRetrieves a list of all countries available in the system. Perfect for populating dropdown menus.\n\n**Query Parameters:**\n\n- `$format`: Response format (use `json`)\n    \n- `$orderby`: Optional sorting (e.g., `Name asc`)\n    \n\n**Example Response:**\n\n``` json\njson{\n  \"d\": {\n    \"results\": [\n      {\n        \"Id\": \"country_id\",\n        \"Name\": \"Country Name\",\n        \"Code\": \"CN\"\n      },\n      // More countries...\n    ]\n  }\n}\n\n ```\n\n**Usage Examples:**\n\n- Get all countries: `/LS_Country?$format=json`\n    \n- Sort by name: `/LS_Country?$orderby=Name&$format=json`\n    \n- Filter by code: `/LS_Country?$filter=Code eq 'US'&$format=json`"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "LS Events",
+			"item": [
+				{
+					"name": "LS Lead",
+					"item": [
+						{
+							"name": "Get LS Lead by EventId",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 200) {\r",
+											"    const jsonData = pm.response.json();\r",
+											"    if (jsonData && jsonData.d && jsonData.d.results && jsonData.d.results.length > 0) {\r",
+											"        const leadId = jsonData.d.results[0].Id;\r",
+											"        pm.environment.set(\"leadId\", leadId);\r",
+											"        console.log(\"Lead ID extracted:\", leadId);\r",
+											"        \r",
+											"        // Stockons également les données complètes du lead pour le transfert\r",
+											"        const leadData = jsonData.d.results[0];\r",
+											"        pm.environment.set(\"leadData\", JSON.stringify(leadData));\r",
+											"        console.log(\"Lead data stored for transfer\", leadData);\r",
+											"    }\r",
+											"}"
+										],
+										"type": "text/javascript",
+										"packages": {}
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "basic",
+									"basic": [
+										{
+											"key": "password",
+											"value": "{{password}}",
+											"type": "string"
+										},
+										{
+											"key": "username",
+											"value": "{{userName}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "https://{{serverName}}/{{apiName}}/LS_Lead?$format=json&$filter=EventId eq '{{eventId}}'",
+									"protocol": "https",
+									"host": [
+										"{{serverName}}"
+									],
+									"path": [
+										"{{apiName}}",
+										"LS_Lead"
+									],
+									"query": [
+										{
+											"key": "$format",
+											"value": "json"
+										},
+										{
+											"key": "$filter",
+											"value": "EventId eq '{{eventId}}'"
+										}
+									]
+								},
+								"description": "### GET Get LS Lead by EventId\n\nThis endpoint retrieves lead information based on the provided event ID.\n\n#### Request\n\n- Method: GET\n    \n- URL: `https://{{serverName}}/{{apiName}}/LS_Lead`\n    \n- Query Parameters:\n    \n    - $format: json\n        \n    - $filter: EventId eq '{{eventId}}'\n        \n\n#### Response\n\nThe response is in JSON format and represents lead information.\n\n``` json\n{\n  \"type\": \"object\",\n  \"properties\": {\n    \"d\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"results\": {\n          \"type\": \"array\",\n          \"items\": {\n            \"type\": \"object\",\n            \"properties\": {\n              \"__metadata\": {\n                \"type\": \"object\",\n                \"properties\": {\n                  \"uri\": {\n                    \"type\": \"string\"\n                  },\n                  \"type\": {\n                    \"type\": \"string\"\n                  }\n                }\n              },\n              \"Id\": {\n                \"type\": \"string\"\n              },\n              \"KontaktViewId\": {\n                \"type\": \"integer\"\n              },\n              \"CreatedDate\": {\n                \"type\": \"string\"\n              },\n              \"LastModifiedDate\": {\n                \"type\": \"string\"\n              },\n              \"CreatedById\": {\n                \"type\": \"string\"\n              },\n              \"LastModifiedById\": {\n                \"type\": \"string\"\n              },\n              \"Salutation\": {\n                \"type\": [\"string\", \"null\"]\n              },\n              \"Suffix\": {\n                \"type\": [\"string\", \"null\"]\n              },\n              \"FirstName\": {\n                \"type\": [\"string\", \"null\"]\n              },\n              \"MiddleName\": {\n                \"type\": [\"string\", \"null\"]\n              },\n              \"LastName\": {\n                \"type\": [\"string\", \"null\"]\n              },\n              \"Company\": {\n                \"type\": [\"string\", \"null\"]\n              },\n              \"Title\": {\n                \"type\": [\"string\", \"null\"]\n              },\n              \"Phone\": {\n                \"type\": [\"string\", \"null\"]\n              },\n              \"MobilePhone\": {\n                \"type\": [\"string\", \"null\"]\n              },\n              \"Fax\": {\n                \"type\": [\"string\", \"null\"]\n              },\n              \"Email\": {\n                \"type\": [\"string\", \"null\"]\n              },\n              \"Website\": {\n                \"type\": [\"string\", \"null\"]\n              },\n              \"Street\": {\n                \"type\": [\"string\", \"null\"]\n              },\n              \"PostalCode\": {\n                \"type\": [\"string\", \"null\"]\n              },\n              \"City\": {\n                \"type\": [\"string\", \"null\"]\n              },\n              \"Country\": {\n                \"type\": [\"string\", \"null\"]\n              },\n              \"CountryCode\": {\n                \"type\": [\"string\", \"null\"]\n              },\n              \"State\": {\n                \"type\": [\"string\", \"null\"]\n              },\n              \"Description\": {\n                \"type\": [\"string\", \"null\"]\n              },\n              \"AttachmentIdList\": {\n                \"type\": \"string\"\n              },\n              \"SalesArea\": {\n                \"type\": [\"string\", \"null\"]\n              },\n              \"RequestBarcode\": {\n                \"type\": \"string\"\n              },\n              \"StatusMessage\": {\n                \"type\": \"string\"\n              },\n              \"DeviceId\": {\n                \"type\": \"integer\"\n              },\n              \"DeviceRecordId\": {\n                \"type\": \"integer\"\n              },\n              \"SystemModstamp\": {\n                \"type\": \"string\"\n              },\n              \"EventId\": {\n                \"type\": \"string\"\n              },\n              \"IsReviewed\": {\n                \"type\": \"integer\"\n              },\n              \"Department\": {\n                \"type\": [\"string\", \"null\"]\n              },\n              \"Industry\": {\n                \"type\": [\"string\", \"null\"]\n              }\n            }\n          }\n        },\n        \"__next\": {\n          \"type\": \"string\"\n        }\n      }\n    }\n  }\n}\n\n ```\n\nScripts Post-Response:\n\n``` javascript\nif (pm.response.code === 200) {\n    const jsonData = pm.response.json();\n    if (jsonData && jsonData.d && jsonData.d.results && jsonData.d.results.length > 0) {\n        const leadId = jsonData.d.results[0].Id;\n        pm.environment.set(\"leadId\", leadId);\n        console.log(\"Lead ID extracted:\", leadId);\n        // Stockons également les données complètes du lead pour le transfert\n        const leadData = jsonData.d.results[0];\n        pm.environment.set(\"leadData\", JSON.stringify(leadData));\n        console.log(\"Lead data stored for transfer\", leadData);\n    }\n}\n\n ```"
+							},
+							"response": []
+						},
+						{
+							"name": "Details Lead",
+							"request": {
+								"auth": {
+									"type": "basic",
+									"basic": [
+										{
+											"key": "password",
+											"value": "{{password}}",
+											"type": "string"
+										},
+										{
+											"key": "username",
+											"value": "{{userName}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "https://{{serverName}}/{{apiName}}/LS_Lead?$format=json&$filter=Id eq '{{leadId}}'",
+									"protocol": "https",
+									"host": [
+										"{{serverName}}"
+									],
+									"path": [
+										"{{apiName}}",
+										"LS_Lead"
+									],
+									"query": [
+										{
+											"key": "$format",
+											"value": "json"
+										},
+										{
+											"key": "$filter",
+											"value": "Id eq '{{leadId}}'"
+										}
+									]
+								},
+								"description": "# Get Details Lead\n\nThis endpoint retrieves lead information based on the provided lead ID.\n\n## Request\n\n### Endpoint\n\n`GET https://{{serverName}}/{{apiName}}/LS_Lead?$format=json&$filter=Id eq '{{leadId}}'`\n\n### Response Body\n\nThe response will be in JSON format and will contain lead information including fields such as Id, KontaktViewId, CreatedDate, LastModifiedDate, Salutation, FirstName, LastName, Company, Title, Phone, Email, and more.\n\nExample:\n\n``` json\n{\n    \"d\": {\n        \"results\": [\n            {\n                \"__metadata\": {\n                    \"uri\": \"\",\n                    \"type\": \"\"\n                },\n                \"Id\": \"\",\n                \"KontaktViewId\": 0,\n                \"CreatedDate\": \"\",\n                \"LastModifiedDate\": \"\",\n                \"CreatedById\": \"\",\n                \"LastModifiedById\": \"\",\n                \"Salutation\": null,\n                \"Suffix\": null,\n                \"FirstName\": null,\n                \"MiddleName\": null,\n                \"LastName\": null,\n                \"Company\": null,\n                \"Title\": null,\n                \"Phone\": null,\n                \"MobilePhone\": null,\n                \"Fax\": null,\n                \"Email\": null,\n                \"Website\": null,\n                \"Street\": null,\n                \"PostalCode\": null,\n                \"City\": null,\n                \"Country\": null,\n                \"CountryCode\": null,\n                \"State\": null,\n                \"Description\": null,\n                \"AttachmentIdList\": \"\",\n                \"SalesArea\": null,\n                \"RequestBarcode\": \"\",\n                \"StatusMessage\": \"\",\n                \"DeviceId\": 0,\n                \"DeviceRecordId\": 0,\n                \"SystemModstamp\": \"\",\n                \"EventId\": \"\",\n                \"IsReviewed\": 0,\n                \"Department\": null,\n                \"Industry\": null\n            }\n        ]\n    }\n}\n\n ```\n\n``` json\n{\n  \"type\": \"object\",\n  \"properties\": {\n    \"d\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"results\": {\n          \"type\": \"array\",\n          \"items\": {\n            \"type\": \"object\",\n            \"properties\": {\n              \"__metadata\": {\n                \"type\": \"object\",\n                \"properties\": {\n                  \"uri\": {\n                    \"type\": \"string\"\n                  },\n                  \"type\": {\n                    \"type\": \"string\"\n                  }\n                }\n              },\n              \"Id\": {\n                \"type\": \"string\"\n              },\n              \"KontaktViewId\": {\n                \"type\": \"integer\"\n              },\n              \"CreatedDate\": {\n                \"type\": \"string\"\n              },\n              \"LastModifiedDate\": {\n                \"type\": \"string\"\n              },\n              \"CreatedById\": {\n                \"type\": \"string\"\n              },\n              \"LastModifiedById\": {\n                \"type\": \"string\"\n              },\n              \"Salutation\": {\n                \"type\": [\"string\", \"null\"]\n              },\n              \"Suffix\": {\n                \"type\": [\"string\", \"null\"]\n              },\n              \"FirstName\": {\n                \"type\": [\"string\", \"null\"]\n              },\n              \"MiddleName\": {\n                \"type\": [\"string\", \"null\"]\n              },\n              \"LastName\": {\n                \"type\": [\"string\", \"null\"]\n              },\n              \"Company\": {\n                \"type\": [\"string\", \"null\"]\n              },\n              \"Title\": {\n                \"type\": [\"string\", \"null\"]\n              },\n              \"Phone\": {\n                \"type\": [\"string\", \"null\"]\n              },\n              \"MobilePhone\": {\n                \"type\": [\"string\", \"null\"]\n              },\n              \"Fax\": {\n                \"type\": [\"string\", \"null\"]\n              },\n              \"Email\": {\n                \"type\": [\"string\", \"null\"]\n              },\n              \"Website\": {\n                \"type\": [\"string\", \"null\"]\n              },\n              \"Street\": {\n                \"type\": [\"string\", \"null\"]\n              },\n              \"PostalCode\": {\n                \"type\": [\"string\", \"null\"]\n              },\n              \"City\": {\n                \"type\": [\"string\", \"null\"]\n              },\n              \"Country\": {\n                \"type\": [\"string\", \"null\"]\n              },\n              \"CountryCode\": {\n                \"type\": [\"string\", \"null\"]\n              },\n              \"State\": {\n                \"type\": [\"string\", \"null\"]\n              },\n              \"Description\": {\n                \"type\": [\"string\", \"null\"]\n              },\n              \"AttachmentIdList\": {\n                \"type\": \"string\"\n              },\n              \"SalesArea\": {\n                \"type\": [\"string\", \"null\"]\n              },\n              \"RequestBarcode\": {\n                \"type\": \"string\"\n              },\n              \"StatusMessage\": {\n                \"type\": \"string\"\n              },\n              \"DeviceId\": {\n                \"type\": \"integer\"\n              },\n              \"DeviceRecordId\": {\n                \"type\": \"integer\"\n              },\n              \"SystemModstamp\": {\n                \"type\": \"string\"\n              },\n              \"EventId\": {\n                \"type\": \"string\"\n              },\n              \"IsReviewed\": {\n                \"type\": \"integer\"\n              },\n              \"Department\": {\n                \"type\": [\"string\", \"null\"]\n              },\n              \"Industry\": {\n                \"type\": [\"string\", \"null\"]\n              }\n            }\n          }\n        }\n      }\n    }\n  }\n}\n\n ```\n\nScripts Test:  \n\n``` javascript\n   var responseData = pm.response.json().d.results;\n    pm.expect(responseData).to.be.an('array').that.is.not.empty;\n\n    responseData.forEach(function(lead) {\n        pm.expect(lead).to.have.property('Id');\n        pm.expect(lead).to.have.property('KontaktViewId');\n        pm.expect(lead).to.have.property('CreatedDate');\n        pm.expect(lead).to.have.property('LastModifiedDate');\n        pm.expect(lead).to.have.property('FirstName');\n        pm.expect(lead).to.have.property('LastName');\n        pm.expect(lead).to.have.property('Email');\n        pm.expect(lead).to.have.property('Phone');\n        pm.expect(lead).to.have.property('MobilePhone');\n        pm.expect(lead).to.have.property('Fax');\n        pm.expect(lead).to.have.property('Website');\n        pm.expect(lead).to.have.property('Street');\n        pm.expect(lead).to.have.property('PostalCode');\n        pm.expect(lead).to.have.property('City');\n        pm.expect(lead).to.have.property('Country');\n        pm.expect(lead).to.have.property('CountryCode');\n        pm.expect(lead).to.have.property('State');\n        pm.expect(lead).to.have.property('Description');\n        pm.expect(lead).to.have.property('SalesArea');\n        pm.expect(lead).to.have.property('RequestBarcode');\n        pm.expect(lead).to.have.property('StatusMessage');\n        pm.expect(lead).to.have.property('DeviceId');\n        pm.expect(lead).to.have.property('DeviceRecordId');\n        pm.expect(lead).to.have.property('SystemModstamp');\n        pm.expect(lead).to.have.property('EventId');\n        pm.expect(lead).to.have.property('IsReviewed');\n        pm.expect(lead).to.have.property('Department');\n        pm.expect(lead).to.have.property('Industry');\n    });\n});\n\n ```"
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "LS LeadReport",
+					"item": [
+						{
+							"name": "Get LS_LeadReport By EventId",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 200) {\r",
+											"    const jsonData = pm.response.json();\r",
+											"    if (jsonData && jsonData.d && jsonData.d.results && jsonData.d.results.length > 0) {\r",
+											"        const leadReportId = jsonData.d.results[0].Id;\r",
+											"        pm.environment.set(\"leadId\", leadReportId);\r",
+											"        console.log(\"LeadReport ID extracted:\", leadReportId);\r",
+											"        \r",
+											"        // Stockons également les données complètes du lead pour le transfert\r",
+											"        const leadReportData = jsonData.d.results[0];\r",
+											"        pm.environment.set(\"leadData\", JSON.stringify(leadReportData));\r",
+											"        console.log(\"LeadReportData data stored for transfer\", leadReportData);\r",
+											"    }\r",
+											"}"
+										],
+										"type": "text/javascript",
+										"packages": {}
+									}
+								}
+							],
+							"request": {
+								"auth": {
+									"type": "basic",
+									"basic": [
+										{
+											"key": "password",
+											"value": "{{password}}",
+											"type": "string"
+										},
+										{
+											"key": "username",
+											"value": "{{userName}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "https://{{serverName}}/{{apiName}}/LS_LeadReport?$format=json&$filter=EventId eq '{{eventId}}'",
+									"protocol": "https",
+									"host": [
+										"{{serverName}}"
+									],
+									"path": [
+										"{{apiName}}",
+										"LS_LeadReport"
+									],
+									"query": [
+										{
+											"key": "$format",
+											"value": "json"
+										},
+										{
+											"key": "$filter",
+											"value": "EventId eq '{{eventId}}'"
+										}
+									]
+								},
+								"description": "Get LS_LeadReport By EventId\n\nhttps://{{serverName}}/{{apiName}}/LS_LeadReport?$format=json&$filter=EventId eq '{{eventId}}'\n\nThis endpoint sends an HTTP GET request to retrieve lead report data in JSON format. The request includes a filter parameter to specify the EventId for which the lead report is requested.\n\n### Request Body\n\nThis request does not require a request body.\n\n### Response Body\n\nThe response will contain the lead report data in JSON format based on the specified EventId filter.\n\nscripts:\n\n``` json\nif (pm.response.code === 200) {\n    const jsonData = pm.response.json();\n    if (jsonData && jsonData.d && jsonData.d.results && jsonData.d.results.length > 0) {\n        const leadReportId = jsonData.d.results[0].Id;\n        pm.environment.set(\"leadId\", leadReportId);\n        console.log(\"LeadReport ID extracted:\", leadReportId);\n        // Stockons également les données complètes du lead pour le transfert\n        const leadReportData = jsonData.d.results[0];\n        pm.environment.set(\"leadData\", JSON.stringify(leadReportData));\n        console.log(\"LeadReportData data stored for transfer\", leadReportData);\n    }\n}\n\n ```\n\nResponse\n\n``` json\n{\n    \"d\": {\n        \"results\": [\n            {\n                \"__metadata\": {\n                    \"uri\": \"http://localhost:8091/odata_apisf/LS_LeadReport('071ebe87-b652-46a8-b4e5-e98d8e16e848')\",\n                    \"type\": \"LeadSuccessAPISFOData.LS_LeadReport\"\n                },\n                \"Id\": \"071ebe87-b652-46a8-b4e5-e98d8e16e848\",\n                \"KontaktViewId\": 1521,\n                \"CreatedDate\": \"/Date(1725296365922)/\",\n                \"LastModifiedDate\": \"/Date(1725296366708)/\",\n                \"CreatedById\": \"conveyapiapp1\",\n                \"LastModifiedById\": \"SYSTEM\",\n                \"Salutation\": null,\n                \"Suffix\": null,\n                \"FirstName\": null,\n                \"MiddleName\": null,\n                \"LastName\": null,\n                \"Company\": null,\n                \"Title\": null,\n                \"Phone\": null,\n                \"MobilePhone\": null,\n                \"Fax\": null,\n                \"Email\": null,\n                \"Website\": null,\n                \"Street\": null,\n                \"PostalCode\": null,\n                \"City\": null,\n                \"Country\": null,\n                \"CountryCode\": null,\n                \"State\": null,\n                \"Description\": null,\n                \"IsReviewed\": 0,\n                \"AttachmentIdList\": \"2afb6725-0f11-49a5-af4d-d5b2f42d4e51,a9805506-1571-40b5-8dc9-c82b7811e9f1\",\n                \"SalesArea\": null,\n                \"RequestBarcode\": \"BSQVBPXTUKTKJ6\",\n                \"StatusMessage\": \"Barcode nicht gefunden / Barcode not found\",\n                \"DeviceId\": 1,\n                \"DeviceRecordId\": 1521,\n                \"SystemModstamp\": \"/Date(1742985155010)/\",\n                \"EventId\": \"9b1763d8-1c4e-47ce-8903-41b74b0720e9\",\n                \"Department\": null,\n                \"Industry\": null,\n                \"Question01\": \"Field of activity\",\n                \"Answers01\": null,\n                \"Text01\": null,\n                \"Question02\": \"Interest / offer for\",\n                \"Answers02\": null,\n                \"Text02\": null,\n                \"Question03\": \"Description\",\n                \"Answers03\": null,\n                \"Text03\": null,\n                \"Question04\": null,\n                \"Answers04\": null,\n                \"Text04\": null,\n                \"Question05\": null,\n                \"Answers05\": null,\n                \"Text05\": null,\n                \"Question06\": null,\n                \"Answers06\": null,\n                \"Text06\": null,\n                \"Question07\": null,\n                \"Answers07\": null,\n                \"Text07\": null,\n                \"Question08\": null,\n                \"Answers08\": null,\n                \"Text08\": null,\n                \"Question09\": null,\n                \"Answers09\": null,\n                \"Text09\": null,\n                \"Question10\": null,\n                \"Answers10\": null,\n                \"Text10\": null,\n                \"Question11\": null,\n                \"Answers11\": null,\n                \"Text11\": null,\n                \"Question12\": null,\n                \"Answers12\": null,\n                \"Text12\": null,\n                \"Question13\": null,\n                \"Answers13\": null,\n                \"Text13\": null,\n                \"Question14\": null,\n                \"Answers14\": null,\n                \"Text14\": null,\n                \"Question15\": null,\n                \"Answers15\": null,\n                \"Text15\": null,\n                \"Question16\": null,\n                \"Answers16\": null,\n                \"Text16\": null,\n                \"Question17\": null,\n                \"Answers17\": null,\n                \"Text17\": null,\n                \"Question18\": null,\n                \"Answers18\": null,\n                \"Text18\": null,\n                \"Question19\": null,\n                \"Answers19\": null,\n                \"Text19\": null,\n                \"Question20\": null,\n                \"Answers20\": null,\n                \"Text20\": null,\n                \"Question21\": null,\n                \"Answers21\": null,\n                \"Text21\": null,\n                \"Question22\": null,\n                \"Answers22\": null,\n                \"Text22\": null,\n                \"Question23\": null,\n                \"Answers23\": null,\n                \"Text23\": null,\n                \"Question24\": null,\n                \"Answers24\": null,\n                \"Text24\": null,\n                \"Question25\": null,\n                \"Answers25\": null,\n                \"Text25\": null,\n                \"Question26\": null,\n                \"Answers26\": null,\n                \"Text26\": null,\n                \"Question27\": null,\n                \"Answers27\": null,\n                \"Text27\": null,\n                \"Question28\": null,\n                \"Answers28\": null,\n                \"Text28\": null,\n                \"Question29\": null,\n                \"Answers29\": null,\n                \"Text29\": null,\n                \"Question30\": null,\n                \"Answers30\": null,\n                \"Text30\": null\n            },\n]}\n\n ```"
+							},
+							"response": []
+						},
+						{
+							"name": "Details LeadReport",
+							"request": {
+								"auth": {
+									"type": "basic",
+									"basic": [
+										{
+											"key": "password",
+											"value": "{{password}}",
+											"type": "string"
+										},
+										{
+											"key": "username",
+											"value": "{{userName}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "https://{{serverName}}/{{apiName}}/LS_LeadReport?$format=json&$filter=Id eq '{{leadId}}'",
+									"protocol": "https",
+									"host": [
+										"{{serverName}}"
+									],
+									"path": [
+										"{{apiName}}",
+										"LS_LeadReport"
+									],
+									"query": [
+										{
+											"key": "$format",
+											"value": "json"
+										},
+										{
+											"key": "$filter",
+											"value": "Id eq '{{leadId}}'"
+										}
+									]
+								},
+								"description": "GET Details LeadReport\n\nThis endpoint makes an HTTP GET request to retrieve lead report data based on the provided lead ID. The response contains lead details in JSON format.\n\n### Response\n\n- Status: 200\n    \n- Content-Type: application/json\n    \n- { \"d\": { \"results\": \\[ { \"__metadata\": { \"uri\": \"\", \"type\": \"\" }, \"Id\": \"\", \"KontaktViewId\": 0, \"CreatedDate\": \"\", \"LastModifiedDate\": \"\", \"CreatedById\": \"\", \"LastModifiedById\": \"\", \"Salutation\": null, \"Suffix\": null, \"FirstName\": null, ... \"Question30\": null, \"Answers30\": null, \"Text30\": null } \\] }}\n    \n\n### Test\n\n- Test Name: Retrieve Lead Report\n    \n- Test Description: Send a GET request to retrieve lead report data for a specific lead ID.\n    \n- Test Data:\n    \n    - Lead ID: \\[Provide a valid lead ID\\]\n        \n- Expected Result:\n    \n    - Status: 200\n        \n    - Response body containing lead details\n        \n\nResponse\n\n``` json\n{\n    \"d\": {\n        \"results\": [\n            {\n                \"__metadata\": {\n                    \"uri\": \"http://localhost:8091/odata_apisf/LS_LeadReport('071ebe87-b652-46a8-b4e5-e98d8e16e848')\",\n                    \"type\": \"LeadSuccessAPISFOData.LS_LeadReport\"\n                },\n                \"Id\": \"071ebe87-b652-46a8-b4e5-e98d8e16e848\",\n                \"KontaktViewId\": 1521,\n                \"CreatedDate\": \"/Date(1725296365922)/\",\n                \"LastModifiedDate\": \"/Date(1725296366708)/\",\n                \"CreatedById\": \"conveyapiapp1\",\n                \"LastModifiedById\": \"SYSTEM\",\n                \"Salutation\": null,\n                \"Suffix\": null,\n                \"FirstName\": null,\n                \"MiddleName\": null,\n                \"LastName\": null,\n                \"Company\": null,\n                \"Title\": null,\n                \"Phone\": null,\n                \"MobilePhone\": null,\n                \"Fax\": null,\n                \"Email\": null,\n                \"Website\": null,\n                \"Street\": null,\n                \"PostalCode\": null,\n                \"City\": null,\n                \"Country\": null,\n                \"CountryCode\": null,\n                \"State\": null,\n                \"Description\": null,\n                \"IsReviewed\": 0,\n                \"AttachmentIdList\": \"2afb6725-0f11-49a5-af4d-d5b2f42d4e51,a9805506-1571-40b5-8dc9-c82b7811e9f1\",\n                \"SalesArea\": null,\n                \"RequestBarcode\": \"BSQVBPXTUKTKJ6\",\n                \"StatusMessage\": \"Barcode nicht gefunden / Barcode not found\",\n                \"DeviceId\": 1,\n                \"DeviceRecordId\": 1521,\n                \"SystemModstamp\": \"/Date(1742985155010)/\",\n                \"EventId\": \"9b1763d8-1c4e-47ce-8903-41b74b0720e9\",\n                \"Department\": null,\n                \"Industry\": null,\n                \"Question01\": \"Field of activity\",\n                \"Answers01\": null,\n                \"Text01\": null,\n                \"Question02\": \"Interest / offer for\",\n                \"Answers02\": null,\n                \"Text02\": null,\n                \"Question03\": \"Description\",\n                \"Answers03\": null,\n                \"Text03\": null,\n                \"Question04\": null,\n                \"Answers04\": null,\n                \"Text04\": null,\n                \"Question05\": null,\n                \"Answers05\": null,\n                \"Text05\": null,\n                \"Question06\": null,\n                \"Answers06\": null,\n                \"Text06\": null,\n                \"Question07\": null,\n                \"Answers07\": null,\n                \"Text07\": null,\n                \"Question08\": null,\n                \"Answers08\": null,\n                \"Text08\": null,\n                \"Question09\": null,\n                \"Answers09\": null,\n                \"Text09\": null,\n                \"Question10\": null,\n                \"Answers10\": null,\n                \"Text10\": null,\n                \"Question11\": null,\n                \"Answers11\": null,\n                \"Text11\": null,\n                \"Question12\": null,\n                \"Answers12\": null,\n                \"Text12\": null,\n                \"Question13\": null,\n                \"Answers13\": null,\n                \"Text13\": null,\n                \"Question14\": null,\n                \"Answers14\": null,\n                \"Text14\": null,\n                \"Question15\": null,\n                \"Answers15\": null,\n                \"Text15\": null,\n                \"Question16\": null,\n                \"Answers16\": null,\n                \"Text16\": null,\n                \"Question17\": null,\n                \"Answers17\": null,\n                \"Text17\": null,\n                \"Question18\": null,\n                \"Answers18\": null,\n                \"Text18\": null,\n                \"Question19\": null,\n                \"Answers19\": null,\n                \"Text19\": null,\n                \"Question20\": null,\n                \"Answers20\": null,\n                \"Text20\": null,\n                \"Question21\": null,\n                \"Answers21\": null,\n                \"Text21\": null,\n                \"Question22\": null,\n                \"Answers22\": null,\n                \"Text22\": null,\n                \"Question23\": null,\n                \"Answers23\": null,\n                \"Text23\": null,\n                \"Question24\": null,\n                \"Answers24\": null,\n                \"Text24\": null,\n                \"Question25\": null,\n                \"Answers25\": null,\n                \"Text25\": null,\n                \"Question26\": null,\n                \"Answers26\": null,\n                \"Text26\": null,\n                \"Question27\": null,\n                \"Answers27\": null,\n                \"Text27\": null,\n                \"Question28\": null,\n                \"Answers28\": null,\n                \"Text28\": null,\n                \"Question29\": null,\n                \"Answers29\": null,\n                \"Text29\": null,\n                \"Question30\": null,\n                \"Answers30\": null,\n                \"Text30\": null\n            }\n        ]\n    }\n}\n\n ```"
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "GET All LS Events",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {\r",
+									"    const jsonData = pm.response.json();\r",
+									"    if (jsonData && jsonData.d && jsonData.d.results && jsonData.d.results.length > 0) {\r",
+									"        // Retrieve the first event from the list\r",
+									"        const eventId = jsonData.d.results[0].Id;\r",
+									"        pm.environment.set(\"eventId\", eventId);\r",
+									"        console.log(\"Event ID extracted and saved to variables: \" + eventId);\r",
+									"    } else {\r",
+									"        console.log(\"No events found in the response\");\r",
+									"    }\r",
+									"} else {\r",
+									"    console.log(\"The request failed with code: \" + pm.response.code);\r",
+									"}\r",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "password",
+									"value": "{{password}}",
+									"type": "string"
+								},
+								{
+									"key": "username",
+									"value": "{{userName}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"serverName\": {{serverName}},\r\n  \"apiName\": {{apiName}},\r\n  \"userName\": {{userName}},\r\n  \"password\": {{password}}\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "https://{{serverName}}/{{apiName}}/LS_Event?$format=json",
+							"protocol": "https",
+							"host": [
+								"{{serverName}}"
+							],
+							"path": [
+								"{{apiName}}",
+								"LS_Event"
+							],
+							"query": [
+								{
+									"key": "$format",
+									"value": "json"
+								}
+							]
+						},
+						"description": "### GET LS_Event\n\nThis endpoint retrieves a list of events in JSON format.\n\n#### Request\n\n- Method: GET\n    \n- URL: `https://{{serverName}}/{{apiName}}/LS_Event?$format=json`\n    \n- Headers:\n    \n    - Content-Type: application/json\n        \n- { \"serverName\": {} }\n    \n\n#### Response\n\nThe response is a JSON object with the following schema:\n\n``` json\n{\n    \"type\": \"object\",\n    \"properties\": {\n        \"d\": {\n            \"type\": \"object\",\n            \"properties\": {\n                \"results\": {\n                    \"type\": \"array\",\n                    \"items\": {\n                        \"type\": \"object\",\n                        \"properties\": {\n                            \"__metadata\": {\n                                \"type\": \"object\",\n                                \"properties\": {\n                                    \"uri\": {\n                                        \"type\": \"string\"\n                                    },\n                                    \"type\": {\n                                        \"type\": \"string\"\n                                    }\n                                }\n                            },\n                            \"Id\": {\n                                \"type\": \"string\"\n                            },\n                            \"VeranstaltungViewId\": {\n                                \"type\": \"integer\"\n                            },\n                            \"CreatedDate\": {\n                                \"type\": \"string\"\n                            },\n                            \"LastModifiedDate\": {\n                                \"type\": \"string\"\n                            },\n                            \"Subject\": {\n                                \"type\": \"string\"\n                            },\n                            \"StartDate\": {\n                                \"type\": \"string\"\n                            },\n                            \"EndDate\": {\n                                \"type\": \"string\"\n                            },\n                            \"Type\": {\n                                \"type\": \"string\"\n                            },\n                            \"EventSubtype\": {\n                                \"type\": \"string\"\n                            },\n                            \"Description\": {\n                                \"type\": [\"string\", \"null\"]\n                            }\n                        }\n                    }\n                }\n            }\n        }\n    }\n}\n\n ```"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Salesforce Leads and FIles Transfert",
+			"item": [
+				{
+					"name": "Server Status",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "{{SF_USERNAME}}",
+									"type": "string"
+								},
+								{
+									"key": "password",
+									"value": "{{password}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "https://lsapisamplesbackend-bhesadgtbja4dmgq.germanywestcentral-01.azurewebsites.net/",
+							"protocol": "https",
+							"host": [
+								"lsapisamplesbackend-bhesadgtbja4dmgq",
+								"germanywestcentral-01",
+								"azurewebsites",
+								"net"
+							],
+							"path": [
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Salesforce Authentification URL",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {\r",
+									"    const jsonData = pm.response.json();\r",
+									"    if (jsonData && jsonData.authUrl) {\r",
+									"        pm.environment.set(\"authUrl\", jsonData.authUrl);\r",
+									"        console.log(\"Auth URL received:\", jsonData.authUrl);\r",
+									"    }\r",
+									"}"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "https://{{backendUrl}}/api/salesforce/auth",
+							"protocol": "https",
+							"host": [
+								"{{backendUrl}}"
+							],
+							"path": [
+								"api",
+								"salesforce",
+								"auth"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Leads",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {\r",
+									"    pm.response.to.have.status(200);\r",
+									"});\r",
+									"\r",
+									"var jsonData = pm.response.json();\r",
+									"\r",
+									"pm.test(\"Response contains leads\", function () {\r",
+									"    pm.expect(jsonData).to.have.property('records');\r",
+									"    if (jsonData.records.length > 0) {\r",
+									"        pm.environment.set(\"firstLeadId\", jsonData.records[0].Id);\r",
+									"        console.log(\"Total leads found: \" + jsonData.records.length);\r",
+									"        console.log(\"First lead ID set to environment: \" + jsonData.records[0].Id);\r",
+									"    }\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{instanceUrl}}/services/data/v59.0/query?q=SELECT+Id,FirstName,LastName,Company,Email,Phone,Status,CreatedDate+FROM+Lead",
+							"host": [
+								"{{instanceUrl}}"
+							],
+							"path": [
+								"services",
+								"data",
+								"v59.0",
+								"query"
+							],
+							"query": [
+								{
+									"key": "q",
+									"value": "SELECT+Id,FirstName,LastName,Company,Email,Phone,Status,CreatedDate+FROM+Lead"
+								}
+							]
+						},
+						"description": "This endpoint makes an HTTP GET request to retrieve information about leads from the Salesforce instance. The request includes a query parameter to select specific fields such as Id, FirstName, LastName, Company, Email, Phone, Status, and CreatedDate from the Lead object.\n\n### Request Body\n\nThis request does not contain a request body.\n\n### Response Body\n\nThe response is in JSON format with a status code of 200. It includes a \"totalSize\" field indicating the total number of records returned, a \"done\" field to indicate if the query is complete, and an array of \"records\" containing lead information. Each lead record includes attributes such as Id, FirstName, LastName, Company, Email, Phone, Status, and CreatedDate."
+					},
+					"response": []
+				},
+				{
+					"name": "Generate Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {\r",
+									"    var res = pm.response.json();\r",
+									"    pm.environment.set(\"accessToken\", res.access_token);\r",
+									"    pm.environment.set(\"instanceUrl\", res.instance_url);\r",
+									"    pm.environment.set(\"tokenTimestamp\", Date.now());\r",
+									"    console.log(\"Token successfully retrieved and stored!\");\r",
+									"}\r",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "00DgK000001jhTF!AQEAQP8hIytJliTLoeEPbXVSbnvXmfA.0lqN8N5Sl13mIhAIfVo0DZAVOoqIJRHeh5zuQCjpKO0oGE5pU4SUx7.rFtBU34Uv",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/x-www-form-urlencoded",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "username",
+									"value": "{{SF_USERNAME}}",
+									"type": "text"
+								},
+								{
+									"key": "password",
+									"value": "{{SF_PASSWORD}}",
+									"type": "text"
+								},
+								{
+									"key": "grant_type",
+									"value": "password",
+									"type": "text"
+								},
+								{
+									"key": "client_id",
+									"value": "{{SF_CLIENT_ID}}",
+									"type": "text"
+								},
+								{
+									"key": "client_secret",
+									"value": "{{SF_CLIENT_SECRET}}",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "https://login.salesforce.com/services/oauth2/token",
+							"protocol": "https",
+							"host": [
+								"login",
+								"salesforce",
+								"com"
+							],
+							"path": [
+								"services",
+								"oauth2",
+								"token"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Account",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"Name\": \"Admnin Test Account\",\r\n    \"Rating\": \"Hot\",\r\n    \"Industry\": \"Electronics\",\r\n    \"NumberOfEmployees\": \"200\",\r\n    \"AccountNumber\": \"17515\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "https://orgfarm-efa2ddfed3-dev-ed.develop.my.salesforce.com/services/data/v56.0/sobjects/Account",
+							"protocol": "https",
+							"host": [
+								"orgfarm-efa2ddfed3-dev-ed",
+								"develop",
+								"my",
+								"salesforce",
+								"com"
+							],
+							"path": [
+								"services",
+								"data",
+								"v56.0",
+								"sobjects",
+								"Account"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Leads with Filter last 7 days",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{instanceUrl}}/services/data/v59.0/query?q=SELECT+Id,FirstName,LastName,Company,Email,Phone,Status,CreatedDate+FROM+Lead+WHERE+CreatedDate>=LAST_N_DAYS:7",
+							"host": [
+								"{{instanceUrl}}"
+							],
+							"path": [
+								"services",
+								"data",
+								"v59.0",
+								"query"
+							],
+							"query": [
+								{
+									"key": "q",
+									"value": "SELECT+Id,FirstName,LastName,Company,Email,Phone,Status,CreatedDate+FROM+Lead+WHERE+CreatedDate>=LAST_N_DAYS:7"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Files Last 7 days",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{instanceUrl}}/services/data/v59.0/query?q=SELECT+Id,Title,FileType,ContentSize,CreatedDate,LastModifiedDate,OwnerId,Owner.Name+FROM+ContentDocument+WHERE+CreatedDate>=LAST_N_DAYS:7+ORDER+BY+LastModifiedDate+DESC",
+							"host": [
+								"{{instanceUrl}}"
+							],
+							"path": [
+								"services",
+								"data",
+								"v59.0",
+								"query"
+							],
+							"query": [
+								{
+									"key": "q",
+									"value": "SELECT+Id,Title,FileType,ContentSize,CreatedDate,LastModifiedDate,OwnerId,Owner.Name+FROM+ContentDocument+WHERE+CreatedDate>=LAST_N_DAYS:7+ORDER+BY+LastModifiedDate+DESC"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Files",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept-Language",
+								"value": "en-US",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{instanceUrl}}/services/data/v59.0/query?q=SELECT+Id,Title,FileType,ContentSize,FileExtension,Description,CreatedDate,LastModifiedDate,OwnerId,Owner.Name+FROM+ContentDocument+ORDER+BY+LastModifiedDate+DESC",
+							"host": [
+								"{{instanceUrl}}"
+							],
+							"path": [
+								"services",
+								"data",
+								"v59.0",
+								"query"
+							],
+							"query": [
+								{
+									"key": "q",
+									"value": "SELECT+Id,Title,FileType,ContentSize,FileExtension,Description,CreatedDate,LastModifiedDate,OwnerId,Owner.Name+FROM+ContentDocument+ORDER+BY+LastModifiedDate+DESC"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get User Infos",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{instanceUrl}}/services/oauth2/userinfo",
+							"host": [
+								"{{instanceUrl}}"
+							],
+							"path": [
+								"services",
+								"oauth2",
+								"userinfo"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Objects SF",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{instanceUrl}}/services/data/v59.0/sobjects/",
+							"host": [
+								"{{instanceUrl}}"
+							],
+							"path": [
+								"services",
+								"data",
+								"v59.0",
+								"sobjects",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Meta Data Objects",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{instanceUrl}}/services/data/v59.0/sobjects/Lead/describe",
+							"host": [
+								"{{instanceUrl}}"
+							],
+							"path": [
+								"services",
+								"data",
+								"v59.0",
+								"sobjects",
+								"Lead",
+								"describe"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Upload File",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"Title\": \"NewFileFromPostman\",\r\n  \"PathOnClient\": \"simple\",\r\n  \"VersionData\": \"JVBERi0xLjMKJcTl8uXrp/Og0MTGCjQgMCBvYmoKPDwgL0xlbmd0aCA1IDAgUiAvRmlsdGVyIC9GbGF0ZURlY29kZSA+PgpzdHJlYW0KeAFLVNBUCM8vyc1V8ERJT1UwUijJVzBSKEpVCC5ITc7IV\",\r\n  \"Description\": \"Document uploaded via  Salesforce\",\r\n  \"ContentLocation\": \"S\",\r\n  \"FirstPublishLocationId\": \"001gK000003DKf8\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{instanceUrl}}/services/data/v59.0/sobjects/ContentVersion",
+							"host": [
+								"{{instanceUrl}}"
+							],
+							"path": [
+								"services",
+								"data",
+								"v59.0",
+								"sobjects",
+								"ContentVersion"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"auth": {
+				"type": "oauth2",
+				"oauth2": [
+					{
+						"key": "redirect_uri",
+						"value": "{{SF_REDIRECT_URI}}",
+						"type": "string"
+					},
+					{
+						"key": "client_authentication",
+						"value": "body",
+						"type": "string"
+					},
+					{
+						"key": "state",
+						"value": "",
+						"type": "string"
+					},
+					{
+						"key": "authUrl",
+						"value": "https://login.salesforce.com/services/oauth2/authorize",
+						"type": "string"
+					},
+					{
+						"key": "scope",
+						"value": "api",
+						"type": "string"
+					},
+					{
+						"key": "grant_type",
+						"value": "implicit",
+						"type": "string"
+					},
+					{
+						"key": "tokenName",
+						"value": "access_token_prod",
+						"type": "string"
+					},
+					{
+						"key": "clientSecret",
+						"value": "{{SF_CLIENT_SECRET}}",
+						"type": "string"
+					},
+					{
+						"key": "clientId",
+						"value": "{{SF_CLIENT_ID}}",
+						"type": "string"
+					},
+					{
+						"key": "accessTokenUrl",
+						"value": "{{BASE_URL_SF}}/services/oauth/token",
+						"type": "string"
+					},
+					{
+						"key": "addTokenTo",
+						"value": "header",
+						"type": "string"
+					}
+				]
+			},
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"type": "text/javascript",
+						"packages": {},
+						"exec": [
+							""
+						]
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"packages": {},
+						"exec": [
+							""
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "Login Page",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}",
+					"host": [
+						"{{baseUrl}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Login to API",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"//Generate Base64 IDs and check Credentials\r",
+							"const username = pm.environment.get('username');\r",
+							"const password = pm.environment.get('password');\r",
+							"const credentials = btoa(username + ':' + password);\r",
+							"pm.environment.set('credentials', credentials);\r",
+							"console.log(\"Credentials generated:\", credentials);"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "{{SF_PASSWORD}}",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "{{SF_USERNAME}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"serverName\": \"lstest.convey.de\",\r\n  \"apiName\": \"apisftest\",\r\n  \"userName\": \"conveyapisf1\",\r\n  \"password\": \"leadsuccess\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseUrl}}",
+					"host": [
+						"{{baseUrl}}"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"auth": {
+		"type": "basic",
+		"basic": [
+			{
+				"key": "password",
+				"value": "{{password}}",
+				"type": "string"
+			},
+			{
+				"key": "username",
+				"value": "{{username}}",
+				"type": "string"
+			}
+		]
+	},
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "https://lsapisfsamples.convey.de",
+			"type": "string"
+		},
+		{
+			"key": "serverName",
+			"value": "lstest.convey.de",
+			"type": "string"
+		},
+		{
+			"key": "apiName",
+			"value": "apisftest",
+			"type": "string"
+		},
+		{
+			"key": "username",
+			"value": "conveyapisf1",
+			"type": "string"
+		},
+		{
+			"key": "password",
+			"value": "leadsuccess",
+			"type": "string"
+		},
+		{
+			"key": "credentials",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "eventId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "leadId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "sessionToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "backendUrl",
+			"value": "lsapisamplesbackend-bhesadgtbja4dmgq.germanywestcentral-01.azurewebsites.net",
+			"type": "string"
+		}
+	]
+}

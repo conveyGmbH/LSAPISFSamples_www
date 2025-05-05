@@ -35,6 +35,7 @@ function clearAuthData() {
 
 // Handle click on transfer button
 async function handleTransferButtonClick() {
+    
   if (isTransferInProgress) return;
 
   const transferBtn = document.getElementById("transferToSalesforceBtn");
@@ -515,9 +516,7 @@ async function fetchAttachments(attachmentIdList) {
         }
 
         // Encode the body in base64 for transfer
-        const encodedBody = btoa(
-          unescape(encodeURIComponent(attachmentData.Body))
-        );
+        const encodedBody = btoa(unescape(encodeURIComponent(attachmentData.Body)));
 
         // Add to attachments list
         attachments.push({
@@ -603,7 +602,7 @@ function loadLeadData() {
   }
 }
 
-/* Verify if the auth data is still valid */
+// Verify if the auth data is still valid 
 async function verifyAuthData() {
   const authData = getAuthData();
   if (!authData) {
@@ -613,9 +612,7 @@ async function verifyAuthData() {
 
   try {
     // Quick check if token is valid by fetching user info
-    const response = await fetch(
-      `${authData.instanceUrl}/services/oauth2/userinfo`,
-      {
+    const response = await fetch(`${authData.instanceUrl}/services/oauth2/userinfo`, {
         method: "GET",
         headers: {
           Authorization: `Bearer ${authData.accessToken}`,
@@ -882,9 +879,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           };
           await continueTransferWithAuth(authData);
         } else {
-          showError(
-            "Authentication data not found. Please reconnect to Salesforce."
-          );
+          showError("Authentication data not found. Please reconnect to Salesforce.");
         }
       });
     }

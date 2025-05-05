@@ -1,39 +1,118 @@
 import { appConfig } from "../config/salesforceConfig.js";
 
+// Service to manage interactions with Salesforce API 
+
 class SalesforceService {
   constructor() {
     this.apiBaseUrl = appConfig.apiBaseUrl;
-    this.sessionToken = localStorage.getItem('sf_session_token') || null;
+        // Initialize by loading authentication data from localStorage
+        this.authData = this.getStoredAuthData();
+        console.log('SalesforceService initialized with API URL:', this.apiBaseUrl);
+  }
 
-    console.log('SalesforceService initialized with API URL:', this.apiBaseUrl);
+  /**
+   * Retrieve stored authentication data
+   * @returns {Object|null} Authentication data or null if unavailable
+   */
 
+  getStoredAuthData() {
+    try {
+      const authDataStr = localStorage.getItem('sf_auth_data');
+      if (authDataStr) {
+        return JSON.parse(authDataStr);
+      }
+
+      // Compatibility with the old format (sf_session_token)
+      const oldToken = localStorage.getItem('sf_session_token');
+      if (oldToken) {
+        console.log('Using legacy token format');
+        return {
+          accessToken: oldToken,
+          instanceUrl: localStorage.getItem('sf_instance_url') || appConfig.salesforce.defaultInstanceUrl,
+          timestamp: Date.now()
+        };
+      }
+      return null;
+    } catch (error) {
+      console.error('Error parsing stored auth data:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Store authentication data
+   * @param {Object} authData - Authentication data
+   */
+  storeAuthData(authData) {
+    if (authData) {
+      localStorage.setItem('sf_auth_data', JSON.stringify(authData));
+
+      // Clean up old data if it exists
+      localStorage.removeItem('sf_session_token');
+      localStorage.removeItem('sf_instance_url');
+
+      this.authData = authData;
+      console.log('Auth data stored successfully');
+    } else {
+      localStorage.removeItem('sf_auth_data');
+      localStorage.removeItem('sf_session_token');
+      localStorage.removeItem('sf_instance_url');
+
+      this.authData = null;
+      console.log('Auth data cleared');
+    }
+  }
+
+  /**
+   * Check if authentication data is still valid
+   * @returns {Promise<boolean>} True if authentication is valid
+   */
+  async isAuthValid() {
+    try {
+      if (!this.authData || !this.authData.accessToken || !this.authData.instanceUrl) {
+        return false;
+      }
+
+      // Verify token validity by retrieving user info
+      const response = await fetch(`${this.authData.instanceUrl}/services/oauth2/userinfo`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${this.authData.accessToken}`
+        }
+      });
+
+      return response.ok;
+    } catch (error) {
+      console.error('Authentication validation error:', error);
+      return false;
+    }
   }
 
   /**
    * Check Salesforce connection status
-   * @returns {Promise<Object>} Object containing connection status
+   * @returns {Promise<Object>} Connection status
    */
   async checkConnection() {
     try {
       console.log('Checking Salesforce connection status...');
 
-      const response = await fetch(`${this.apiBaseUrl}/salesforce/connection-status`, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'X-Session-Token': this.sessionToken || ''
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error: ${response.status}`);
+      if (!this.authData) {
+        return { connected: false, message: 'No authentication data available' };
       }
 
-      const status = await response.json();
-      console.log('Connection status:', status.connected ? 'Connected' : 'Not connected');
+      const isValid = await this.isAuthValid();
 
-      return status;
+      if (!isValid) {
+        // Clean up invalid data
+        this.storeAuthData(null);
+        return { connected: false, message: 'Authentication expired or invalid' };
+      }
+
+      return {
+        connected: true,
+        message: 'Connected to Salesforce',
+        userInfo: this.authData.userInfo
+      };
     } catch (error) {
       console.error('Connection check error:', error);
       return { connected: false, error: error.message };
@@ -54,11 +133,11 @@ class SalesforceService {
           'Cache-Control': 'no-cache, no-store, must-revalidate'
         }
       });
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error: ${response.status}`);
       }
-      
+
       const data = await response.json();
       console.log('Auth URL received');
       return data.authUrl;
@@ -69,127 +148,87 @@ class SalesforceService {
   }
 
   /**
-   * Set session token after successful authentication
-   * @param {string} token - Session token
+   * Process authentication completion
+   * @param {Object} authResult - Authentication result
+   * @returns {Object} Stored authentication data
    */
-  setSessionToken(token) {
-    this.sessionToken = token;
-    if (token) {
-      localStorage.setItem('sf_session_token', token);
-      console.log('Session token saved:', token.substring(0, 6) + '...');
-    } else {
-      localStorage.removeItem('sf_session_token');
-      console.log('Session token cleared');
-    }
+  handleAuthSuccess(authResult) {
+    const authData = {
+      accessToken: authResult.accessToken,
+      refreshToken: authResult.refreshToken,
+      instanceUrl: authResult.instanceUrl,
+      userInfo: authResult.userInfo,
+      timestamp: Date.now()
+    };
+
+    this.storeAuthData(authData);
+    return authData;
   }
 
   /**
-   * Transfer a lead to Salesforce with enhanced debugging
+   * Transfer a lead to Salesforce
+   * @param {Object} leadData - Lead data to transfer
+   * @param {Array} attachments - Attachments to transfer
+   * @returns {Promise<Object>} Transfer result
    */
-  async transferLead(leadData) {
+  async transferLead(leadData, attachments = []) {
     try {
+      console.log('Transferring lead to Salesforce...');
 
-      if (!this.sessionToken) {
-        console.error("Error: No session token available");
+      if (!this.authData || !this.authData.accessToken) {
         throw new Error('Not connected to Salesforce. Please connect first.');
       }
+
+      // Prepare data for the API
+      const requestBody = {
+        accessToken: this.authData.accessToken,
+        instanceUrl: this.authData.instanceUrl,
+        leadData: leadData,
+        attachments: attachments
+      };
 
       const requestOptions = {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'X-Session-Token': this.sessionToken
+          'Accept': 'application/json'
         },
-        body: JSON.stringify(leadData)
+        body: JSON.stringify(requestBody)
       };
 
+      const response = await fetch(`${this.apiBaseUrl}/direct-lead-transfer`, requestOptions);
+
+      let resultData;
       try {
-        const response = await fetch(`${this.apiBaseUrl}/salesforce/transfer-lead`, requestOptions);
-
-
-        let resultData;
-
-        try {
-          const responseText = await response.text();
-          console.log('Response text:', responseText);
-          
-          try {
-            resultData = JSON.parse(responseText);
-            console.log('JSON response parsed:', resultData);
-          } catch (parseError) {
-            console.error('JSON parsing error:', parseError);
-            throw new Error(`Non-JSON response: ${responseText}`);
-          }
-        } catch (textError) {
-          console.error('Error reading response text:', textError);
-          throw new Error('Unable to read server response');
-        }
-        
-        if (!response.ok) {
-          console.error('Non-OK HTTP response:', response.status, resultData);
-          
-          // If session expired, remove token
-          if (response.status === 401) {
-            console.log('Session expired, removing token');
-            this.setSessionToken(null);
-          }
-          
-          throw new Error(resultData.message || `HTTP error: ${response.status}`);
-        }
-        
-        console.log('Transfer successful:', resultData);
-        return resultData;
-      } catch (fetchError) {
-        console.error('Fetch error:', fetchError);
-        throw fetchError;
+        resultData = await response.json();
+      } catch (parseError) {
+        console.error('Error parsing response:', parseError);
+        const text = await response.text();
+        throw new Error(`Invalid response: ${text}`);
       }
+
+      if (!response.ok) {
+        // Clean up expired authentication data
+        if (response.status === 401) {
+          this.storeAuthData(null);
+        }
+
+        throw new Error(resultData.message || `HTTP error: ${response.status}`);
+      }
+
+      console.log('Transfer successful:', resultData);
+      return resultData;
     } catch (error) {
       console.error('Error in transferLead:', error);
-      console.error('Stack trace:', error.stack);
       throw error;
-    } finally {
-      console.log('===== END TRANSFERLEAD =====');
     }
   }
 
-  /**
-   * Logout from Salesforce
-   * @returns {Promise<Object>} Logout result
-   */
-  async logout() {
-    try {
-      console.log('Logging out from Salesforce...');
-      
-      if (!this.sessionToken) {
-        return { success: true, message: 'Already logged out' };
-      }
-      
-      const response = await fetch(`${this.apiBaseUrl}/salesforce/logout`, {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'X-Session-Token': this.sessionToken
-        }
-      });
-      
-      // Remove session token
-      this.setSessionToken(null);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error: ${response.status}`);
-      }
-      
-      const result = await response.json();
-      return result;
-    } catch (error) {
-      console.error('Logout error:', error);
-      // Even in case of error, remove local token
-      this.setSessionToken(null);
-      throw error;
-    }
+  // Log out from Salesforce
+  logout() {
+    console.log('Logging out from Salesforce...');
+    this.storeAuthData(null);
+    return { success: true, message: 'Logged out successfully' };
   }
 }
 

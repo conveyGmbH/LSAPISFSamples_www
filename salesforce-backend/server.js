@@ -13,12 +13,72 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+
+// Function to determine environment based on domain
+function determineEnvironment(req) {
+  // List of production domains
+  const productionDomains = [
+    'lsapisfsamples.convey.de',
+    'lsapisfbackend.convey.de'
+  ];
+  
+  // Get domain from request origin or host header
+  const origin = req.headers.origin || '';
+  const host = req.headers.host || '';
+  
+  // Check if any of the production domains is present
+  const isProd = productionDomains.some(domain => 
+    origin.includes(domain) || host.includes(domain)
+  );
+  
+  return isProd ? 'production' : 'development';
+}
+
+// Configuration map for different environments
+const configMap = {
+  development: {
+    SF_CLIENT_ID: process.env.SF_CLIENT_ID,
+    SF_CLIENT_SECRET: process.env.SF_CLIENT_SECRET,
+    SF_LOGIN_URL: process.env.SF_LOGIN_URL,
+    SF_REDIRECT_URI: process.env.SF_REDIRECT_URI,
+    FRONTEND_URL: process.env.FRONTEND_DEV_URL,
+    BACKEND_URL: process.env.BACKEND_DEV_URL
+  },
+  production: {
+    SF_CLIENT_ID: process.env.SF_CLIENT_ID,
+    SF_CLIENT_SECRET: process.env.SF_CLIENT_SECRET,
+    SF_LOGIN_URL: process.env.SF_LOGIN_URL,
+    SF_REDIRECT_URI: process.env.SF_REDIRECT_URI_PROD || process.env.SF_REDIRECT_URI,
+    FRONTEND_URL: process.env.FRONTEND_PROD_URL,
+    BACKEND_URL: process.env.BACKEND_PROD_URL
+  }
+};
+
 // Standard middleware
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 app.use(cookieParser());
 app.use(bodyParser.json());
 app.use(compression());
+
+
+// Middleware for setting environment config
+app.use((req, res, next) => {
+  const env = determineEnvironment(req);
+  
+  // If in production, replace values with production ones
+  if (env === 'production') {
+    configMap.production.SF_CLIENT_ID = process.env.SF_CLIENT_ID_PROD || process.env.SF_CLIENT_ID;
+    configMap.production.SF_CLIENT_SECRET = process.env.SF_CLIENT_SECRET_PROD || process.env.SF_CLIENT_SECRET;
+    configMap.production.SF_LOGIN_URL = process.env.SF_LOGIN_URL_PROD || process.env.SF_LOGIN_URL;
+    configMap.production.SF_REDIRECT_URI = process.env.SF_REDIRECT_URI_PROD || process.env.SF_REDIRECT_URI;
+  }
+  
+  // Attach config to req object for access in routes
+  req.config = configMap[env];
+  console.log(`[${new Date().toISOString()}] Request from ${req.headers.host} using ${env} environment`);
+  next();
+});
 
 // Middleware for logging requests
 app.use((req, res, next) => {
@@ -35,7 +95,9 @@ app.use(cors({
     'http://localhost:3000',
     // Production origins
     'https://delightful-desert-016e2a610.4.azurestaticapps.net',
-    'https://brave-bush-0041ef403.6.azurestaticapps.net'
+    'https://brave-bush-0041ef403.6.azurestaticapps.net',
+    'https://lsapisfsamples.convey.de',
+    'https://lsapisfbackend.convey.de'
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
