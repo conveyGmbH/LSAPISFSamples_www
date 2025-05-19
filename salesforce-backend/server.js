@@ -5,53 +5,18 @@ const compression = require('compression');
 const fetch = require('node-fetch');
 const bodyParser = require('body-parser');
 const dotenv = require('dotenv');
+const path = require('path'); 
 
-// Load environment variables
+// Load environment variables (only general config, no Salesforce variables)
 dotenv.config();
 
-// Initialize Express application
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = 3000;
 
-
-// Function to determine environment based on domain
-function determineEnvironment(req) {
-  // List of production domains
-  const productionDomains = [
-    'lsapisfsamples.convey.de',
-    'lsapisfbackend.convey.de'
-  ];
-  
-  // Get domain from request origin or host header
-  const origin = req.headers.origin || '';
-  const host = req.headers.host || '';
-  
-  // Check if any of the production domains is present
-  const isProd = productionDomains.some(domain => 
-    origin.includes(domain) || host.includes(domain)
-  );
-  
-  return isProd ? 'production' : 'development';
-}
-
-// Configuration map for different environments
-const configMap = {
-  development: {
-    SF_CLIENT_ID: process.env.SF_CLIENT_ID,
-    SF_CLIENT_SECRET: process.env.SF_CLIENT_SECRET,
-    SF_LOGIN_URL: process.env.SF_LOGIN_URL,
-    SF_REDIRECT_URI: process.env.SF_REDIRECT_URI,
-    FRONTEND_URL: process.env.FRONTEND_DEV_URL,
-    BACKEND_URL: process.env.BACKEND_DEV_URL
-  },
-  production: {
-    SF_CLIENT_ID: process.env.SF_CLIENT_ID,
-    SF_CLIENT_SECRET: process.env.SF_CLIENT_SECRET,
-    SF_LOGIN_URL: process.env.SF_LOGIN_URL,
-    SF_REDIRECT_URI: process.env.SF_REDIRECT_URI_PROD || process.env.SF_REDIRECT_URI,
-    FRONTEND_URL: process.env.FRONTEND_PROD_URL,
-    BACKEND_URL: process.env.BACKEND_PROD_URL
-  }
+// General environment configuration
+const config = {
+  FRONTEND_URL: process.env.FRONTEND_DEV_URL || process.env.FRONTEND_PROD_URL,
+  BACKEND_URL: process.env.BACKEND_DEV_URL || process.env.BACKEND_PROD_URL
 };
 
 // Standard middleware
@@ -61,38 +26,16 @@ app.use(cookieParser());
 app.use(bodyParser.json());
 app.use(compression());
 
-
-// Middleware for setting environment config
-app.use((req, res, next) => {
-  const env = determineEnvironment(req);
-  
-  // If in production, replace values with production ones
-  if (env === 'production') {
-    configMap.production.SF_CLIENT_ID = process.env.SF_CLIENT_ID_PROD || process.env.SF_CLIENT_ID;
-    configMap.production.SF_CLIENT_SECRET = process.env.SF_CLIENT_SECRET_PROD || process.env.SF_CLIENT_SECRET;
-    configMap.production.SF_LOGIN_URL = process.env.SF_LOGIN_URL_PROD || process.env.SF_LOGIN_URL;
-    configMap.production.SF_REDIRECT_URI = process.env.SF_REDIRECT_URI_PROD || process.env.SF_REDIRECT_URI;
-  }
-  
-  // Attach config to req object for access in routes
-  req.config = configMap[env];
-  console.log(`[${new Date().toISOString()}] Request from ${req.headers.host} using ${env} environment`);
-  next();
-});
-
-// Middleware for logging requests
-app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
-  next();
-});
+// Serve static files (including oauth-callback.html)
+app.use(express.static(path.join(__dirname, 'public')));
 
 // CORS configuration
 app.use(cors({
   origin: [
     // Development origins
-    'http://127.0.0.1:5504',
-    'http://localhost:5504',
-    'http://localhost:3000',
+    'http://127.0.0.1:5504', // local frontend
+    'http://localhost:5504', // local frontend
+    'http://localhost:3000', // local backend
     // Production origins
     'https://delightful-desert-016e2a610.4.azurestaticapps.net',
     'https://brave-bush-0041ef403.6.azurestaticapps.net',
@@ -104,409 +47,191 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Cache-Control', 'X-Session-Token']
 }));
 
-/* SALESFORCE CONFIGURATION */
-const SF_CLIENT_ID = process.env.SF_CLIENT_ID;
-const SF_CLIENT_SECRET = process.env.SF_CLIENT_SECRET;
-const SF_REDIRECT_URI = process.env.SF_REDIRECT_URI || 'http://localhost:3000/api/oauth2/callback';
-const SF_LOGIN_URL = process.env.SF_LOGIN_URL || 'https://login.salesforce.com';
+// Logging middleware for all requests
+app.use((req, res, next) => {
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] ${req.method} ${req.url}`);
+  
+  // Log important headers
+  console.log('  Origin:', req.headers.origin);
+  console.log('  Content-Type:', req.headers['content-type']);
+  
+  // Log the body for POST/PUT requests but mask sensitive information
+  if ((req.method === 'POST' || req.method === 'PUT') && req.body) {
+    const sanitizedBody = { ...req.body };
+    // Mask sensitive information
+    if (sanitizedBody.clientConfig?.SF_CLIENT_SECRET) {
+      sanitizedBody.clientConfig.SF_CLIENT_SECRET = '***SECRET***';
+    }
+    if (sanitizedBody.accessToken) {
+      sanitizedBody.accessToken = '***TOKEN***';
+    }
+    console.log('  Body:', JSON.stringify(sanitizedBody));
+  }
+  
+  // Capture the response for logging
+  const originalSend = res.send;
+  res.send = function(body) {
+    console.log(`[${timestamp}] Response ${res.statusCode}`);
+    // Don't log response bodies that are too large
+    if (typeof body === 'string' && body.length < 1000) {
+      console.log('  Response Body:', body);
+    } else {
+      console.log('  Response Body: [Content too large to display]');
+    }
+    return originalSend.call(this, body);
+  };
+  
+  next();
+});
 
 /* API ROUTER SETUP */
 const apiRouter = express.Router();
 
-/* WELCOME PAGE SERVER */
-app.get('/', (req, res) => {
-  const serverInfo = {
-    status: 'online',
-    version: process.env.npm_package_version || '1.0.0',
-    environment: process.env.NODE_ENV || 'development',
-    timestamp: new Date().toISOString(),
-    uptime: `${Math.floor(process.uptime())} seconds`,
-    endpoints: [
-      { path: '/api/salesforce/auth', method: 'GET', description: 'Get Salesforce authentication URL' },
-      { path: '/api/oauth2/callback', method: 'GET', description: 'OAuth2 callback for Salesforce' },
-      { path: '/api/salesforce/test-token', method: 'GET', description: 'Test Salesforce token validity' },
-      { path: '/api/salesforce/leads', method: 'POST', description: 'Create lead in Salesforce' },
-      { path: '/api/salesforce/userinfo', method: 'GET', description: 'Get Salesforce user information' },
-      { path: '/api/direct-lead-transfer', method: 'POST', description: 'Transfer lead with attachments to Salesforce' }
-    ]
-  };
+// Generate Salesforce authentication URL using client-provided credentials
+apiRouter.post('/salesforce/auth', (req, res) => {
+  const clientConfig = req.body;
+
+  if (!clientConfig || !clientConfig.SF_CLIENT_ID || !clientConfig.SF_REDIRECT_URI) {
+    return res.status(400).json({ error: 'Missing required Salesforce credentials. Please enter them first.' });
+  }
+
+  const SF_LOGIN_URL = clientConfig.SF_LOGIN_URL || 'https://login.salesforce.com';
+  const authUrl = `${SF_LOGIN_URL}/services/oauth2/authorize?response_type=code&client_id=${clientConfig.SF_CLIENT_ID}&redirect_uri=${encodeURIComponent(clientConfig.SF_REDIRECT_URI)}&scope=api%20id%20web%20refresh_token`;
+
+  res.json({ authUrl });
+});
+
+// Route for oauth-callback.html (for implicit flow)
+app.get('/oauth-callback.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'oauth-callback.html'));
+});
+
+// OAuth2 callback (for authorization flow)
+apiRouter.get('/oauth2/callback', (req, res) => {
+  const { code } = req.query;
+
+  if (!code) {
+    return res.status(400).send('Authorization code missing');
+  }
 
   res.send(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <title>LeadSuccess API Status</title>
-      <meta name="viewport" content="width=device-width, initial-scale=1">
-      <style>
-        body {
-          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-          line-height: 1.6;
-          color: #333;
-          max-width: 800px;
-          margin: 0 auto;
-          padding: 20px;
+    <script>
+      window.onload = function() {
+        if (window.opener) {
+          window.opener.postMessage({ type: 'salesforce-auth-code', code: "${code}" }, '*');
+          setTimeout(() => window.close(), 3000);
         }
-        h1 {
-          color: #0078d4;
-          border-bottom: 1px solid #eaeaea;
-          padding-bottom: 10px;
-        }
-        .status-card {
-          background-color: #f9f9f9;
-          border-radius: 8px;
-          padding: 20px;
-          margin-bottom: 20px;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .status-indicator {
-          display: inline-block;
-          width: 12px;
-          height: 12px;
-          border-radius: 50%;
-          margin-right: 8px;
-        }
-        .status-online {
-          background-color: #5cb85c;
-        }
-        table {
-          width: 100%;
-          border-collapse: collapse;
-          margin-top: 20px;
-        }
-        th, td {
-          text-align: left;
-          padding: 12px;
-          border-bottom: 1px solid #ddd;
-        }
-        th {
-          background-color: #f2f2f2;
-        }
-        .api-path {
-          font-family: monospace;
-          background-color: #f5f5f5;
-          padding: 2px 4px;
-          border-radius: 4px;
-        }
-        .http-method {
-          display: inline-block;
-          padding: 2px 6px;
-          border-radius: 4px;
-          font-size: 12px;
-          font-weight: bold;
-          color: white;
-          background-color: #0078d4;
-        }
-      </style>
-    </head>
-    <body>
-      <h1>LeadSuccess API Status</h1>
-      
-      <div class="status-card">
-        <h2>
-          <span class="status-indicator status-online"></span>
-          Server Status: ${serverInfo.status}
-        </h2>
-        <p><strong>Version:</strong> ${serverInfo.version}</p>
-        <p><strong>Environment:</strong> ${serverInfo.environment}</p>
-        <p><strong>Server Time:</strong> ${new Date(serverInfo.timestamp).toLocaleString()}</p>
-        <p><strong>Uptime:</strong> ${serverInfo.uptime}</p>
-      </div>
-      
-      <h2>Available Endpoints</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Method</th>
-            <th>Path</th>
-            <th>Description</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${serverInfo.endpoints.map(endpoint => `
-            <tr>
-              <td><span class="http-method">${endpoint.method}</span></td>
-              <td><span class="api-path">${endpoint.path}</span></td>
-              <td>${endpoint.description}</td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-    </body>
-    </html>
+      };
+    </script>
+    <h1>Authentication Successful!</h1>
+    <p>You can close this window.</p>
   `);
 });
 
-/* AUTHENTICATION ROUTES */
+// Exchange authorization code for access token using client-provided credentials
+apiRouter.post('/salesforce/token', async (req, res) => {
+  const { code, clientConfig } = req.body;
 
-// Get authentication URL
-apiRouter.get('/salesforce/auth', (req, res) => {
-  try {
-    const authUrl = `${SF_LOGIN_URL}/services/oauth2/authorize?response_type=code&client_id=${SF_CLIENT_ID}&redirect_uri=${encodeURIComponent(SF_REDIRECT_URI)}&scope=api%20id%20web%20refresh_token`;
-    res.json({ authUrl });
-  } catch (error) {
-    console.error('Error generating auth URL:', error);
-    res.status(500).json({ error: 'Failed to generate authorization URL' });
+  if (!code || !clientConfig || !clientConfig.SF_CLIENT_ID || !clientConfig.SF_CLIENT_SECRET || !clientConfig.SF_REDIRECT_URI) {
+    console.error('Invalid token request:', { 
+      hasCode: !!code, 
+      hasClientConfig: !!clientConfig, 
+      clientId: clientConfig?.SF_CLIENT_ID ? 'provided' : 'missing',
+      clientSecret: clientConfig?.SF_CLIENT_SECRET ? 'provided' : 'missing',
+      redirectUri: clientConfig?.SF_REDIRECT_URI || 'missing'
+    });
+    return res.status(400).json({ error: 'Invalid request. Missing required fields.' });
   }
-});
 
-// OAuth2 callback
-apiRouter.get('/oauth2/callback', async (req, res) => {
-  const { code } = req.query;
-  
-  if (!code) {
-    console.error('Authorization code missing');
-    return res.status(400).send('Authorization code missing');
-  }
-  
   try {
-    console.log('Received auth code, exchanging for token...');
+    const SF_LOGIN_URL = clientConfig.SF_LOGIN_URL || 'https://login.salesforce.com';
+    const tokenUrl = `${SF_LOGIN_URL}/services/oauth2/token`;
     
-    // Exchange code for token directly with Salesforce API
-    const tokenResponse = await fetch(`${SF_LOGIN_URL}/services/oauth2/token`, {
+    console.log('Exchanging code for token with Salesforce:', {
+      tokenUrl,
+      clientId: clientConfig.SF_CLIENT_ID,
+      redirectUri: clientConfig.SF_REDIRECT_URI
+    });
+
+    const tokenRequest = new URLSearchParams({
+      grant_type: 'authorization_code',
+      client_id: clientConfig.SF_CLIENT_ID,
+      client_secret: clientConfig.SF_CLIENT_SECRET,
+      redirect_uri: clientConfig.SF_REDIRECT_URI,
+      code: code
+    });
+
+    const response = await fetch(tokenUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
-      body: `grant_type=authorization_code&client_id=${SF_CLIENT_ID}&client_secret=${SF_CLIENT_SECRET}&redirect_uri=${encodeURIComponent(SF_REDIRECT_URI)}&code=${code}`
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: tokenRequest
     });
+
+    const responseText = await response.text();
+    let tokenData;
     
-    const tokenData = await tokenResponse.json();
-    
-    if (!tokenResponse.ok || tokenData.error) {
-      throw new Error(tokenData.error_description || tokenData.error || 'Token exchange failed');
+    try {
+      tokenData = JSON.parse(responseText);
+    } catch (e) {
+      console.error('Failed to parse token response as JSON:', responseText);
+      return res.status(500).json({ error: 'Invalid response from Salesforce' });
     }
-    
-    console.log('Token obtained successfully');
-    
-    const { access_token, refresh_token, instance_url } = tokenData;
-    
-    // Get user info to display in the callback page
-    const userInfoResponse = await fetch(`${instance_url}/services/oauth2/userinfo`, {
-      headers: {
-        'Authorization': `Bearer ${access_token}`
-      }
+
+    if (!response.ok) {
+      console.error('Token exchange failed:', tokenData);
+      throw new Error(tokenData.error_description || 'Failed to exchange token');
+    }
+
+    console.log('Token exchange successful, fetching user info...');
+    const userInfoResponse = await fetch(`${tokenData.instance_url}/services/oauth2/userinfo`, {
+      headers: { 'Authorization': `Bearer ${tokenData.access_token}` }
     });
-    
+
     const userInfo = await userInfoResponse.json();
-    
-    // Return success page - instead of storing tokens on server, we pass them to the client
-    res.send(`
-      <html>
-        <head>
-          <title>Authentication Successful</title>
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              text-align: center;
-              padding: 40px 20px;
-              background-color: #f4f7f9;
-            }
-            .success-container {
-              max-width: 500px;
-              margin: 0 auto;
-              background-color: white;
-              border-radius: 8px;
-              padding: 30px;
-              box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            }
-            h2 {
-              color: #2e844a;
-              margin-bottom: 20px;
-            }
-            p {
-              color: #54698d;
-              margin-bottom: 15px;
-              line-height: 1.5;
-            }
-          </style>
-          <script>
-            // Pass tokens back to opener window
-            window.onload = function() {
-              if (window.opener) {
-                window.opener.postMessage({
-                  type: 'salesforce-auth-success',
-                  accessToken: "${access_token}",
-                  refreshToken: "${refresh_token}",
-                  instanceUrl: "${instance_url}",
-                  userInfo: ${JSON.stringify(userInfo)}
-                }, '*');
-                
-                setTimeout(function() {
-                  window.close();
-                }, 3000);
-              }
-            };
-          </script>
-        </head>
-        <body>
-          <div class="success-container">
-            <h2>Authentication Successful!</h2>
-            <p>You are now connected to Salesforce as ${userInfo.name}.</p>
-            <p>This window will close automatically.</p>
-          </div>
-        </body>
-      </html>
-    `);
+    console.log('User info retrieved:', {
+      name: userInfo.name,
+      email: userInfo.email,
+      organization_id: userInfo.organization_id
+    });
+
+    res.json({ ...tokenData, userInfo });
   } catch (error) {
-    console.error('OAuth callback error:', error);
-    res.status(500).send(`
-      <html>
-        <head>
-          <title>Authentication Failed</title>
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              text-align: center;
-              padding: 40px 20px;
-              background-color: #f4f7f9;
-            }
-            .error-container {
-              max-width: 500px;
-              margin: 0 auto;
-              background-color: white;
-              border-radius: 8px;
-              padding: 30px;
-              box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            }
-            h2 {
-              color: #c23934;
-              margin-bottom: 20px;
-            }
-            p {
-              color: #54698d;
-              margin-bottom: 15px;
-              line-height: 1.5;
-            }
-          </style>
-          <script>
-            if (window.opener) {
-              window.opener.postMessage({ 
-                type: 'salesforce-auth-error', 
-                error: ${JSON.stringify(error.message)}
-              }, '*');
-              
-              setTimeout(function() {
-                window.close();
-              }, 5000);
-            }
-          </script>
-        </head>
-        <body>
-          <div class="error-container">
-            <h2>Authentication Failed</h2>
-            <p>An error occurred while connecting to Salesforce.</p>
-            <p>Error: ${error.message}</p>
-            <p>Please close this window and try again.</p>
-          </div>
-        </body>
-      </html>
-    `);
+    console.error('Token exchange error:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 
-/* LEAD CREATION & TRANSFER ROUTES */
+/* -------------------- LEAD CREATION -------------------- */
 
-// Endpoint to create a lead in Salesforce
-app.post('/api/salesforce/leads', async (req, res) => {
+// Create lead using client-provided credentials
+apiRouter.post('/salesforce/leads', async (req, res) => {
   const { leadData, accessToken, instanceUrl } = req.body;
 
-  console.log('Request received to create a lead');
-  console.log('Token present:', !!accessToken);
-  console.log('Instance URL:', instanceUrl);
-  
   if (!accessToken || !instanceUrl || !leadData) {
-    console.log('Missing data:', {
-      hasToken: !!accessToken,
-      hasInstanceUrl: !!instanceUrl,
-      hasLeadData: !!leadData
-    });
-
-    return res.status(400).json({ 
-      success: false, 
-      message: 'Missing data (token, instance URL, or lead data)' 
-    });
+    return res.status(400).json({ error: 'Missing required data: accessToken, instanceUrl, or leadData.' });
   }
-  
+
   try {
-    // Ensure the token is decoded (in case it is URL-encoded)
-    const decodedToken = decodeURIComponent(accessToken);
-
-    // Creating the lead in Salesforce
-    console.log('Attempting to create lead in Salesforce');
-    const sfUrl = `${instanceUrl}/services/data/v59.0/sobjects/Lead`;
-
-    const response = await fetch(sfUrl, {
+    const response = await fetch(`${instanceUrl}/services/data/v59.0/sobjects/Lead`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${decodedToken}`,
-        'Content-Type': 'application/json'
-      },
+      headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(leadData)
     });
 
     const result = await response.json();
-    console.log('Salesforce response status:', response.status);
-    console.log('Salesforce response:', JSON.stringify(result, null, 2));
-    
-    if (response.ok) {
-      return res.json({
-        success: true,
-        id: result.id,
-        message: 'Lead successfully created'
-      });
-    } else {
-      return res.status(response.status).json({
-        success: false,
-        errors: result,
-        message: 'Error creating the lead'
-      });
-    }
-  } catch (error) {
-    console.error('Error creating the lead:', error);
-    return res.status(500).json({
-      success: false,
-      message: `Server error: ${error.message}`
-    });
-  }
-});
 
-// Endpoint to get user information from Salesforce
-app.get('/api/salesforce/userinfo', async (req, res) => {
-  const authorization = req.headers.authorization;
-  const instanceUrl = req.query.instance_url;
-
-   // Extract the token from the header if it's in the format "Bearer <token>"
-   let token = authorization;
-   if (authorization && authorization.startsWith('Bearer ')) {
-     token = authorization.substring(7);  // Remove "Bearer " from the beginning
-   }
-
-   // Decode the token in case it is URL-encoded
-  const decodedToken = token ? decodeURIComponent(token) : null;
-
-  if (!decodedToken || !instanceUrl) {
-    return res.status(400).json({ error: 'Access token and instance URL are required' });
-  }
-
-  try {
-    const response = await fetch(`${instanceUrl}/services/oauth2/userinfo`, {
-      method: 'GET',
-      headers: {
-        'Authorization':  `Bearer ${decodedToken}`
-      }
-    });
-    
     if (!response.ok) {
-      throw new Error(`Salesforce error: ${response.status}`);
+      throw new Error(result[0]?.message || 'Failed to create lead');
     }
-    
-    const userData = await response.json();
-    res.json(userData);
+
+    res.json({ success: true, id: result.id });
   } catch (error) {
-    console.error('Error while retrieving user information:', error);
+    console.error('Lead creation error:', error);
     res.status(500).json({ error: error.message });
   }
 });
+
 
 // Direct lead transfer endpoint with attachments
 apiRouter.post('/direct-lead-transfer', async (req, res) => {
@@ -683,15 +408,39 @@ apiRouter.post('/direct-lead-transfer', async (req, res) => {
   }
 });
 
-/* UTILITY ROUTES */
+// Add endpoint for user info retrieval
+apiRouter.get('/salesforce/userinfo', async (req, res) => {
+  const { accessToken, instanceUrl } = req.query;
+  
+  if (!accessToken || !instanceUrl) {
+    return res.status(400).json({ error: 'Access token and instance URL required' });
+  }
+  
+  try {
+    const response = await fetch(`${instanceUrl}/services/oauth2/userinfo`, {
+      headers: { 'Authorization': `Bearer ${accessToken}` }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Salesforce error: ${response.status}`);
+    }
+    
+    const userData = await response.json();
+    res.json(userData);
+  } catch (error) {
+    console.error('Error fetching user info:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
+
+/* -------------------- UTILITY ROUTES -------------------- */
 
 // Health check endpoint
 apiRouter.get('/health', (req, res) => {
-  res.status(200).json({
-    status: 'ok',
-    timestamp: Date.now(),
-    service: 'leadSuccess-api'
-  });
+  res.status(200).json({ status: 'ok', timestamp: Date.now(), service: 'leadSuccess-api' });
+  console.log("Health check endpoint accessed");
 });
 
 // Root API route
@@ -705,6 +454,6 @@ app.use('/api', apiRouter);
 // Start server
 app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`API base path: /api`);
+  console.log(`OAuth callback: ${config.BACKEND_URL || `http://localhost:${PORT}`}/oauth-callback.html`);
 });
