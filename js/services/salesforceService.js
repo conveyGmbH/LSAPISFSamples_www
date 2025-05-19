@@ -1,192 +1,251 @@
-import { appConfig } from "../config/salesforceConfig.js";
 
+// SalesforceService.js - Handles all Salesforce API interactions
 class SalesforceService {
-  constructor() {
-    this.apiBaseUrl = appConfig.apiBaseUrl;
-    this.sessionToken = localStorage.getItem('sf_session_token') || null;
-
+  constructor(apiBaseUrl) {
+    this.apiBaseUrl = apiBaseUrl || '/api';
     console.log('SalesforceService initialized with API URL:', this.apiBaseUrl);
-
   }
 
-  /* Check Salesforce connection status */
+  // Singleton pattern implementation
+  static getInstance(apiBaseUrl) {
+    if (!SalesforceService.instance) {
+      SalesforceService.instance = new SalesforceService(apiBaseUrl);
+    }
+    return SalesforceService.instance;
+  }
+
+  // Check if client configuration exists in localStorage
+  hasClientConfig() {
+    const clientId = localStorage.getItem('SF_CLIENT_ID');
+    const redirectUri = localStorage.getItem('SF_REDIRECT_URI');
+    return !!(clientId && redirectUri);
+  }
+
+  // Get authentication data from local storage
+  getAuthData() {
+    try {
+      const accessToken = localStorage.getItem('SF_ACCESS_TOKEN');
+      const instanceUrl = localStorage.getItem('SF_INSTANCE_URL');
+  
+
+      if (!accessToken || !instanceUrl) {
+        return null;
+      }
+
+      return {
+        accessToken,
+        instanceUrl,
+       
+      };
+    } catch (error) {
+      console.error('Error retrieving auth data:', error);
+      return null;
+    }
+  }
+
+  // Store authentication data in local storage
+  storeAuthData(authData) {
+    if (!authData || !authData.accessToken || !authData.instanceUrl) {
+      console.error('Invalid auth data provided:', authData);
+      return false;
+    }
+
+    try {
+      localStorage.setItem('SF_ACCESS_TOKEN', authData.accessToken);
+      localStorage.setItem('SF_INSTANCE_URL', authData.instanceUrl);
+      return true;
+    } catch (error) {
+      console.error('Error storing auth data:', error);
+      return false;
+    }
+  }
+
+  // Clear authentication data from local storage
+  clearAuthData() {
+    try {
+      localStorage.removeItem('SF_ACCESS_TOKEN');
+      localStorage.removeItem('SF_INSTANCE_URL');
+      return true;
+    } catch (error) {
+      console.error('Error clearing auth data:', error);
+      return false;
+    }
+  }
+
+  // Initialize OAuth flow with implicit grant
+  async initializeAuth() {
+    try {
+      const clientId = localStorage.getItem('SF_CLIENT_ID');
+      const redirectUri = localStorage.getItem('SF_REDIRECT_URI');
+      const loginUrl = localStorage.getItem('SF_LOGIN_URL') || 'https://login.salesforce.com';
+
+      if (!clientId || !redirectUri) {
+        throw new Error('Salesforce client configuration missing. Please configure it first.');
+      }
+
+      // Construct the authorization URL for implicit flow
+      const authUrl = `${loginUrl}/services/oauth2/authorize?response_type=token&client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}`;
+      
+      console.log('Opening Salesforce authentication URL:', authUrl);
+
+      // Open the authorization URL in a popup window
+      const authWindow = window.open(authUrl, 'SalesforceAuth', 'width=600,height=700');
+      
+      if (!authWindow) {
+        throw new Error('Popup blocked! Please allow popups for this site.');
+      }
+
+      return new Promise((resolve, reject) => {
+        // Handle timeout (5 minutes)
+        const timeout = setTimeout(() => {
+          reject(new Error('Authentication timed out. Please try again.'));
+        }, 300000);
+
+        // Listen for messages from the popup window
+        const messageHandler = (event) => {
+          if (event.data && (event.data.access_token || event.data.error)) {
+            clearTimeout(timeout);
+            window.removeEventListener('message', messageHandler);
+            
+            console.log('Message received from authentication window:', event.data);
+            
+            if (event.data.error) {
+              reject(new Error(`Authentication error: ${event.data.error}`));
+            } else {
+              resolve(event.data);
+            }
+          }
+        };
+
+        window.addEventListener('message', messageHandler);
+      });
+    } catch (error) {
+      console.error('Error initializing authentication:', error);
+      throw error;
+    }
+  }
+
+  // Validate token through proxy
+  async isTokenValid() {
+    try {
+      const authData = this.getAuthData();
+      if (!authData || !authData.instanceUrl || !authData.accessToken) {
+        return false;
+      }
+      
+      // Use the proxy to avoid CORS issues
+      const response = await fetch(`${this.apiBaseUrl}/salesforce/userinfo?accessToken=${encodeURIComponent(authData.accessToken)}&instanceUrl=${encodeURIComponent(authData.instanceUrl)}`);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Token validation failed');
+      }
+      
+      return true;
+    } catch (error) {
+      console.error("Token validation error:", error);
+      return false;
+    }
+  }
+
+  // Check connection status and get user info
   async checkConnection() {
     try {
-      console.log('Checking Salesforce connection status...');
-
-      const response = await fetch(`${this.apiBaseUrl}/salesforce/connection-status`, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'X-Session-Token': this.sessionToken || ''
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error: ${response.status}`);
+      const authData = this.getAuthData();
+      if (!authData) {
+        return { connected: false, message: 'Not authenticated with Salesforce' };
       }
 
-      const status = await response.json();
-      console.log('Connection status:', status.connected ? 'Connected' : 'Not connected');
+      const isValid = await this.isTokenValid();
+      
+      if (!isValid) {
+        return { connected: false, message: 'Authentication expired or invalid' };
+      }
 
-      return status;
+      // Get user info through the proxy
+      try {
+        const response = await fetch(`${this.apiBaseUrl}/salesforce/userinfo?accessToken=${encodeURIComponent(authData.accessToken)}&instanceUrl=${encodeURIComponent(authData.instanceUrl)}`);
+        
+        if (response.ok) {
+          const userInfo = await response.json();
+          return { 
+            connected: true,
+            userInfo: {
+              id: userInfo.user_id,
+              name: userInfo.name,
+              email: userInfo.email,
+              organization_id: userInfo.organization_id
+            }
+          };
+        }
+      } catch (infoError) {
+        console.warn('Could not retrieve user info:', infoError);
+      }
+
+      // Return basic connection status if user info retrieval fails
+      return { connected: true };
     } catch (error) {
       console.error('Connection check error:', error);
-      return { connected: false, error: error.message };
+      return { connected: false, message: error.message };
     }
   }
 
-  /**
-   * Get Salesforce authentication URL
-   * @returns {Promise<string>} Authentication URL
-   */
-  async getAuthUrl() {
+// Logout from Salesforce
+async logout() {
+  try {
+    const authData = this.getAuthData();
+    if (!authData) {
+      return { success: true, message: 'Already logged out' };
+    }
+
+    // Clear local auth data
+    this.clearAuthData();
+
+    return { success: true, message: 'Logged out successfully' };
+  } catch (error) {
+    console.error('Logout error:', error);
+    return { success: false, message: error.message };
+  }
+}
+
+  // Transfer a lead to Salesforce using direct-lead-transfer endpoint
+  async transferLead(leadData, attachments = []) {
     try {
-      console.log('Requesting Salesforce auth URL...');
-      const response = await fetch(`${this.apiBaseUrl}/salesforce/auth`, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Cache-Control': 'no-cache, no-store, must-revalidate'
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      console.log('Auth URL received');
-      return data.authUrl;
-    } catch (error) {
-      console.error('Error getting auth URL:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Set session token after successful authentication
-   * @param {string} token - Session token
-   */
-  setSessionToken(token) {
-    this.sessionToken = token;
-    if (token) {
-      localStorage.setItem('sf_session_token', token);
-      console.log('Session token saved:', token.substring(0, 6) + '...');
-    } else {
-      localStorage.removeItem('sf_session_token');
-      console.log('Session token cleared');
-    }
-  }
-
-  /**
-   * Transfer a lead to Salesforce with enhanced debugging
-   */
-  async transferLead(leadData) {
-    try {
-
-      if (!this.sessionToken) {
-        console.error("Error: No session token available");
-        throw new Error('Not connected to Salesforce. Please connect first.');
+      if (!leadData) {
+        throw new Error('No lead data provided');
       }
 
-      const requestOptions = {
+      const authData = this.getAuthData();
+      if (!authData) {
+        throw new Error('Not authenticated with Salesforce');
+      }
+
+      // Use the specialized direct-lead-transfer endpoint
+      const response = await fetch(`${this.apiBaseUrl}/direct-lead-transfer`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'X-Session-Token': this.sessionToken
-        },
-        body: JSON.stringify(leadData)
-      };
-
-      try {
-        const response = await fetch(`${this.apiBaseUrl}/salesforce/transfer-lead`, requestOptions);
-
-        let resultData;
-
-        try {
-          const responseText = await response.text();
-          console.log('Response text:', responseText);
-          
-          try {
-            resultData = JSON.parse(responseText);
-            console.log('JSON response parsed:', resultData);
-          } catch (parseError) {
-            console.error('JSON parsing error:', parseError);
-            throw new Error(`Non-JSON response: ${responseText}`);
-          }
-        } catch (textError) {
-          console.error('Error reading response text:', textError);
-          throw new Error('Unable to read server response');
-        }
-        
-        if (!response.ok) {
-          console.error('Non-OK HTTP response:', response.status, resultData);
-          
-          // If session expired, remove token
-          if (response.status === 401) {
-            console.log('Session expired, removing token');
-            this.setSessionToken(null);
-          }
-          
-          throw new Error(resultData.message || `HTTP error: ${response.status}`);
-        }
-        
-        console.log('Transfer successful:', resultData);
-        return resultData;
-      } catch (fetchError) {
-        console.error('Fetch error:', fetchError);
-        throw fetchError;
-      }
-    } catch (error) {
-      console.error('Error in transferLead:', error);
-      console.error('Stack trace:', error.stack);
-      throw error;
-    } finally {
-      console.log('===== END TRANSFERLEAD =====');
-    }
-  }
-
-  /**
-   * Logout from Salesforce
-   * @returns {Promise<Object>} Logout result
-   */
-  async logout() {
-    try {
-      console.log('Logging out from Salesforce...');
-      
-      if (!this.sessionToken) {
-        return { success: true, message: 'Already logged out' };
-      }
-      
-      const response = await fetch(`${this.apiBaseUrl}/salesforce/logout`, {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'X-Session-Token': this.sessionToken
-        }
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          accessToken: authData.accessToken,
+          instanceUrl: authData.instanceUrl,
+          leadData: leadData,
+          attachments: attachments
+        })
       });
-      
-      // Remove session token
-      this.setSessionToken(null);
-      
+
       if (!response.ok) {
-        throw new Error(`HTTP error: ${response.status}`);
+        const errorData = await response.json();
+        console.error('Lead transfer error:', errorData);
+        throw new Error(errorData.message || 'Failed to transfer lead');
       }
-      
+
       const result = await response.json();
-      return result;
+      return result; // { success, leadId, status, message, attachmentsTransferred }
     } catch (error) {
-      console.error('Logout error:', error);
-      // Even in case of error, remove local token
-      this.setSessionToken(null);
+      console.error('Lead transfer error:', error);
       throw error;
     }
   }
 }
+
 
 export default SalesforceService;

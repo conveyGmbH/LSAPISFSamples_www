@@ -1,15 +1,12 @@
-
-
-import ApiService from "../services/apiService.js";
-
-document.addEventListener('DOMContentLoaded', () => {
-    initHeaderControls();
+// headerController.js
+// This module handles the header controls, including logo click and logout functionality.
+document.addEventListener("DOMContentLoaded", () => {
+  initHeaderControls();
 });
 
-
 function initHeaderControls() {
-    handleClickLogo();
-    handleClickLogout();
+  handleClickLogo();
+  handleClickLogout();
 }
 
 function getBaseUrl() {
@@ -23,43 +20,37 @@ function getBaseUrl() {
 }
 
 function handleClickLogo() {
-    const logoDiv = document.querySelector('.logo');
+  const logoDiv = document.querySelector(".logo");
 
-    if (logoDiv) {
-        logoDiv.style.cursor = 'pointer';
+  if (logoDiv) {
+    logoDiv.style.cursor = "pointer";
 
-        logoDiv.addEventListener('click', () => {
-            const currentPage = window.location.pathname.split('/').pop();
-            if (currentPage !== 'display.html') {
-                const baseUrl = getBaseUrl(); 
-                window.location.href = `${baseUrl}/display.html`;
-            }
-        });
-    }
+    logoDiv.addEventListener("click", () => {
+      const currentPage = window.location.pathname.split("/").pop();
+      if (currentPage !== "display.html") {
+        const baseUrl = getBaseUrl();
+        window.location.href = `${baseUrl}/display.html`;
+      }
+    });
+  }
 }
 
-
 function handleClickLogout() {
-    const logoutButton = document.getElementById('logoutButton');
-    
-    if (logoutButton) {
-        logoutButton.addEventListener('click', () => {
-            const serverName = sessionStorage.getItem('serverName');
-            const apiName = sessionStorage.getItem('apiName');
+  const logoutButton = document.getElementById("logoutButton");
 
-            const apiService = new ApiService(serverName, apiName);
+  if (logoutButton) {
+    logoutButton.addEventListener("click", () => {
+      // Clear session storage
+      sessionStorage.clear();
 
-            sessionStorage.clear();
+      const rootPath = window.location.pathname.includes("/pages/")
+        ? "../index.html"
+        : "/index.html"; // Go back to the root path
 
-            const rootPath = window.location.pathname.includes('/pages/') 
-            ? '../index.html'
-            : '/index.html'; // Go back to the root path
-            
-            // Redirect to login page
-            window.location.href = rootPath;
-
-        });
-    }
+      // Redirect to login page
+      window.location.href = rootPath;
+    });
+  }
 }
 
 // Export functions for potential reuse

@@ -1,4 +1,3 @@
-
 :root {
     --primary-color: #d9613f;
     --background-color: rgb(215, 229, 241);
@@ -166,6 +165,30 @@ action-button:disabled {
 .status-indicator.connected {
     background-color: #28a745;
 }
+
+.disconnect-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #f8f9fa;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 14px;
+  color: #dc3545;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.disconnect-btn:hover {
+  background-color: #f8d7da;
+  border-color: #dc3545;
+}
+
+.disconnect-btn svg {
+  color: #dc3545;
+}
+
 
 /* Container */
 .container {
@@ -544,3 +567,1218 @@ action-button:disabled {
     }
 }
 
+
+/* Modal styles */
+.modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+  overflow-y: auto;
+}
+
+.modal-content {
+  position: relative;
+  background-color: #fff;
+  margin: 10% auto;
+  padding: 20px;
+  width: 90%;
+  max-width: 600px;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  animation: modalAppear 0.3s ease-out;
+}
+
+@keyframes modalAppear {
+  from {
+    opacity: 0;
+    transform: translateY(50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Configuration button */
+.config-button {
+    display: inline-flex;
+    align-items: center;
+    background-color: #f8f9fa;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-size: 14px;
+    color: #555;
+    cursor: pointer;
+    margin-left: 10px;
+    transition: all 0.2s ease;
+}
+
+.config-button:hover {
+    background-color: #e9ecef;
+}
+
+.config-button svg {
+    margin-right: 6px;
+}
+
+.config-button.custom-config-active {
+    background-color: #d1ecf1;
+    color: #0c5460;
+    border-color: #bee5eb;
+}
+
+/* Form elements in modal */
+.modal-body .form-group {
+    margin-bottom: 16px;
+}
+
+.modal-body label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+    color: #333;
+}
+
+.modal-body input,
+.modal-body select {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.modal-body input:focus,
+.modal-body select:focus {
+    border-color: #80bdff;
+    outline: 0;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.help-text {
+    display: block;
+    margin-top: 4px;
+    color: #6c757d;
+    font-size: 13px;
+}
+
+.help-section {
+    margin: 12px 0;
+    padding: 10px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+}
+
+.help-section summary {
+    color: #007bff;
+    cursor: pointer;
+    font-weight: 500;
+    padding: 5px 0;
+}
+
+.help-section summary:hover {
+    color: #0056b3;
+}
+
+.help-content {
+    margin-top: 10px;
+    padding-left: 20px;
+}
+
+.help-content ol {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.help-content li {
+    margin-bottom: 5px;
+}
+
+.status-message {
+    padding: 8px 0;
+    font-size: 14px;
+    transition: opacity 0.3s ease;
+}
+
+.status-success {
+    color: #28a745;
+}
+
+.status-error {
+    color: #dc3545;
+}
+
+.config-description {
+    margin-bottom: 16px;
+    color: #555;
+    line-height: 1.5;
+}
+
+/* Button styles */
+.btn-primary {
+    background-color: #007bff;
+    border-color: #007bff;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.btn-primary:hover {
+    background-color: #0069d9;
+    border-color: #0062cc;
+}
+
+.btn-secondary {
+    background-color: #6c757d;
+    border-color: #6c757d;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    margin-right: 10px;
+}
+
+.btn-secondary:hover {
+    background-color: #5a6268;
+    border-color: #545b62;
+}
+
+.btn-secondary:disabled {
+    background-color: #adb5bd;
+    border-color: #adb5bd;
+    cursor: not-allowed;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 16px;
+    border-top: 1px solid #e9ecef;
+}
+
+.small {
+    font-size: 12px;
+}
+
+
+/* Styles for input validation */
+.form-group input.valid {
+  border-color: #28a745;
+  background-color: #f8fff9;
+}
+
+.form-group input.warning {
+  border-color: #ffc107;
+  background-color: #fffdf8;
+}
+
+.form-group input.error {
+  border-color: #dc3545;
+  background-color: #fff9f9;
+}
+
+.validation-message {
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+.validation-message.warning {
+  color: #856404;
+}
+
+.validation-message.error {
+  color: #dc3545;
+}
+
+/* Required configuration indicator */
+.config-button.config-required {
+  background-color: #fff3cd;
+  border-color: #ffeeba;
+  color: #856404;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(255, 193, 7, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 193, 7, 0);
+  }
+}
+
+
+
+
+/* Styles for configuration notice */
+.config-required-notice {
+  display: flex;
+  align-items: center;
+  background-color: #fff3cd;
+  border: 1px solid #ffeeba;
+  border-left: 4px solid #ffc107;
+  border-radius: 4px;
+  padding: 16px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.notice-icon {
+  color: #856404;
+  margin-right: 16px;
+  flex-shrink: 0;
+}
+
+.notice-content {
+  flex-grow: 1;
+}
+
+.notice-content h3 {
+  color: #856404;
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.notice-content p {
+  color: #856404;
+  margin: 0;
+  font-size: 14px;
+}
+
+.configure-now-btn {
+  background-color: #ffc107;
+  color: #212529;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-weight: 500;
+  white-space: nowrap;
+  margin-left: 16px;
+  transition: background-color 0.2s;
+}
+
+.configure-now-btn:hover {
+  background-color: #e0a800;
+}
+
+/* Styles for configuration prompt in error message */
+.configure-prompt {
+  margin-top: 16px;
+}
+
+.open-config-btn {
+  display: inline-flex;
+  align-items: center;
+  background-color: #f8f9fa;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 8px 16px;
+  font-size: 14px;
+  color: #555;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.open-config-btn:hover {
+  background-color: #e9ecef;
+}
+
+.open-config-btn svg {
+  margin-right: 8px;
+}
+
+/* Custom configuration indicator */
+.config-used {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.config-used.custom {
+  background-color: #d1ecf1;
+  color: #0c5460;
+}
+
+.config-used.default {
+  background-color: #f8f9fa;
+  color: #6c757d;
+}
+
+
+
+.sf-config-button {
+  display: inline-flex;
+  align-items: center;
+  background-color: #e9ecef;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 14px;
+  color: #495057;
+  cursor: pointer;
+  margin-left: 10px;
+  transition: all 0.2s ease;
+}
+
+.sf-config-button:hover {
+  background-color: #dee2e6;
+  border-color: #ced4da;
+}
+
+.sf-config-button svg {
+  margin-right: 6px;
+}
+
+/* Amélioration du modal pour une meilleure visibilité */
+.modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1050; /* Augmenter pour s'assurer qu'il est au-dessus des autres éléments */
+  overflow-y: auto;
+  animation: modalFadeIn 0.3s ease;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.modal-content {
+  position: relative;
+  background-color: #fff;
+  margin: 10% auto;
+  padding: 20px;
+  width: 90%;
+  max-width: 600px;
+  border-radius: 8px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+  from {
+    transform: translateY(-50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #e9ecef;
+  margin-bottom: 15px;
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: #212529;
+  font-size: 20px;
+}
+
+.close-modal {
+  color: #aaa;
+  font-size: 24px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.close-modal:hover {
+  color: #555;
+}
+
+/* Mise en évidence du bouton de configuration quand nécessaire */
+.sf-config-button.config-required {
+  background-color: #fff3cd;
+  border-color: #ffeeba;
+  color: #856404;
+  animation: pulse 2s infinite;
+}
+
+/* Status pour connexion Salesforce */
+.sf-connection-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sf-connection-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: #6c757d;
+  background-color: #f8f9fa;
+  padding: 5px 10px;
+  border-radius: 4px;
+  border: 1px solid #e9ecef;
+}
+
+/* Make field required indicator more visible */
+.field-required:after {
+  content: '*';
+  color: #dc3545;
+  margin-left: 4px;
+}
+
+/* Focus style for the form fields */
+.modal-body input:focus,
+.modal-body select:focus {
+  border-color: #80bdff;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+  outline: none;
+}
+
+/* Responsive fixes */
+@media (max-width: 768px) {
+  .modal-content {
+    margin: 15% auto;
+    width: 95%;
+  }
+  
+  .sf-connection-wrapper {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .sf-config-button {
+    margin-left: 0;
+  }
+}
+
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(-30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Amélioration du modal */
+.modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1050;
+  animation: fadeIn 0.3s ease;
+}
+
+.modal-content {
+  animation: slideIn 0.3s ease-out;
+}
+
+/* Messages de statut améliorés */
+.status-message {
+  padding: 8px 12px;
+  border-radius: 4px;
+  display: inline-block;
+  opacity: 0;
+  transition: opacity 0.3s ease-in-out;
+}
+
+.status-message.status-success {
+  opacity: 1;
+  background-color: rgba(40, 167, 69, 0.1);
+  color: #28a745;
+  border-left: 3px solid #28a745;
+}
+
+.status-message.status-error {
+  opacity: 1;
+  background-color: rgba(220, 53, 69, 0.1);
+  color: #dc3545;
+  border-left: 3px solid #dc3545;
+}
+
+/* Amélioration du bouton de configuration */
+.sf-config-button {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  background-color: #f8f9fa;
+  color: #212529;
+  border: 1px solid #dee2e6;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.sf-config-button:hover {
+  background-color: #e9ecef;
+}
+
+.sf-config-button svg {
+  margin-right: 8px;
+  color: #495057;
+}
+
+.sf-config-button.config-required {
+  background-color: #fff3cd;
+  border-color: #ffeeba;
+  color: #856404;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(255, 193, 7, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 193, 7, 0);
+  }
+}
+
+/* Spinner d'authentification */
+.auth-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(0, 0, 0, 0.1);
+  border-radius: 50%;
+  border-top-color: #0078d4;
+  animation: spin 1s linear infinite;
+  margin-right: 8px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Notification de configuration required */
+.config-required-notice {
+  background-color: #fff3cd;
+  border: 1px solid #ffeeba;
+  border-left: 4px solid #ffc107;
+  border-radius: 4px;
+  padding: 16px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+}
+
+.notice-icon {
+  color: #856404;
+  margin-right: 16px;
+}
+
+.notice-content {
+  flex-grow: 1;
+}
+
+.notice-content h3 {
+  margin: 0 0 8px 0;
+  color: #856404;
+}
+
+.notice-content p {
+  margin: 0;
+  color: #856404;
+}
+
+.configure-now-btn {
+  background-color: #ffc107;
+  color: #212529;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+}
+
+.configure-now-btn:hover {
+  background-color: #e0a800;
+}
+
+/* Formulaire de configuration */
+.form-group label.field-required:after {
+  content: ' *';
+  color: #dc3545;
+}
+
+.form-group input.error {
+  border-color: #dc3545;
+  background-color: #f8d7da;
+}
+
+.form-group input.warning {
+  border-color: #ffc107;
+  background-color: #fff3cd;
+}
+
+/* Help section */
+.help-section {
+  margin: 16px 0;
+  padding: 12px;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  border: 1px solid #e9ecef;
+}
+
+.help-section summary {
+  cursor: pointer;
+  padding: 4px 0;
+  color: #0078d4;
+  font-weight: 500;
+}
+
+.help-section summary:hover {
+  color: #0056b3;
+}
+
+.help-content {
+  margin-top: 12px;
+  font-size: 0.9rem;
+}
+
+.help-content ol {
+  padding-left: 24px;
+}
+
+.help-content li {
+  margin-bottom: 6px;
+}
+
+/* Adapt for mobile */
+@media (max-width: 768px) {
+  .modal-content {
+    width: 95%;
+    margin: 5% auto;
+  }
+  
+  .config-required-notice {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .notice-icon {
+    margin-right: 0;
+    margin-bottom: 12px;
+  }
+  
+  .configure-now-btn {
+    margin-top: 12px;
+  }
+}
+
+
+/* User info styles (continued) */
+.user-info-container {
+  margin-top: 10px;
+  padding: 8px 10px;
+  background-color: rgba(0, 120, 212, 0.08);
+  border-radius: 4px;
+  max-width: 300px;
+}
+
+.user-info {
+  font-size: 14px;
+}
+
+.user-name {
+  font-weight: bold;
+  color: var(--primary-color);
+}
+
+.user-email, .user-org {
+  font-size: 12px;
+  color: #666;
+  margin-top: 2px;
+}
+
+
+/* Transfer status styles */
+.transfer-pending, .status-success, .status-error, .status-warning {
+  display: flex;
+  align-items: flex-start;
+  padding: 12px 15px;
+  border-radius: 4px;
+  margin-bottom: 15px;
+}
+
+.transfer-pending {
+  background-color: #cfe2ff;
+  color: #084298;
+}
+
+.status-success {
+  background-color: #d1e7dd;
+  color: #0f5132;
+}
+
+.status-error {
+  background-color: #f8d7da;
+  color: #842029;
+}
+
+.status-warning {
+  background-color: #fff3cd;
+  color: #664d03;
+}
+
+.status-details {
+  background-color: #f8f9fa;
+  padding: 12px 15px;
+  border-radius: 4px;
+  margin-top: 10px;
+}
+
+/* Loading spinner */
+.spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 3px solid rgba(255,255,255,0.3);
+  border-radius: 50%;
+  border-top-color: #fff;
+  animation: spin 1s ease-in-out infinite;
+  margin-right: 10px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Attachments preview */
+.attachments-preview {
+  margin-top: 20px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  background-color: #f9f9f9;
+  padding: 15px;
+}
+
+.attachments-list {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+}
+
+.attachment-item {
+  display: flex;
+  align-items: center;
+  padding: 8px;
+  border-bottom: 1px solid #eee;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.attachment-item:last-child {
+  border-bottom: none;
+}
+
+.attachment-icon {
+  margin-right: 10px;
+  color: #0078d4;
+}
+
+.attachment-details {
+  flex: 1;
+}
+
+.attachment-name {
+  font-weight: bold;
+  margin-bottom: 3px;
+}
+
+.attachment-meta {
+  display: flex;
+  font-size: 12px;
+  color: #777;
+}
+
+.attachment-type {
+  margin-right: 15px;
+}
+
+/* Configuration notice */
+.config-required-notice {
+  display: flex;
+  align-items: center;
+  background-color: #fff3cd;
+  border: 1px solid #ffeeba;
+  border-left: 4px solid #ffc107;
+  border-radius: 4px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.notice-icon {
+  color: #856404;
+  margin-right: 16px;
+  flex-shrink: 0;
+}
+
+.notice-content {
+  flex-grow: 1;
+}
+
+.notice-content h3 {
+  color: #856404;
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.notice-content p {
+  color: #856404;
+  margin: 0;
+  font-size: 14px;
+}
+
+.configure-now-btn {
+  background-color: #ffc107;
+  color: #212529;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-weight: 500;
+  white-space: nowrap;
+  margin-left: 16px;
+  transition: background-color 0.2s;
+}
+
+.configure-now-btn:hover {
+  background-color: #e0a800;
+}
+
+/* Error messages */
+.error-message {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #dc3545;
+  color: white;
+  padding: 12px 20px;
+  border-radius: 4px;
+  max-width: 80%;
+  text-align: center;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+  animation: fadeIn 0.3s ease;
+  z-index: 1000;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translate(-50%, 20px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* Configuration modal */
+.modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+}
+
+.modal-content {
+  position: relative;
+  background-color: white;
+  margin: 10% auto;
+  width: 90%;
+  max-width: 600px;
+  border-radius: 8px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  padding: 20px;
+  animation: modalSlideIn 0.3s ease;
+}
+
+@keyframes modalSlideIn {
+  from { transform: translateY(-30px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #eee;
+  margin-bottom: 15px;
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: #333;
+}
+
+.close-modal {
+  cursor: pointer;
+  font-size: 24px;
+  color: #aaa;
+}
+
+.close-modal:hover {
+  color: #666;
+}
+
+.form-group {
+  margin-bottom: 15px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 500;
+}
+
+.form-group input,
+.form-group select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  border-color: #0078d4;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.25);
+}
+
+.form-group input.error {
+  border-color: #dc3545;
+  background-color: #fff8f8;
+}
+
+.form-group input.warning {
+  border-color: #ffc107;
+  background-color: #fffdf5;
+}
+
+.help-text {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 15px;
+  border-top: 1px solid #eee;
+  margin-top: 15px;
+}
+
+.btn-primary, .btn-secondary {
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+}
+
+.btn-primary {
+  background-color: #0078d4;
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: #0062a9;
+}
+
+.btn-secondary {
+  background-color: #6c757d;
+  color: white;
+  margin-right: 10px;
+}
+
+.btn-secondary:hover {
+  background-color: #5a6268;
+}
+
+.status-message {
+  margin-right: auto;
+  font-size: 14px;
+}
+
+.status-message.status-success {
+  color: #28a745;
+}
+
+.status-message.status-error {
+  color: #dc3545;
+}
+
+.status-message.status-progress {
+  color: #0078d4;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .modal-content {
+    width: 95%;
+    margin: 5% auto;
+  }
+  
+  .config-required-notice {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .notice-icon {
+    margin-right: 0;
+    margin-bottom: 12px;
+  }
+  
+  .configure-now-btn {
+    margin-top: 12px;
+    margin-left: 0;
+  }
+}
+
+
+/* Responsive layout for buttons */
+@media (max-width: 768px) {
+  /* Page title area with buttons */
+  .page-title {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 1rem;
+    gap: 15px;
+  }
+  
+  .page-title h2 {
+    width: 100%;
+    margin-bottom: 10px;
+  }
+  
+  /* Connection status wrapper */
+  .sf-connection-wrapper {
+    width: 100%;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  
+  /* Connection status indicator */
+  .sf-connection-status {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  /* Buttons in header */
+  .disconnect-btn, .sf-config-button {
+    width: 100%;
+    margin-left: 0;
+    justify-content: center;
+  }
+  
+  /* Back button */
+  .button-group {
+    width: 100%;
+    margin-right: 0;
+  }
+  
+  .action-button {
+    width: 100%;
+  }
+  
+  /* User info container */
+  .user-info-container {
+    width: 100%;
+    max-width: 100%;
+  }
+  
+  /* Transfer button */
+  .transfer-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Enhanced button styles for better visibility */
+.sf-connection-status {
+  padding: 8px 12px;
+  border: none;  
+}
+
+.disconnect-btn, .sf-config-button {
+  padding: 8px 12px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.disconnect-btn:hover, .sf-config-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Increased tap target size for mobile */
+@media (max-width: 480px) {
+  .disconnect-btn, .sf-config-button, .action-button {
+    padding: 12px 16px;
+    font-size: 16px;
+  }
+  
+  .sf-connection-status {
+    padding: 10px 14px;
+    font-size: 15px;
+  }
+}

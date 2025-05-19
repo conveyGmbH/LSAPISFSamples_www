@@ -4,12 +4,11 @@
     <title>Lead Success - Transfer to Salesforce</title>
     <meta charset="utf-8" />
     <meta http-equiv="Content-Security-Policy" 
-    content="default-src 'self' data: gap: https://ssl.gstatic.com 'unsafe-eval' 'unsafe-inline' https://delightful-desert-016e2a610.4.azurestaticapps.net/ https://lsapisamplesbackend-bhesadgtbja4dmgq.germanywestcentral-01.azurewebsites.net/; style-src 'self' 'unsafe-inline'; media-src 'self' data: https://*.convey.de http://*.convey.de; object-src 'self' blob: data:; frame-src 'self' blob: data:; connect-src 'self' blob: http://*.convey.de https://*.convey.de ws://127.0.0.1:5504 https://brave-bush-0041ef403.6.azurestaticapps.net/ http://localhost:3000 https://lsapisfbackend-hdasa3g8c4cah7d2.westeurope-01.azurewebsites.net/ https://delightful-desert-016e2a610.4.azurestaticapps.net/ https://lsapisamplesbackend-bhesadgtbja4dmgq.germanywestcentral-01.azurewebsites.net/;" />
+    content="default-src 'self' data: gap: https://ssl.gstatic.com 'unsafe-eval' 'unsafe-inline' https://delightful-desert-016e2a610.4.azurestaticapps.net/ https://lsapisamplesbackend-bhesadgtbja4dmgq.germanywestcentral-01.azurewebsites.net/; style-src 'self' 'unsafe-inline'; media-src 'self' data: https://*.convey.de http://*.convey.de; object-src 'self' blob: data:; frame-src 'self' blob: data:; connect-src 'self' blob: http://*.convey.de https://*.convey.de ws://127.0.0.1:5504 http://localhost:5504 https://brave-bush-0041ef403.6.azurestaticapps.net/ http://localhost:3000 http://localhost:5504 ws://localhost:5504 https://delightful-desert-016e2a610.4.azurestaticapps.net/ https://lsapisamplesbackend-bhesadgtbja4dmgq.germanywestcentral-01.azurewebsites.net/ https://*.salesforce.com https://*.force.com https://*.my.salesforce.com;" />
     <meta name="viewport" 
         content="user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, width=device-width" />
     <link href="../css/displayLeadTransfer.css" rel="stylesheet">
     <link rel="icon" type="image/x-icon" href="../images/api-sf.ico">
-    <script src="/js/config/config.js"></script>
 </head>
 <body>
     <header class="main-header">
@@ -18,7 +17,8 @@
         </div>
         <div class="header-right">
             <button id="logoutButton" class="logout-button">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
                     <polyline points="16 17 21 12 16 7"></polyline>
                     <line x1="21" y1="12" x2="9" y2="12"></line>
@@ -30,12 +30,12 @@
 
     <div class="sub-header">
         <h1 class="head-line">Salesforce API Manager</h1>
-        <h3>API documentation available 
+        <h3>API documentation available
             <a href="/docs/LeadSuccess_API_for SalesForce.pdf" download>here</a>
-            - 
+            -
             <button id="postmanButton" class="postman-button">
                 <img src="/images/postman-icon.svg" alt="Postman" width="16" height="16">
-                Test API in Postman 
+                Test API in Postman
             </button>
         </h3>
         <h2>Transfer Lead to Salesforce</h2>
@@ -44,7 +44,8 @@
     <div class="page-title">
         <div class="button-group">
             <button id="backButton" class="action-button">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <line x1="19" y1="12" x2="5" y2="12"></line>
                     <polyline points="12 19 5 12 12 5"></polyline>
                 </svg>
@@ -52,19 +53,62 @@
             </button>
         </div>
         <h2>Lead Data Preview</h2>
-        <div class="sf-connection-status" id="sfConnectionStatus">
-            <div class="status-indicator not-connected"></div>
-            <span>Salesforce connection status</span>
+        <div class="sf-connection-wrapper">
+            <div class="sf-connection-status" id="sfConnectionStatus">
+                <div class="status-indicator not-connected"></div>
+                <span>Salesforce connection status</span>
+            </div>
+
+            <button id="disconnectSalesforceBtn" class="disconnect-btn" style="display: none;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                    <polyline points="16 17 21 12 16 7"></polyline>
+                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+                Disconnect from Salesforce
+            </button>
+
+            <div id="salesforceUserInfo" class="user-info-container" style="display:none;">
+                <!-- User info will be dynamically inserted here -->
+            </div>
+            <button id="sfConfigButton" class="sf-config-button">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                </svg>
+                Configure Salesforce
+            </button>
         </div>
     </div>
 
     <div class="container">
+        <!-- Authentication required notice -->
+        <div id="auth-required-notice" class="auth-required-notice" style="display: none;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            <div class="auth-required-notice-content">
+                <h4>Salesforce Authentication Required</h4>
+                <p>You need to authenticate with Salesforce before transferring leads.</p>
+            </div>
+            <button id="authenticate-now-btn" class="auth-now-btn">
+                Authenticate Now
+            </button>
+        </div>
+
         <div id="validation-summary" style="display: none;" class="status-warning">
             <div class="status-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-                    <line x1="12" y1="9" x2="12" y2="13"/>
-                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path
+                        d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                    <line x1="12" y1="9" x2="12" y2="13" />
+                    <line x1="12" y1="17" x2="12.01" y2="17" />
                 </svg>
             </div>
             <div>
@@ -72,7 +116,7 @@
                 <ul id="validation-issues"></ul>
             </div>
         </div>
-        
+
         <div class="lead-preview">
             <div class="preview-header">
                 <h3>Lead Information</h3>
@@ -81,22 +125,23 @@
                     <span id="leadSource">-</span>
                 </div>
             </div>
-            
+
             <div id="leadData" class="lead-data">
                 <!-- Lead data will be displayed here -->
                 <div class="loading">Loading lead data...</div>
             </div>
-            
+
             <div class="action-panel">
                 <button id="transferToSalesforceBtn" class="transfer-btn">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M12 5v14M19 12l-7 7-7-7"/>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 5v14M19 12l-7 7-7-7" />
                     </svg>
-                    Transfer to Salesforce
+                    Connect & Transfer to Salesforce
                 </button>
             </div>
         </div>
-        
+
         <div class="transfer-results" id="transferResults" style="display: none;">
             <h3>Transfer Results</h3>
             <div id="transferStatus" class="transfer-status">
@@ -106,7 +151,7 @@
     </div>
 
     <div id="errorMessage" class="error-message" style="display: none;"></div>
-    
+
     <!-- Confirmation Modal for Duplicate Detection -->
     <div id="duplicateModal" class="modal" style="display: none;">
         <div class="modal-content">
@@ -125,9 +170,78 @@
             </div>
         </div>
     </div>
-    
 
+    <!-- Modal for Salesforce Configuration -->
+     <div id="salesforceConfigModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Salesforce Configuration</h3>
+                <span class="close-modal" id="closeSfConfigModal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p class="config-description">
+                    To connect to Salesforce, please provide your Salesforce Connected App credentials.
+                    These settings are required to transfer leads to your Salesforce instance.
+                </p>
+    
+                <div class="form-group">
+                    <label for="sf-client-id" class="field-required">Client ID</label>
+                    <input id="sf-client-id" type="text" required placeholder="Your Connected App Client ID" />
+                </div>
+    
+                <div class="form-group">
+                    <label for="sf-client-secret">Client Secret</label>
+                    <input id="sf-client-secret"  placeholder="Your Connected App Client Secret" />
+                    <span class="help-text small">
+                        Optional for web applications using the auth code flow
+                    </span>
+                </div>
+    
+                <div class="form-group">
+                    <label for="sf-login-url">Login URL</label>
+                    <select id="sf-login-url">
+                        <option value="https://login.salesforce.com">Production/Developer (login.salesforce.com)</option>
+                        <option value="https://test.salesforce.com">Sandbox (test.salesforce.com)</option>
+                    </select>
+                </div>
+    
+                <div class="form-group">
+                    <label for="sf-redirect-uri">Redirect URI</label>
+                    <input id="sf-redirect-uri" type="text" required placeholder="Redirect URI configured in your Connected App" />
+                    <span class="help-text small">
+                        Default: <span id="default-callback-url">http://localhost:3000/api/oauth2/callback</span>
+                    </span>
+                </div>
+            </div>
+    
+            <div class="help-section">
+                <details>
+                    <summary>How to obtain this information?</summary>
+                    <div class="help-content">
+                        <ol>
+                            <li>Log in to your Salesforce organization</li>
+                            <li>Go to Setup &gt; Platform Tools &gt; Apps &gt; App Manager</li>
+                            <li>Create a new Connected App or edit an existing one</li>
+                            <li>Enable OAuth and add the appropriate redirect URL</li>
+                            <li>Select the scopes: 'api', 'refresh_token' and 'id'</li>
+                            <li>After saving, copy the Consumer Key (Client ID) and Consumer Secret</li>
+                            <li><a href="/docs/Technical Documentation for Salesforce API_for_Customer.pdf" download>Download Technical Documentation for Salesforce API Integration</a></li>
+                        </ol>
+                    </div>
+                </details>
+            </div>
+    
+            <div class="modal-footer">
+                <div id="sf-config-status" class="status-message"></div>
+                <button id="resetConfigBtn" class="btn-secondary">Reset</button>
+                <button id="saveSfConfigBtn" class="btn-primary">Save & Connect</button>
+            </div>
+        </div>
+    </div>
+</div>
+    <!-- Scripts -->
     <script src="../js/config/salesforceConfig.js" type="module" defer></script>
+    <script src="../js/services/SalesforceService.js" type="module" defer></script>
     <script src="../js/controllers/postman-integration.js" type="module" defer></script>
     <script src="../js/controllers/headerController.js" type="module" defer></script>
     <script src="../js/controllers/displayLeadTransferController.js" type="module" defer></script>
