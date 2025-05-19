@@ -151,23 +151,23 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                 </div>
             `;
-            
+
             document.body.appendChild(modal);
-            
+
             // Close modal buttons
             document.getElementById('closeModalBtn').addEventListener('click', function() {
                 modal.remove();
             });
-            
+
             document.getElementById('cancelBtn').addEventListener('click', function() {
                 modal.remove();
             });
-            
+
             // Download collection button
             document.getElementById('downloadBtn').addEventListener('click', function() {
                 // Path to JSON collection file
                 const jsonFileUrl = `${window.location.origin}/postman/LeadSuccess-API-Collection.json`;
-                
+
                 // Create download link
                 const downloadLink = document.createElement('a');
                 downloadLink.href = jsonFileUrl;
@@ -175,7 +175,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.body.appendChild(downloadLink);
                 downloadLink.click();
                 document.body.removeChild(downloadLink);
-                
+
                 // Change modal content after download
                 const modalContent = document.querySelector('.postman-modal-content');
                 modalContent.innerHTML = `
@@ -197,20 +197,20 @@ document.addEventListener('DOMContentLoaded', function() {
                         </button>
                     </div>
                 `;
-                
+
                 // Add event listeners for the new buttons
                 document.getElementById('closeModalAfterBtn').addEventListener('click', function() {
                     modal.remove();
                 });
-                
+
                 document.getElementById('closeBtn').addEventListener('click', function() {
                     modal.remove();
                 });
-                
+
                 document.getElementById('openPostmanBtn').addEventListener('click', function() {
                     // Try to open Postman application
                     window.location.href = 'postman://';
-                    
+
                     // Close the modal
                     setTimeout(function() {
                         modal.remove();

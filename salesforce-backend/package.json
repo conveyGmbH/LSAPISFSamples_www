@@ -1,7 +1,7 @@
 {
   "name": "salesforce-backend",
   "version": "1.0.0",
-  "description": "Backend pour l'intégration Salesforce avec LeadSuccess",
+  "description": "Backend for Salesforce integration with LeadSuccess",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

@@ -221,47 +221,47 @@ function getColumnWidth(header, entity) {
 async function sortTable(index, th) {
 
   const headerText = th.childNodes[0].nodeValue.trim();
-  
+
   const previouslySelectedRow = document.querySelector('tr.selected');
   let previousItem = null;
-  
+
   if (previouslySelectedRow) {
     previousItem = getItemFromRow(previouslySelectedRow);
   }
-  
+
   let sortAsc;
-  
+
   if (lastSortedColumn !== headerText) {
     sortAsc = true;
     lastSortedColumn = headerText;
   } else {
     sortAsc = lastSortDirection === 'desc';
   }
-  
+
   lastSortDirection = sortAsc ? 'asc' : 'desc';
 
   const allHeaders = document.querySelectorAll('thead th');
   allHeaders.forEach(header => {
     header.classList.remove('asc', 'desc', 'active');
   });
-  
+
   th.classList.add(lastSortDirection, 'active');
-  
+
   const sortOrder = sortAsc ? headerText : `${headerText} desc`;
-  
+
   const eventId = sessionStorage.getItem('selectedEventId');
   if (!eventId) {
     alert('No EventId provided.');
     return;
   }
-  
+
   try {
     const noDataMessage = document.getElementById('noDataMessage');
     if (noDataMessage) noDataMessage.textContent = 'Chargement...';
 
     const filterParts = [];
     filterParts.push(`EventId eq '${escapeODataValue(eventId)}'`);
-    
+
     const storedFilters = JSON.parse(localStorage.getItem('LS_Lead_Filters')) || {};
     Object.entries(storedFilters).forEach(([field, value]) => {
       if (value && value.trim()) {
@@ -759,7 +759,7 @@ function resetLeadFilters(fields) {
     }
   });
   
-  // Désactiver le bouton Reset
+  // reset the filter button state
   const resetButton = document.getElementById('resetFiltersButton');
   if (resetButton) {
     resetButton.disabled = true;
