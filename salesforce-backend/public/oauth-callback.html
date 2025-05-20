@@ -1,4 +1,4 @@
-<!-- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -45,6 +45,17 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        .environment-indicator {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -68,59 +79,122 @@
         </div>
     </div>
 
+    <div id="environmentIndicator" class="environment-indicator"></div>
+
     <script>
+        // Identify whether we are in local development
+        const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        const currentEnvironment = isLocalDev ? 'Development' : 'Production';
+        
+        // Show the environment indicator only in development
+        if (isLocalDev) {
+            const envIndicator = document.getElementById('environmentIndicator');
+            envIndicator.textContent = 'LOCAL DEV MODE';
+            envIndicator.style.display = 'block';
+        }
+        
+        // Determine the target origin for postMessage based on environment
+        function getTargetOrigin() {
+            return isLocalDev 
+                ? 'http://localhost:5504'
+                : 'https://lsapisfsamples.convey.de';
+        }
+        
         document.addEventListener('DOMContentLoaded', function() {
-            // Parse URL parameters
+            console.log(`Running in ${currentEnvironment} environment`);
+            
             try {
-                // Check if we are redirected with a hash containing the access token
+                // Handle implicit flow (with access_token in hash)
                 if (window.location.hash) {
                     const params = {};
                     window.location.hash.substring(1).split('&').forEach(param => {
                         const [key, value] = param.split('=');
                         params[key] = decodeURIComponent(value);
                     });
-                    
+
                     console.log('Parameters extracted from hash:', params);
-                    
+
                     if (params.access_token) {
-                        // Successfully authenticated with implicit token flow
+                        // Token was received successfully
                         document.getElementById('loading').style.display = 'none';
                         document.getElementById('success').style.display = 'block';
-                        
-                        // Send token to parent window
+
                         if (window.opener) {
-                            window.opener.postMessage({
-                                access_token: params.access_token,
-                                instance_url: params.instance_url,
-                                token_type: params.token_type,
-                                issued_at: params.issued_at,
-                                id: params.id
-                            }, '*');
+                            const targetOrigin = getTargetOrigin();
+                            console.log(`Sending message to parent window at origin: ${targetOrigin}`);
                             
-                            // Close this window after a short delay
-                            setTimeout(function() {
-                                window.close();
-                            }, 2000);
+                            try {
+                                window.opener.postMessage({
+                                    access_token: params.access_token,
+                                    instance_url: params.instance_url,
+                                    token_type: params.token_type,
+                                    issued_at: params.issued_at,
+                                    id: params.id,
+                                    environment: currentEnvironment
+                                }, targetOrigin);
+                                console.log('Message sent successfully');
+                            } catch (postError) {
+                                console.error('Error sending message to parent:', postError);
+                                // Fallback to wildcard origin
+                                try {
+                                    console.log('Trying with wildcard origin...');
+                                    window.opener.postMessage({
+                                        access_token: params.access_token,
+                                        instance_url: params.instance_url,
+                                        token_type: params.token_type,
+                                        issued_at: params.issued_at,
+                                        id: params.id,
+                                        environment: currentEnvironment,
+                                        note: 'Sent with wildcard origin as fallback'
+                                    }, '*');
+                                } catch (wildcardError) {
+                                    console.error('Wildcard origin also failed:', wildcardError);
+                                    showError('Communication with parent window failed.');
+                                    return;
+                                }
+                            }
+
+                            // Store data in localStorage as backup
+                            try {
+                                localStorage.setItem('SF_ACCESS_TOKEN', params.access_token);
+                                localStorage.setItem('SF_INSTANCE_URL', params.instance_url);
+                                localStorage.setItem('SF_TOKEN_ISSUED_AT', params.issued_at);
+                                console.log('Tokens stored in localStorage as backup');
+                            } catch (storageError) {
+                                console.warn('Could not store in localStorage:', storageError);
+                            }
+
+                            setTimeout(() => window.close(), 2000);
                         } else {
-                            showError('Parent window not available. Please close this window manually.');
+                            // No opener: store in localStorage and redirect
+                            try {
+                                localStorage.setItem('SF_ACCESS_TOKEN', params.access_token);
+                                localStorage.setItem('SF_INSTANCE_URL', params.instance_url);
+                                localStorage.setItem('SF_TOKEN_ISSUED_AT', params.issued_at);
+
+                                const returnUrl = isLocalDev
+                                    ? 'http://localhost:5504/displayLeadTransfer.html?auth=success'
+                                    : 'https://lsapisfsamples.convey.de/displayLeadTransfer.html?auth=success';
+
+                                window.location.href = returnUrl;
+                            } catch (storageError) {
+                                showError('Failed to store authentication data: ' + storageError.message);
+                            }
                         }
                     } else if (params.error) {
-                        // Authentication error
                         showError(`Error: ${params.error_description || params.error}`);
                     } else {
-                        showError('Insufficient authentication information in the response.');
+                        showError('Missing authentication information in the response.');
                     }
                 } else if (window.location.search) {
-                    // Check if we are redirected with query parameters (code flow)
+                    // Authorization code flow, not expected here
                     const urlParams = new URLSearchParams(window.location.search);
                     const code = urlParams.get('code');
                     const error = urlParams.get('error');
-                    
+
                     if (code) {
-                        // We have a code, but this is not what we expect in this flow
                         showError('This callback is configured for the implicit flow (token), but received an authorization code. Please check your Connected App configuration.');
                     } else if (error) {
-                        // Explicit error
                         showError(`Error: ${urlParams.get('error_description') || error}`);
                     } else {
                         showError('No authentication parameters found in the URL.');
@@ -133,121 +207,34 @@
                 showError(`Processing error: ${error.message}`);
             }
         });
-        
+
         function showError(message) {
             document.getElementById('loading').style.display = 'none';
             document.getElementById('error').style.display = 'block';
             document.getElementById('errorMessage').textContent = message;
-            
-            // Send error to parent window
+
             if (window.opener) {
-                window.opener.postMessage({ 
-                    error: message 
-                }, '*');
-                
-                // Close this window after a delay
-                setTimeout(function() {
-                    window.close();
-                }, 5000);
-            }
-        }
-    </script>
-</body>
-</html> -->
-
-
-<!DOCTYPE html>
-<html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Salesforce Authentication</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            padding: 40px 20px;
-        }
-
-        .container {
-            max-width: 500px;
-            margin: 0 auto;
-        }
-    </style>
-</head>
-
-<body>
-    <div class="container">
-        <h2>Authentication Processing</h2>
-        <p>Please wait...</p>
-    </div>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            try {
-                // Check if we have a hash (for token flow)
-                if (window.location.hash) {
-                    // Extract parameters from the hash
-                    const params = {};
-                    window.location.hash.substring(1).split('&').forEach(pair => {
-                        const [key, value] = pair.split('=');
-                        params[key] = decodeURIComponent(value);
-                    });
-
-                    console.log('Token parameters extracted:', params);
-
-                    // Approach 1: Communicate with window.opener (if popup)
-                    if (window.opener && !window.opener.closed) {
-                        console.log('Sending token to parent window');
-                        // Send to all possible origins
-                        [
-                            'https://lsapisfsamples.convey.de',
-                            'http://localhost:5504'
-                        ].forEach(origin => {
-                            try {
-                                window.opener.postMessage({
-                                    type: 'salesforce-auth-token',
-                                    access_token: params.access_token,
-                                    instance_url: params.instance_url,
-                                    token_type: params.token_type,
-                                    issued_at: params.issued_at
-                                }, origin);
-                            } catch (e) {
-                                console.warn(`Failed to post to ${origin}:`, e);
-                            }
-                        });
-
-                        // Close after a delay
-                        setTimeout(() => window.close(), 2000);
-                        document.body.innerHTML = '<h2>Authentication Successful!</h2><p>You can close this window.</p>';
+                try {
+                    const targetOrigin = getTargetOrigin();
+                    window.opener.postMessage({ 
+                        error: message,
+                        environment: currentEnvironment
+                    }, targetOrigin);
+                } catch (e) {
+                    try {
+                        window.opener.postMessage({ 
+                            error: message,
+                            environment: currentEnvironment,
+                            note: 'Sent with wildcard origin as fallback'
+                        }, '*');
+                    } catch (wildcardError) {
+                        console.error('Failed to send error to parent window:', wildcardError);
                     }
-                    // Approach 2: Redirect (if no popup)
-                    else {
-                        console.log('No opener window, redirecting with token');
-                        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-                        const frontendURL = isLocalhost
-                            ? 'http://localhost:5504/index.html'
-                            : 'https://lsapisfsamples.convey.de/index.html';
-
-                        if (window.localStorage) {
-                            localStorage.setItem('SF_ACCESS_TOKEN', params.access_token);
-                            localStorage.setItem('SF_INSTANCE_URL', params.instance_url);
-                            localStorage.setItem('SF_TOKEN_ISSUED_AT', params.issued_at);
-                        }
-
-                        window.location.href = `${frontendURL}?auth=success&token=${encodeURIComponent(params.access_token)}&timestamp=${Date.now()}`;
-                    }
-                } else {
-                    console.error('No hash fragment found in URL');
-                    document.body.innerHTML = '<h2>Authentication Error</h2><p>No authentication data received. Please try again.</p>';
                 }
-            } catch (error) {
-                console.error('Error processing authentication:', error);
-                document.body.innerHTML = `<h2>Error</h2><p>${error.message}</p><p>Please try again.</p>`;
+
+                setTimeout(() => window.close(), 5000);
             }
-        });
+        }
     </script>
 </body>
-
 </html>
