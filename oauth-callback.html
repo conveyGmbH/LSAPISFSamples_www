@@ -1,4 +1,4 @@
-<!-- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -151,99 +151,6 @@
                 }, 5000);
             }
         }
-    </script>
-</body>
-</html> -->
-
-
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Salesforce Authentication</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            padding: 40px 20px;
-        }
-        .container {
-            max-width: 500px;
-            margin: 0 auto;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h2>Authentication Processing</h2>
-        <p>Please wait...</p>
-    </div>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            try {
-                // Vérifier si nous avons un hash (pour le flux token)
-                if (window.location.hash) {
-                    // Extraire les paramètres du hash
-                    const params = {};
-                    window.location.hash.substring(1).split('&').forEach(pair => {
-                        const [key, value] = pair.split('=');
-                        params[key] = decodeURIComponent(value);
-                    });
-                    
-                    console.log('Token parameters extracted:', params);
-                    
-                    // Approche 1: Communication avec window.opener (si popup)
-                    if (window.opener && !window.opener.closed) {
-                        console.log('Sending token to parent window');
-                        // Envoyer à toutes les origines possibles
-                        [
-                            'https://lsapisfsamples.convey.de',
-                            'http://localhost:5504'
-                        ].forEach(origin => {
-                            try {
-                                window.opener.postMessage({
-                                    type: 'salesforce-auth-token',
-                                    access_token: params.access_token,
-                                    instance_url: params.instance_url,
-                                    token_type: params.token_type,
-                                    issued_at: params.issued_at
-                                }, origin);
-                            } catch (e) {
-                                console.warn(`Failed to post to ${origin}:`, e);
-                            }
-                        });
-                        
-                        // Fermer après un délai
-                        setTimeout(() => window.close(), 2000);
-                        document.body.innerHTML = '<h2>Authentication Successful!</h2><p>You can close this window.</p>';
-                    } 
-                    // Approche 2: Redirection (si pas de popup)
-                    else {
-                        console.log('No opener window, redirecting with token');
-                        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-                        const frontendURL = isLocalhost 
-                            ? 'http://localhost:5504/index.html' 
-                            : 'https://lsapisfsamples.convey.de/index.html';
-                        
-                        if (window.localStorage) {
-                            localStorage.setItem('SF_ACCESS_TOKEN', params.access_token);
-                            localStorage.setItem('SF_INSTANCE_URL', params.instance_url);
-                            localStorage.setItem('SF_TOKEN_ISSUED_AT', params.issued_at);
-                        }
-                        
-                        window.location.href = `${frontendURL}?auth=success&token=${encodeURIComponent(params.access_token)}&timestamp=${Date.now()}`;
-                    }
-                } else {
-                    console.error('No hash fragment found in URL');
-                    document.body.innerHTML = '<h2>Authentication Error</h2><p>No authentication data received. Please try again.</p>';
-                }
-            } catch (error) {
-                console.error('Error processing authentication:', error);
-                document.body.innerHTML = `<h2>Error</h2><p>${error.message}</p><p>Please try again.</p>`;
-            }
-        });
     </script>
 </body>
 </html>
