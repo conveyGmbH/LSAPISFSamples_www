@@ -158,6 +158,7 @@
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -168,12 +169,14 @@
             text-align: center;
             padding: 40px 20px;
         }
+
         .container {
             max-width: 500px;
             margin: 0 auto;
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <h2>Authentication Processing</h2>
@@ -181,23 +184,23 @@
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             try {
-                // Vérifier si nous avons un hash (pour le flux token)
+                // Check if we have a hash (for token flow)
                 if (window.location.hash) {
-                    // Extraire les paramètres du hash
+                    // Extract parameters from the hash
                     const params = {};
                     window.location.hash.substring(1).split('&').forEach(pair => {
                         const [key, value] = pair.split('=');
                         params[key] = decodeURIComponent(value);
                     });
-                    
+
                     console.log('Token parameters extracted:', params);
-                    
-                    // Approche 1: Communication avec window.opener (si popup)
+
+                    // Approach 1: Communicate with window.opener (if popup)
                     if (window.opener && !window.opener.closed) {
                         console.log('Sending token to parent window');
-                        // Envoyer à toutes les origines possibles
+                        // Send to all possible origins
                         [
                             'https://lsapisfsamples.convey.de',
                             'http://localhost:5504'
@@ -214,25 +217,25 @@
                                 console.warn(`Failed to post to ${origin}:`, e);
                             }
                         });
-                        
-                        // Fermer après un délai
+
+                        // Close after a delay
                         setTimeout(() => window.close(), 2000);
                         document.body.innerHTML = '<h2>Authentication Successful!</h2><p>You can close this window.</p>';
-                    } 
-                    // Approche 2: Redirection (si pas de popup)
+                    }
+                    // Approach 2: Redirect (if no popup)
                     else {
                         console.log('No opener window, redirecting with token');
                         const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-                        const frontendURL = isLocalhost 
-                            ? 'http://localhost:5504/index.html' 
+                        const frontendURL = isLocalhost
+                            ? 'http://localhost:5504/index.html'
                             : 'https://lsapisfsamples.convey.de/index.html';
-                        
+
                         if (window.localStorage) {
                             localStorage.setItem('SF_ACCESS_TOKEN', params.access_token);
                             localStorage.setItem('SF_INSTANCE_URL', params.instance_url);
                             localStorage.setItem('SF_TOKEN_ISSUED_AT', params.issued_at);
                         }
-                        
+
                         window.location.href = `${frontendURL}?auth=success&token=${encodeURIComponent(params.access_token)}&timestamp=${Date.now()}`;
                     }
                 } else {
@@ -246,4 +249,5 @@
         });
     </script>
 </body>
+
 </html>
