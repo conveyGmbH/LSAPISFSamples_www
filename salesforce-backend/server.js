@@ -31,17 +31,36 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // CORS configuration
 app.use(cors({
-  origin: [
+  origin: function (origin, callback) {
+    
+    // Allow requests from specific origins
+    const allowedOrigins = [
     // Development origins
-    'http://127.0.0.1:5504', // local frontend
-    'http://localhost:5504', // local frontend
-    'http://localhost:3000', // local backend
+    'http://127.0.0.1:5504',
+    'http://localhost:5504', 
+    'http://localhost:3000', 
+  
     // Production origins
     'https://delightful-desert-016e2a610.4.azurestaticapps.net',
     'https://brave-bush-0041ef403.6.azurestaticapps.net',
     'https://lsapisfsamples.convey.de',
     'https://lsapisfbackend.convey.de'
-  ],
+  ]; 
+
+  if(!origin) return callback(null, true);
+
+  if(allowedOrigins.includes(origin)){
+    console.log(`CORS: Allowed origin: ${origin}`);
+    callback(null, true);
+  }else{
+    console.log(`CORS: Blocked origin:, ${origin}`);
+    if(process.env.NODE_ENV === 'development'){
+      callback(null, true)}
+      else{
+      callback(new Error('Not allowed by CORS'));
+      }
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Cache-Control', 'X-Session-Token']
@@ -85,10 +104,25 @@ app.use((req, res, next) => {
   next();
 });
 
-// CORS preflight for Salesforce userinfo endpoint
-// This is necessary for the Salesforce userinfo endpoint to work correctly
+
+// CORS middleware for authentication endpoints
 app.use('/api/salesforce/userinfo', (req, res, next) => {
-  res.header('Access-Control-Allow-Origin', 'https://lsapisfsamples.convey.de');
+  // In development mode, allow all origins
+  if (process.env.NODE_ENV === 'development') {
+    res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  } else {
+    // In production, use a specific list of allowed origins
+    const allowedOrigins = [
+      'https://lsapisfsamples.convey.de',
+      'https://lsapisfbackend.convey.de'
+    ];
+    
+    const origin = req.headers.origin;
+    if (allowedOrigins.includes(origin)) {
+      res.header('Access-Control-Allow-Origin', origin);
+    }
+  }
+  
   res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, Cache-Control, X-Session-Token');
   res.header('Access-Control-Allow-Credentials', 'true');
@@ -99,6 +133,7 @@ app.use('/api/salesforce/userinfo', (req, res, next) => {
   
   next();
 });
+
 
 /* API ROUTER SETUP */
 const apiRouter = express.Router();
