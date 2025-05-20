@@ -37,7 +37,6 @@ app.use(cors({
     'http://localhost:5504', // local frontend
     'http://localhost:3000', // local backend
     // Production origins
-    'https://lsapisfsamples.convey.de',
     'https://delightful-desert-016e2a610.4.azurestaticapps.net',
     'https://brave-bush-0041ef403.6.azurestaticapps.net',
     'https://lsapisfsamples.convey.de',
