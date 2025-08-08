@@ -374,69 +374,69 @@ apiRouter.post("/direct-lead-transfer", async (req, res) => {
     let attachmentErrors = [];    
 
   if (attachments && attachments.length > 0) {
-  
-  for (const attachment of attachments) {
-    try {
-      if (!attachment.Body || typeof attachment.Body !== 'string') {
-        throw new Error('Invalid attachment body');
-      }
 
-      const fileName = attachment.Name || '';
-      const isSVG = fileName.toLowerCase().endsWith('.svg') || 
-                    attachment.ContentType === 'image/svg+xml';
-
-
-      let cleanBase64 = attachment.Body.replace(/\s+/g, '');
-      
-      const base64Pattern = /^[A-Za-z0-9+/]*={0,2}$/;
-      if (!base64Pattern.test(cleanBase64)) {
-        throw new Error(`Invalid Base64 format for ${fileName}`);
-      }
-
-      if (isSVG) {
+      for (const attachment of attachments) {
         try {
-          const decodedContent = Buffer.from(cleanBase64, 'base64').toString('utf8');
-          if (!decodedContent.includes('<svg') && !decodedContent.includes('<?xml')) {
-          } else {
-            console.log(` SVG ${fileName} validation passed`);
+          if (!attachment.Body || typeof attachment.Body !== 'string') {
+            throw new Error('Invalid attachment body');
           }
-        } catch (svgDecodeError) {
-          console.warn(`SVG ${fileName} decode test failed:`, svgDecodeError.message);
+
+          const fileName = attachment.Name || '';
+          const isSVG = fileName.toLowerCase().endsWith('.svg') || 
+                        attachment.ContentType === 'image/svg+xml';
+
+
+          let cleanBase64 = attachment.Body.replace(/\s+/g, '');
+          
+          const base64Pattern = /^[A-Za-z0-9+/]*={0,2}$/;
+          if (!base64Pattern.test(cleanBase64)) {
+            throw new Error(`Invalid Base64 format for ${fileName}`);
+          }
+
+          if (isSVG) {
+            try {
+              const decodedContent = Buffer.from(cleanBase64, 'base64').toString('utf8');
+              if (!decodedContent.includes('<svg') && !decodedContent.includes('<?xml')) {
+              } else {
+                console.log(` SVG ${fileName} validation passed`);
+              }
+            } catch (svgDecodeError) {
+              console.warn(`SVG ${fileName} decode test failed:`, svgDecodeError.message);
+            }
+          }
+
+          const contentVersionData = {
+            Title: attachment.Name,
+            PathOnClient: attachment.Name,
+            VersionData: cleanBase64,
+            ContentLocation: 'S',
+            FirstPublishLocationId: leadId
+          };
+
+          const attachmentResponse = await fetch(`${instanceUrl}/services/data/v59.0/sobjects/ContentVersion`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${decodedToken}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(contentVersionData)
+          });
+
+          const attachmentResult = await attachmentResponse.json();
+
+          if (attachmentResponse.ok) {
+            attachmentsTransferred++;
+          } else {
+            console.error(`Upload failed for ${attachment.Name}:`, JSON.stringify(attachmentResult));
+            attachmentErrors.push(`Failed to upload ${attachment.Name}: ${attachmentResult[0]?.message || 'Unknown error'}`);
+          }
+
+        } catch (attachErr) {
+          console.error(`Error processing '${attachment.Name}':`, attachErr);
+          attachmentErrors.push(`Error with ${attachment.Name}: ${attachErr.message}`);
         }
       }
-
-      const contentVersionData = {
-        Title: attachment.Name,
-        PathOnClient: attachment.Name,
-        VersionData: cleanBase64,
-        ContentLocation: 'S',
-        FirstPublishLocationId: leadId
-      };
-      
-      const attachmentResponse = await fetch(`${instanceUrl}/services/data/v59.0/sobjects/ContentVersion`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${decodedToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(contentVersionData)
-      });
-      
-      const attachmentResult = await attachmentResponse.json();
-      
-      if (attachmentResponse.ok) {
-        attachmentsTransferred++;
-      } else {
-        console.error(`Upload failed for ${attachment.Name}:`, JSON.stringify(attachmentResult));
-        attachmentErrors.push(`Failed to upload ${attachment.Name}: ${attachmentResult[0]?.message || 'Unknown error'}`);
-      }
-      
-    } catch (attachErr) {
-      console.error(`Error processing '${attachment.Name}':`, attachErr);
-      attachmentErrors.push(`Error with ${attachment.Name}: ${attachErr.message}`);
     }
-  }
-}
 
     return res.json({
       success: true,
@@ -463,16 +463,16 @@ apiRouter.get('/salesforce/userinfo', async (req, res) => {
   if (!accessToken || !instanceUrl) {
     return res.status(400).json({ error: 'Access token and instance URL required' });
   }
-  
+
   try {
     const response = await fetch(`${instanceUrl}/services/oauth2/userinfo`, {
       headers: { 'Authorization': `Bearer ${accessToken}` }
     });
-    
+
     if (!response.ok) {
       throw new Error(`Salesforce error: ${response.status}`);
     }
-    
+
     const userData = await response.json();
     res.json(userData);
   } catch (error) {
