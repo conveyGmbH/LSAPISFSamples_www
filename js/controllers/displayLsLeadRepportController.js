@@ -10,6 +10,7 @@ if (!serverName || !apiName || !credentials) {
 }
 
 const apiService = new ApiService(serverName, apiName);
+console.log("API Service initialized with server:", serverName, "and API:", apiName, "apiService:", apiService);
 let nextUrl = "";
 
 const columnConfig = {
@@ -162,6 +163,7 @@ async function fetchLsLeadReportData() {
 
   try {
     const data = await apiService.request("GET", endpoint);
+    console.log("Fetched LS_LeadReport data:", data);
     if (data && data.d && data.d.results) {
       displayData(data.d.results);
 
