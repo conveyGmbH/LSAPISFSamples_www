@@ -1,4 +1,3 @@
-// headerController.js
 // This module handles the header controls, including logo click and logout functionality.
 document.addEventListener("DOMContentLoaded", () => {
   initHeaderControls();
