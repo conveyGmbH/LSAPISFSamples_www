@@ -7,7 +7,6 @@ const bodyParser = require('body-parser');
 const dotenv = require('dotenv');
 const path = require('path'); 
 
-// Load environment variables (only general config, no Salesforce variables)
 dotenv.config();
 
 const app = express();
@@ -39,6 +38,8 @@ app.use(cors({
     'http://127.0.0.1:5504',
     'http://localhost:5504', 
     'http://localhost:3000', 
+    'https://leadsuccess.convey.de/apisflsm/',
+    'https://leadsuccess.convey.de',    
   
     // Production origins
     'https://delightful-desert-016e2a610.4.azurestaticapps.net',
@@ -50,10 +51,8 @@ app.use(cors({
   if(!origin) return callback(null, true);
 
   if(allowedOrigins.includes(origin)){
-    console.log(`CORS: Allowed origin: ${origin}`);
     callback(null, true);
   }else{
-    console.log(`CORS: Blocked origin:, ${origin}`);
     if(process.env.NODE_ENV === 'development'){
       callback(null, true)}
       else{
@@ -69,13 +68,8 @@ app.use(cors({
 // Logging middleware for all requests
 app.use((req, res, next) => {
   const timestamp = new Date().toISOString();
-  console.log(`[${timestamp}] ${req.method} ${req.url}`);
   
-  // Log important headers
-  console.log('  Origin:', req.headers.origin);
-  console.log('  Content-Type:', req.headers['content-type']);
-  
-  // Log the body for POST/PUT requests but mask sensitive information
+    // Log the body for POST/PUT requests but mask sensitive information
   if ((req.method === 'POST' || req.method === 'PUT') && req.body) {
     const sanitizedBody = { ...req.body };
     // Mask sensitive information
@@ -85,18 +79,15 @@ app.use((req, res, next) => {
     if (sanitizedBody.accessToken) {
       sanitizedBody.accessToken = '***TOKEN***';
     }
-    console.log('  Body:', JSON.stringify(sanitizedBody));
   }
   
   // Capture the response for logging
   const originalSend = res.send;
-  res.send = function(body) {
-    console.log(`[${timestamp}] Response ${res.statusCode}`);
-    // Don't log response bodies that are too large
+  res.send = function(body) {   
     if (typeof body === 'string' && body.length < 1000) {
-      console.log('  Response Body:', body);
+      console.log('Response Body:', body);
     } else {
-      console.log('  Response Body: [Content too large to display]');
+      console.log('Response Body: [Content too large to display]');
     }
     return originalSend.call(this, body);
   };
@@ -107,7 +98,6 @@ app.use((req, res, next) => {
 
 // CORS middleware for authentication endpoints
 app.use('/api/salesforce/userinfo', (req, res, next) => {
-  // In development mode, allow all origins
   if (process.env.NODE_ENV === 'development') {
     res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
   } else {
@@ -152,7 +142,7 @@ apiRouter.post('/salesforce/auth', (req, res) => {
   res.json({ authUrl });
 });
 
-// Route for oauth-callback.html (for implicit flow)
+// Route for oauth-callback.html 
 app.get('/oauth-callback.html', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'oauth-callback.html'));
 });
@@ -184,25 +174,12 @@ apiRouter.post('/salesforce/token', async (req, res) => {
   const { code, clientConfig } = req.body;
 
   if (!code || !clientConfig || !clientConfig.SF_CLIENT_ID || !clientConfig.SF_CLIENT_SECRET || !clientConfig.SF_REDIRECT_URI) {
-    console.error('Invalid token request:', { 
-      hasCode: !!code, 
-      hasClientConfig: !!clientConfig, 
-      clientId: clientConfig?.SF_CLIENT_ID ? 'provided' : 'missing',
-      clientSecret: clientConfig?.SF_CLIENT_SECRET ? 'provided' : 'missing',
-      redirectUri: clientConfig?.SF_REDIRECT_URI || 'missing'
-    });
     return res.status(400).json({ error: 'Invalid request. Missing required fields.' });
   }
 
   try {
     const SF_LOGIN_URL = clientConfig.SF_LOGIN_URL || 'https://login.salesforce.com';
     const tokenUrl = `${SF_LOGIN_URL}/services/oauth2/token`;
-    
-    console.log('Exchanging code for token with Salesforce:', {
-      tokenUrl,
-      clientId: clientConfig.SF_CLIENT_ID,
-      redirectUri: clientConfig.SF_REDIRECT_URI
-    });
 
     const tokenRequest = new URLSearchParams({
       grant_type: 'authorization_code',
@@ -229,22 +206,14 @@ apiRouter.post('/salesforce/token', async (req, res) => {
     }
 
     if (!response.ok) {
-      console.error('Token exchange failed:', tokenData);
       throw new Error(tokenData.error_description || 'Failed to exchange token');
     }
 
-    console.log('Token exchange successful, fetching user info...');
     const userInfoResponse = await fetch(`${tokenData.instance_url}/services/oauth2/userinfo`, {
       headers: { 'Authorization': `Bearer ${tokenData.access_token}` }
     });
 
     const userInfo = await userInfoResponse.json();
-    console.log('User info retrieved:', {
-      name: userInfo.name,
-      email: userInfo.email,
-      organization_id: userInfo.organization_id
-    });
-
     res.json({ ...tokenData, userInfo });
   } catch (error) {
     console.error('Token exchange error:', error);
@@ -252,7 +221,7 @@ apiRouter.post('/salesforce/token', async (req, res) => {
   }
 });
 
-/* -------------------- LEAD CREATION -------------------- */
+// LEAD CREATION 
 
 // Create lead using client-provided credentials
 apiRouter.post('/salesforce/leads', async (req, res) => {
@@ -284,83 +253,82 @@ apiRouter.post('/salesforce/leads', async (req, res) => {
 
 
 // Direct lead transfer endpoint with attachments
-apiRouter.post('/direct-lead-transfer', async (req, res) => {
+apiRouter.post("/direct-lead-transfer", async (req, res) => {
   const { accessToken, instanceUrl, leadData, attachments } = req.body;
-  
-  console.log('Token present:', !!accessToken);
-  console.log('Instance URL:', !!instanceUrl);
-  console.log('Attachments count:', attachments ? attachments.length : '0');
-  
+
   if (!accessToken || !instanceUrl) {
-    console.error('Missing authentication data');
     return res.status(401).json({
       success: false,
-      message: 'Missing authentication data. Please connect to Salesforce.'
+      message: "Missing authentication data. Please connect to Salesforce.",
     });
   }
-  
+
   if (!leadData) {
-    console.error('Missing lead data');
     return res.status(400).json({
       success: false,
-      message: 'Lead data missing.'
+      message: "Lead data missing.",
     });
   }
-  
+
   try {
     // Ensure token is decoded
     const decodedToken = decodeURIComponent(accessToken);
-    
+
     // Basic check for duplicate lead by email
     if (leadData.Email) {
       try {
-        console.log('Checking for duplicate by email:', leadData.Email);
-        
-        const queryResponse = await fetch(`${instanceUrl}/services/data/v59.0/query?q=${encodeURIComponent(`SELECT Id, Name FROM Lead WHERE Email = '${leadData.Email.replace(/'/g, "\\'")}'`)}`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${decodedToken}`,
-            'Content-Type': 'application/json'
+        const queryResponse = await fetch(
+          `${instanceUrl}/services/data/v59.0/query?q=${encodeURIComponent(
+            `SELECT Id, Name FROM Lead WHERE Email = '${leadData.Email.replace(/'/g,"\\'")}'`)}`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${decodedToken}`,
+              "Content-Type": "application/json",
+            },
           }
-        });
-        
+        );
+
         if (queryResponse.ok) {
+
           const queryResult = await queryResponse.json();
-          
+
           if (queryResult.records && queryResult.records.length > 0) {
-            console.log('Duplicate lead found by email:', queryResult.records[0].Id);
+  
             return res.status(409).json({
               success: false,
               message: `A lead with this email already exists in Salesforce (ID: ${queryResult.records[0].Id})`,
-              duplicateId: queryResult.records[0].Id
+              duplicateId: queryResult.records[0].Id,
             });
           }
         }
       } catch (dupError) {
-        console.error('Error checking for duplicate:', dupError);
-        // Continue with transfer if duplicate check fails
+        console.error("Error checking for duplicate:", dupError);
       }
     }
-    
-    // Prepare lead data for Salesforce - with improved validation
-    console.log('Preparing lead data...');
+
     const sfLeadData = {
-      FirstName: leadData.FirstName || '',
-      LastName: leadData.LastName || 'Unknown',
-      Company: leadData.Company || 'Unknown',
-      Email: leadData.Email || '',
-      Phone: leadData.Phone || '',
-      MobilePhone: leadData.MobilePhone || '',
-      Title: leadData.Title || '',
-      Industry: leadData.Industry || '',
-      Description: leadData.Description || '',
-      LeadSource: 'LeadSuccess API'
+      FirstName: leadData.FirstName || "",
+      LastName: leadData.LastName || "Unknown",
+      Company: leadData.Company || "Unknown",
+      Email: leadData.Email || "",
+      Phone: leadData.Phone || "",
+      MobilePhone: leadData.MobilePhone || "",
+      Title: leadData.Title || "",
+      Industry: leadData.Industry || "",
+      Description: leadData.Description || "",
+      LeadSource: "LeadSuccess API",
     };
 
     // Function to clean field values before sending to Salesforce
     const cleanField = (value) => {
-      if (!value || value === 'N/A' || value === 'undefined' || value === 'null') {
-        return ''; // Empty string is safer than null for Salesforce
+      if (
+        !value ||
+        value === "N/A" ||
+        value === "undefined" ||
+        value === "null"
+      ) {
+        return ""; 
       }
       return value;
     };
@@ -368,92 +336,122 @@ apiRouter.post('/direct-lead-transfer', async (req, res) => {
     // Add address fields only if they have valid values
     if (leadData.Street) sfLeadData.Street = cleanField(leadData.Street);
     if (leadData.City) sfLeadData.City = cleanField(leadData.City);
-    if (leadData.PostalCode) sfLeadData.PostalCode = cleanField(leadData.PostalCode);
+    if (leadData.PostalCode)
+      sfLeadData.PostalCode = cleanField(leadData.PostalCode);
     if (leadData.Country) sfLeadData.Country = cleanField(leadData.Country);
     if (leadData.State) sfLeadData.State = cleanField(leadData.State);
+
     
-    // Create the lead in Salesforce
-    console.log('Creating lead in Salesforce...');
-    
-    const leadResponse = await fetch(`${instanceUrl}/services/data/v59.0/sobjects/Lead`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${decodedToken}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(sfLeadData)
-    });
-    
+    const leadResponse = await fetch(
+      `${instanceUrl}/services/data/v59.0/sobjects/Lead`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${decodedToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(sfLeadData),
+      }
+    );
+
     if (!leadResponse.ok) {
+
       const leadError = await leadResponse.json();
-      console.error('Lead creation failed:', leadError);
       return res.status(leadResponse.status).json({
         success: false,
-        message: `Failed to create lead: ${leadError[0]?.message || JSON.stringify(leadError)}`,
-        errors: leadError
+        message: `Failed to create lead: ${
+          leadError[0]?.message || JSON.stringify(leadError)
+        }`,
+        errors: leadError,
       });
     }
-    
+
     const leadResult = await leadResponse.json();
     const leadId = leadResult.id;
-    console.log('Lead created successfully, ID:', leadId);
-    
+
     // Process attachments if available
     let attachmentsTransferred = 0;
-    let attachmentErrors = [];
-    
-    if (attachments && attachments.length > 0) {
-      console.log(`Processing ${attachments.length} attachments for lead ${leadId}`);
+    let attachmentErrors = [];    
+
+  if (attachments && attachments.length > 0) {
+  
+  for (const attachment of attachments) {
+    try {
+      if (!attachment.Body || typeof attachment.Body !== 'string') {
+        throw new Error('Invalid attachment body');
+      }
+
+      const fileName = attachment.Name || '';
+      const isSVG = fileName.toLowerCase().endsWith('.svg') || 
+                    attachment.ContentType === 'image/svg+xml';
+
+
+      let cleanBase64 = attachment.Body.replace(/\s+/g, '');
       
-      for (const attachment of attachments) {
+      const base64Pattern = /^[A-Za-z0-9+/]*={0,2}$/;
+      if (!base64Pattern.test(cleanBase64)) {
+        throw new Error(`Invalid Base64 format for ${fileName}`);
+      }
+
+      if (isSVG) {
         try {
-          // Create ContentVersion record in Salesforce
-          const contentVersionData = {
-            Title: attachment.Name,
-            PathOnClient: attachment.Name,
-            VersionData: attachment.Body,
-            ContentLocation: 'S', // S for Salesforce, E for External
-            FirstPublishLocationId: leadId // Link to the Lead record
-          };
-          
-          const attachmentResponse = await fetch(`${instanceUrl}/services/data/v59.0/sobjects/ContentVersion`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${decodedToken}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(contentVersionData)
-          });
-          
-          const attachmentResult = await attachmentResponse.json();
-          
-          if (attachmentResponse.ok) {
-            attachmentsTransferred++;
-            console.log(`Attachment '${attachment.Name}' created, ID: ${attachmentResult.id}`);
+          const decodedContent = Buffer.from(cleanBase64, 'base64').toString('utf8');
+          if (!decodedContent.includes('<svg') && !decodedContent.includes('<?xml')) {
           } else {
-            console.error(`Attachment creation failed: ${JSON.stringify(attachmentResult)}`);
-            attachmentErrors.push(`Failed to upload ${attachment.Name}: ${attachmentResult[0]?.message || 'Unknown error'}`);
+            console.log(` SVG ${fileName} validation passed`);
           }
-        } catch (attachErr) {
-          console.error(`Error creating attachment '${attachment.Name}':`, attachErr);
-          attachmentErrors.push(`Error with ${attachment.Name}: ${attachErr.message}`);
+        } catch (svgDecodeError) {
+          console.warn(`SVG ${fileName} decode test failed:`, svgDecodeError.message);
         }
       }
+
+      const contentVersionData = {
+        Title: attachment.Name,
+        PathOnClient: attachment.Name,
+        VersionData: cleanBase64,
+        ContentLocation: 'S',
+        FirstPublishLocationId: leadId
+      };
+      
+      const attachmentResponse = await fetch(`${instanceUrl}/services/data/v59.0/sobjects/ContentVersion`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${decodedToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(contentVersionData)
+      });
+      
+      const attachmentResult = await attachmentResponse.json();
+      
+      if (attachmentResponse.ok) {
+        attachmentsTransferred++;
+      } else {
+        console.error(`Upload failed for ${attachment.Name}:`, JSON.stringify(attachmentResult));
+        attachmentErrors.push(`Failed to upload ${attachment.Name}: ${attachmentResult[0]?.message || 'Unknown error'}`);
+      }
+      
+    } catch (attachErr) {
+      console.error(`Error processing '${attachment.Name}':`, attachErr);
+      attachmentErrors.push(`Error with ${attachment.Name}: ${attachErr.message}`);
     }
-    
+  }
+}
+
     return res.json({
       success: true,
       leadId: leadId,
-      status: 'Transferred',
-      message: 'Lead successfully transferred to Salesforce',
+      status: "Transferred",
+      message: "Lead successfully transferred to Salesforce",
       attachmentsTransferred,
-      attachmentErrors: attachmentErrors.length > 0 ? attachmentErrors : undefined
+      attachmentErrors:
+        attachmentErrors.length > 0 ? attachmentErrors : undefined,
     });
   } catch (error) {
-    console.error('Error during lead transfer:', error);
+    console.error("Error during lead transfer:", error);
     return res.status(500).json({
       success: false,
-      message: `Error: ${error.message}`
+      message: `Error: ${error.message}`,
     });
   }
 });
@@ -485,12 +483,11 @@ apiRouter.get('/salesforce/userinfo', async (req, res) => {
 
 
 
-/* -------------------- UTILITY ROUTES -------------------- */
+// UTILITY ROUTES 
 
 // Health check endpoint
 apiRouter.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', timestamp: Date.now(), service: 'leadSuccess-api' });
-  console.log("Health check endpoint accessed");
 });
 
 // Root API route

@@ -31,10 +31,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // Initialize Salesforce configuration controller
   try {
-    // Get singleton instance
     const configController = SalesforceConfigController.getInstance();
 
-    // Check if configuration exists
     const hasConfig = salesforceService.hasClientConfig();
 
     // Show configuration notice if needed
@@ -804,25 +802,82 @@ async function fetchAttachments(attachmentIdList) {
       }
 
       if (attachmentData && attachmentData.Body) {
+
         const itemElement = document.getElementById(itemId);
+
         if (itemElement) {
           itemElement.className = "attachment-item success";
-          itemElement.querySelector(".attachment-name").textContent =
-            attachmentData.Name || `Attachment ${i + 1}`;
-          itemElement.querySelector(".attachment-status").textContent =
-            "Ready for transfer";
+          itemElement.querySelector(".attachment-name").textContent = attachmentData.Name || `Attachment ${i + 1}`;
+          itemElement.querySelector(".attachment-status").textContent = " Ready for transfer";
         }
 
-        // Encode body for transfer
-        const encodedBody = btoa(unescape(encodeURIComponent(attachmentData.Body)));
+        // Detect file type and process accordingly 
+        const fileName = attachmentData.Name || '';
+        const extension = fileName.split('.').pop().toLowerCase();
+        const isSVG = extension === 'svg' || attachmentData.ContentType === 'image/svg+xml';
+        
+        let processedBody = attachmentData.Body;
+        let finalContentType = attachmentData.ContentType;
 
-        // Add to attachments list
-        attachments.push({
-          Name: attachmentData.Name || `Attachment_${i + 1}`,
-          Body: encodedBody,
-          ContentType: attachmentData.ContentType || "application/octet-stream",
+        // Process SVG files differently
+        if (isSVG) {
+          console.log('Processing SVG file:', fileName);
+          
+          try {
+            if (attachmentData.Body.length > 0) {
+              const testDecode = atob(attachmentData.Body.replace(/\s+/g, ''));
+              
+              if (testDecode.includes('<svg') || testDecode.includes('<?xml')) {
+                processedBody = attachmentData.Body.replace(/\s+/g, '');
+                console.log('SVG: Valid Base64 detected');
+              } else {
+                throw new Error('Base64 does not contain SVG content');
+              }
+            }
+          } catch (decodeError) {
+            if (attachmentData.Body.includes('<svg') || attachmentData.Body.includes('<?xml')) {
+              console.log('SVG: Raw XML detected, encoding to Base64');
+              processedBody = btoa(unescape(encodeURIComponent(attachmentData.Body)));
+            } else {
+              console.error('SVG: Unable to process - neither valid Base64 nor XML:', fileName);
+              processedBody = attachmentData.Body.replace(/\s+/g, '');
+            }
+          }
+          
+          finalContentType = 'image/svg+xml';
+        } else {
+          // Clean up Base64 string by removing whitespace
+          processedBody = attachmentData.Body.replace(/\s+/g, '');
+
+          if (!finalContentType) {
+            const mimeTypes = {
+              'pdf': 'application/pdf',
+              'jpg': 'image/jpeg',
+              'jpeg': 'image/jpeg',
+              'png': 'image/png',
+              'gif': 'image/gif',
+              'txt': 'text/plain',
+              'doc': 'application/msword',
+              'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            };
+            finalContentType = mimeTypes[extension] || 'application/octet-stream';
+          }
+        }
+
+        console.log(`Attachment processed: ${fileName}`, {
+          originalBodyLength: attachmentData.Body.length,
+          processedBodyLength: processedBody.length,
+          contentType: finalContentType,
+          isSVG: isSVG
         });
-      } else {
+
+        attachments.push({
+          Name: fileName,
+          Body: processedBody,
+          ContentType: finalContentType,
+        });
+      }
+      else {
         const itemElement = document.getElementById(itemId);
         if (itemElement) {
           itemElement.className = "attachment-item failure";
@@ -847,6 +902,7 @@ async function fetchAttachments(attachmentIdList) {
       progressElement.textContent = `${i + 1}/${attachmentIds.length} prepared`;
     }
   }
+
 
   return attachments;
 }

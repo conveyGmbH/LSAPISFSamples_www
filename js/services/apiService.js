@@ -36,6 +36,7 @@ export default class ApiService {
 
       const url = `https://${this.serverName}/${this.apiName}/${endpoint}`;
 
+      console.log("Request URL:", url);
       const response = await fetch(url, config);
 
       if (!response.ok) {
