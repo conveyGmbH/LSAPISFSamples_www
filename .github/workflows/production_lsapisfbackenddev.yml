@@ -26,21 +26,17 @@ jobs:
           cache-dependency-path: salesforce-backend/package-lock.json
 
       - name: npm install, build, and test
+        working-directory: salesforce-backend
         run: |
-         cd salesforce-backend
           npm install
           npm run build --if-present
           npm run test --if-present
-          
-      - name: Build (if present)
-        working-directory: salesforce-backend
-        run: npm run build --if-present
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: node-app
-          path: .
+          path: salesforce-backend
 
   deploy:
     runs-on: ubuntu-latest
