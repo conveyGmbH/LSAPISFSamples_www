@@ -1732,7 +1732,7 @@ async function transferLeadDirectlyToSalesforce(leadData, attachments) {
       Description: leadData.Description || null,
       Industry: leadData.Industry || null,
       Salutation: leadData.Salutation || null,
-      Department__c: leadData.Department || null,
+      // Department__c: leadData.Department || null, // Champ personnalisé désactivé - n'existe pas dans Salesforce
     };
 
     // Remove null/empty values
