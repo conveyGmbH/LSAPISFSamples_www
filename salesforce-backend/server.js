@@ -52,8 +52,9 @@ const config = {
         isProduction: envConfig.isProduction
     },
     salesforce: {
-        clientId: process.env.SF_CLIENT_ID,
-        clientSecret: process.env.SF_CLIENT_SECRET,
+        // Optional default credentials (for backward compatibility)
+        clientId: process.env.SF_CLIENT_ID || null,
+        clientSecret: process.env.SF_CLIENT_SECRET || null,
         redirectUri: envConfig.redirectUri,
         loginUrl: process.env.SF_LOGIN_URL || 'https://login.salesforce.com'
     },
@@ -69,10 +70,11 @@ const config = {
     }
 };
 
-// Validate required environment variables
-if (!config.salesforce.clientId || !config.salesforce.clientSecret) {
-    console.error('❌ Missing required Salesforce credentials. Please check your .env file.');
-    process.exit(1);
+// Log configuration status
+if (config.salesforce.clientId && config.salesforce.clientSecret) {
+    console.log('✅ Default Salesforce credentials configured (optional for multi-client setup)');
+} else {
+    console.log('ℹ️  No default Salesforce credentials - clients will provide their own credentials');
 }
 
 app.use(cors({
@@ -124,12 +126,17 @@ app.use(express.static(path.join(__dirname, '../')));
 const connections = new Map(); // orgId -> connection data
 
 function createConnection(sessionData) {
+    // Use client-specific credentials if available, otherwise fall back to default
+    const clientId = sessionData.clientId || config.salesforce.clientId;
+    const clientSecret = sessionData.clientSecret || config.salesforce.clientSecret;
+    const loginUrl = sessionData.loginUrl || config.salesforce.loginUrl;
+
     const conn = new jsforce.Connection({
         oauth2: {
-            clientId: config.salesforce.clientId,
-            clientSecret: config.salesforce.clientSecret,
+            clientId: clientId,
+            clientSecret: clientSecret,
             redirectUri: config.salesforce.redirectUri,
-            loginUrl: config.salesforce.loginUrl
+            loginUrl: loginUrl
         },
         accessToken: sessionData.accessToken,
         refreshToken: sessionData.refreshToken,
@@ -299,14 +306,38 @@ function validateAndFixLeadData(leadData) {
 app.get('/auth/salesforce', (req, res) => {
     try {
         const orgId = req.query.orgId || 'default';
+        // Client provides their own credentials via query params
+        const clientId = req.query.clientId || config.salesforce.clientId;
+        const clientSecret = req.query.clientSecret || config.salesforce.clientSecret;
+        const loginUrl = req.query.loginUrl || config.salesforce.loginUrl;
+
+        // Validate that credentials are provided
+        if (!clientId || !clientSecret) {
+            return res.status(400).send(`
+                <html><body>
+                    <h2>Configuration Error</h2>
+                    <p>Salesforce Client ID and Client Secret are required.</p>
+                    <p>Please provide credentials via query parameters: clientId and clientSecret</p>
+                    <button onclick="window.close()">Close Window</button>
+                </body></html>
+            `);
+        }
+
         const state = `${generateState()}:${orgId}`;
         req.session.oauthState = state;
 
+        // Store client credentials in session for callback
+        req.session.clientCredentials = {
+            clientId,
+            clientSecret,
+            loginUrl
+        };
+
         const oauth2 = new jsforce.OAuth2({
-            clientId: config.salesforce.clientId,
-            clientSecret: config.salesforce.clientSecret,
+            clientId: clientId,
+            clientSecret: clientSecret,
             redirectUri: config.salesforce.redirectUri,
-            loginUrl: config.salesforce.loginUrl
+            loginUrl: loginUrl
         });
 
         const authUrl = oauth2.getAuthorizationUrl({
@@ -315,6 +346,7 @@ app.get('/auth/salesforce', (req, res) => {
         });
 
         console.log('🔗 Redirecting to Salesforce OAuth:', authUrl);
+        console.log('🔑 Using client-provided credentials');
         res.redirect(authUrl);
 
     } catch (error) {
@@ -349,11 +381,21 @@ app.get('/oauth/callback', async (req, res) => {
         // Extract orgId from state (format: "randomState:orgId")
         const orgId = state.includes(':') ? state.split(':')[1] : 'default';
 
+        // Get client credentials from session
+        const clientCredentials = req.session.clientCredentials || {};
+        const clientId = clientCredentials.clientId || config.salesforce.clientId;
+        const clientSecret = clientCredentials.clientSecret || config.salesforce.clientSecret;
+        const loginUrl = clientCredentials.loginUrl || config.salesforce.loginUrl;
+
+        if (!clientId || !clientSecret) {
+            throw new Error('Client credentials not found in session');
+        }
+
         const oauth2 = new jsforce.OAuth2({
-            clientId: config.salesforce.clientId,
-            clientSecret: config.salesforce.clientSecret,
+            clientId: clientId,
+            clientSecret: clientSecret,
             redirectUri: config.salesforce.redirectUri,
-            loginUrl: config.salesforce.loginUrl
+            loginUrl: loginUrl
         });
 
         // Exchange code for tokens
@@ -385,14 +427,18 @@ app.get('/oauth/callback', async (req, res) => {
             console.log('⚠️ Could not fetch detailed user info, using basic info:', apiError.message);
         }
 
-        // Store session data
+        // Store session data with client credentials
         const sessionData = {
             accessToken: conn.accessToken,
             refreshToken: conn.refreshToken,
             instanceUrl: conn.instanceUrl,
             organizationId: userInfo.organizationId,
             userId: userInfo.id,
-            userInfo: fullUserInfo
+            userInfo: fullUserInfo,
+            // Store client-specific credentials
+            clientId: clientId,
+            clientSecret: clientSecret,
+            loginUrl: loginUrl
         };
 
         // Store in session and connection manager
@@ -663,17 +709,36 @@ app.post('/api/orgs/:orgId/leads/check-duplicate', authMiddleware, async (req, r
 // LEGACY API ROUTES (for backward compatibility)
 // =======================================================================
 
-// Get Salesforce auth URL
+// Get Salesforce auth URL (supports both GET and POST)
 app.get('/api/salesforce/auth', (req, res) => {
     try {
+        // Get credentials from query params or use defaults
+        const clientId = req.query.clientId || config.salesforce.clientId;
+        const clientSecret = req.query.clientSecret || config.salesforce.clientSecret;
+        const loginUrl = req.query.loginUrl || config.salesforce.loginUrl;
+
+        if (!clientId || !clientSecret) {
+            return res.status(400).json({
+                message: 'Salesforce Client ID and Client Secret are required',
+                hint: 'Provide clientId and clientSecret as query parameters'
+            });
+        }
+
         const state = generateState();
         req.session.oauthState = state;
 
+        // Store credentials in session for callback
+        req.session.clientCredentials = {
+            clientId,
+            clientSecret,
+            loginUrl
+        };
+
         const oauth2 = new jsforce.OAuth2({
-            clientId: config.salesforce.clientId,
-            clientSecret: config.salesforce.clientSecret,
+            clientId: clientId,
+            clientSecret: clientSecret,
             redirectUri: config.salesforce.redirectUri,
-            loginUrl: config.salesforce.loginUrl
+            loginUrl: loginUrl
         });
 
         const authUrl = oauth2.getAuthorizationUrl({
@@ -681,6 +746,50 @@ app.get('/api/salesforce/auth', (req, res) => {
             state: state
         });
 
+        console.log('🔗 Generated auth URL with client-provided credentials');
+        res.json({ authUrl });
+
+    } catch (error) {
+        console.error('❌ Failed to generate auth URL:', error);
+        res.status(500).json({ message: 'Failed to generate auth URL' });
+    }
+});
+
+// POST version for sending credentials in body (more secure)
+app.post('/api/salesforce/auth', (req, res) => {
+    try {
+        const { clientId, clientSecret, loginUrl } = req.body;
+
+        if (!clientId || !clientSecret) {
+            return res.status(400).json({
+                message: 'Salesforce Client ID and Client Secret are required',
+                hint: 'Provide clientId and clientSecret in request body'
+            });
+        }
+
+        const state = generateState();
+        req.session.oauthState = state;
+
+        // Store credentials in session for callback
+        req.session.clientCredentials = {
+            clientId,
+            clientSecret,
+            loginUrl: loginUrl || config.salesforce.loginUrl
+        };
+
+        const oauth2 = new jsforce.OAuth2({
+            clientId: clientId,
+            clientSecret: clientSecret,
+            redirectUri: config.salesforce.redirectUri,
+            loginUrl: loginUrl || config.salesforce.loginUrl
+        });
+
+        const authUrl = oauth2.getAuthorizationUrl({
+            scope: 'api refresh_token',
+            state: state
+        });
+
+        console.log('🔗 Generated auth URL with client-provided credentials (POST)');
         res.json({ authUrl });
 
     } catch (error) {

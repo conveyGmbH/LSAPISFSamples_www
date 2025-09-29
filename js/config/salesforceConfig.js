@@ -15,7 +15,7 @@ export const appConfig = {
     }
     return this.isProduction
       ? 'https://lsapisfbackend.convey.de/api'
-      : 'https://lsapisamplesbackend-bhesadgtbja4dmgq.germanywestcentral-01.azurewebsites.net/api';
+      : 'https://lsapisfbackenddev-gnfbema5gcaxdahz.germanywestcentral-01.azurewebsites.net/api';
   },
 
   // OAuth2 callback URL for Salesforce

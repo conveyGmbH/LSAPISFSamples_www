@@ -4568,15 +4568,9 @@ window.leadTransferController = {
   saveFieldValue
 };
 
-// ===== SYSTÈME D'ÉDITION AVEC DEUX ICÔNES ET API FETCH =====
 
-
-/**
- * Fetch les dernières données depuis l'API avant d'éditer
- */
 async function fetchLatestDataBeforeEdit(fieldName, currentValue, config) {
     try {
-        // Afficher un indicateur de chargement
         showLoadingIndicator(fieldName, 'Fetching latest data...');
 
         const eventId = sessionStorage.getItem('selectedEventId');
@@ -4584,13 +4578,11 @@ async function fetchLatestDataBeforeEdit(fieldName, currentValue, config) {
             throw new Error('No EventId found');
         }
 
-        // Construire l'URL de l'API selon l'environnement
+      
         const apiBaseUrl = appConfig.apiBaseUrl;
         const apiUrl = `${apiBaseUrl}/leads/${eventId}`;
 
-        console.log(`📡 Fetching data from: ${apiUrl}`);
 
-        // Faire l'appel API
         const response = await fetch(apiUrl, {
             method: 'GET',
             headers: {

@@ -454,6 +454,7 @@ salesforce-backend/package-simple.json
 dev-notes/
 docs/dev/
 temp-data/
+MULTI_CLIENT_SETUP.md
 
 # Test & Sample Data
 sample-data/
