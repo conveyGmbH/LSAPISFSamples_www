@@ -468,7 +468,7 @@ ai-session-*
 claude-session-*
 
 # Images and Assets
-images/
+img/
 *.png
 *.jpg
 *.jpeg
