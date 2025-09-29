@@ -13,9 +13,8 @@ export const appConfig = {
     if (isLocalDev) {
       return 'http://localhost:3000/api';  // dev local backend
     }
-    return this.isProduction
-      ? 'https://lsapisfbackend.convey.de/api'
-      : 'https://lsapisfbackenddev-gnfbema5gcaxdahz.germanywestcentral-01.azurewebsites.net/api';
+    // Use Azure backend for both production and staging
+    return 'https://lsapisfbackenddev-gnfbema5gcaxdahz.germanywestcentral-01.azurewebsites.net/api';
   },
 
   // OAuth2 callback URL for Salesforce

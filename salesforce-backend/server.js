@@ -306,22 +306,108 @@ function validateAndFixLeadData(leadData) {
 app.get('/auth/salesforce', (req, res) => {
     try {
         const orgId = req.query.orgId || 'default';
-        // Client provides their own credentials via query params
+        // Client provides their own credentials via query params OR use defaults from .env
         const clientId = req.query.clientId || config.salesforce.clientId;
         const clientSecret = req.query.clientSecret || config.salesforce.clientSecret;
         const loginUrl = req.query.loginUrl || config.salesforce.loginUrl;
 
-        // Validate that credentials are provided
+        // Validate that credentials are available (either from params or config)
         if (!clientId || !clientSecret) {
+            console.error('❌ No credentials available - neither from query params nor from environment');
             return res.status(400).send(`
-                <html><body>
-                    <h2>Configuration Error</h2>
-                    <p>Salesforce Client ID and Client Secret are required.</p>
-                    <p>Please provide credentials via query parameters: clientId and clientSecret</p>
-                    <button onclick="window.close()">Close Window</button>
-                </body></html>
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Configuration Error</title>
+                    <style>
+                        * { margin: 0; padding: 0; box-sizing: border-box; }
+                        body {
+                            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                            min-height: 100vh;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            color: #333;
+                        }
+                        .container {
+                            max-width: 480px;
+                            width: 90%;
+                            background: rgba(255, 255, 255, 0.95);
+                            backdrop-filter: blur(20px);
+                            border-radius: 24px;
+                            padding: 40px;
+                            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+                            text-align: center;
+                        }
+                        .error-icon {
+                            width: 80px;
+                            height: 80px;
+                            margin: 0 auto 24px;
+                            background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+                            border-radius: 50%;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                        }
+                        .error-icon svg {
+                            width: 40px;
+                            height: 40px;
+                            color: white;
+                        }
+                        h2 {
+                            font-size: 28px;
+                            font-weight: 700;
+                            margin-bottom: 16px;
+                            color: #D97706;
+                        }
+                        p {
+                            color: #92400E;
+                            margin-bottom: 12px;
+                            line-height: 1.6;
+                            font-size: 16px;
+                        }
+                        button {
+                            background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+                            color: white;
+                            border: none;
+                            padding: 12px 32px;
+                            border-radius: 12px;
+                            font-size: 16px;
+                            font-weight: 600;
+                            cursor: pointer;
+                            transition: transform 0.2s;
+                            margin-top: 16px;
+                        }
+                        button:hover {
+                            transform: scale(1.05);
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="error-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                                <line x1="12" y1="9" x2="12" y2="13"/>
+                                <line x1="12" y1="17" x2="12.01" y2="17"/>
+                            </svg>
+                        </div>
+                        <h2>⚠️ Configuration Error</h2>
+                        <p>Salesforce Client ID and Client Secret are required.</p>
+                        <p>Please configure SF_CLIENT_ID and SF_CLIENT_SECRET in your environment variables.</p>
+                        <button onclick="window.close()">Close Window</button>
+                    </div>
+                    <script>setTimeout(() => window.close(), 5000);</script>
+                </body>
+                </html>
             `);
         }
+
+        console.log(`🔑 Using credentials: ${clientId ? 'Client-provided' : 'Default from .env'}`);
+        console.log(`🔗 Starting OAuth flow for orgId: ${orgId}`);
 
         const state = `${generateState()}:${orgId}`;
         req.session.oauthState = state;
@@ -352,11 +438,87 @@ app.get('/auth/salesforce', (req, res) => {
     } catch (error) {
         console.error('❌ OAuth initiation failed:', error);
         res.status(500).send(`
-            <html><body>
-                <h2>Authentication Error</h2>
-                <p>Failed to start authentication: ${error.message}</p>
-                <script>window.close();</script>
-            </body></html>
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Authentication Error</title>
+                <style>
+                    * { margin: 0; padding: 0; box-sizing: border-box; }
+                    body {
+                        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        min-height: 100vh;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        color: #333;
+                    }
+                    .container {
+                        max-width: 480px;
+                        width: 90%;
+                        background: rgba(255, 255, 255, 0.95);
+                        backdrop-filter: blur(20px);
+                        border-radius: 24px;
+                        padding: 40px;
+                        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+                        text-align: center;
+                    }
+                    .error-icon {
+                        width: 80px;
+                        height: 80px;
+                        margin: 0 auto 24px;
+                        background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
+                        border-radius: 50%;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                    }
+                    .error-icon svg {
+                        width: 40px;
+                        height: 40px;
+                        color: white;
+                    }
+                    h2 {
+                        font-size: 28px;
+                        font-weight: 700;
+                        margin-bottom: 16px;
+                        color: #DC2626;
+                    }
+                    p {
+                        color: #B91C1C;
+                        margin-bottom: 12px;
+                        line-height: 1.6;
+                        font-size: 16px;
+                    }
+                    .error-message {
+                        background: rgba(239, 68, 68, 0.1);
+                        border-radius: 12px;
+                        padding: 16px;
+                        margin: 20px 0;
+                        font-family: monospace;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="error-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"/>
+                            <line x1="15" y1="9" x2="9" y2="15"/>
+                            <line x1="9" y1="9" x2="15" y2="15"/>
+                        </svg>
+                    </div>
+                    <h2>Authentication Error</h2>
+                    <div class="error-message">
+                        <p>${error.message}</p>
+                    </div>
+                    <p>This window will close automatically...</p>
+                </div>
+                <script>setTimeout(() => window.close(), 3000);</script>
+            </body>
+            </html>
         `);
     }
 });
@@ -464,38 +626,271 @@ app.get('/oauth/callback', async (req, res) => {
         }
 
         res.send(`
-            <html>
-                <head><title>Authentication Successful</title></head>
-                <body style="text-align: center; padding: 50px; font-family: Arial, sans-serif;">
-                    <h2 style="color: #0176D3;"> Authentication Successful!</h2>
-                    <p>Welcome, ${fullUserInfo.display_name || fullUserInfo.username || 'User'}</p>
-                    <p>Organization: ${fullUserInfo.organization_name || 'Your Organization'}</p>
-                    <p>This window will close automatically...</p>
-                    <script>
-                        // Send organization ID to parent window
-                        if (window.opener) {
-                            window.opener.postMessage({
-                                type: 'SALESFORCE_AUTH_SUCCESS',
-                                orgId: '${userInfo.organizationId}',
-                                userInfo: ${JSON.stringify(fullUserInfo)}
-                            }, '*');
-                        }
-                        setTimeout(() => window.close(), 2000);
-                    </script>
-                </body>
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Authentication Successful</title>
+                <style>
+                    * { margin: 0; padding: 0; box-sizing: border-box; }
+                    body {
+                        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        min-height: 100vh;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        color: #333;
+                        overflow: hidden;
+                    }
+                    body::before {
+                        content: '';
+                        position: fixed;
+                        top: 0;
+                        left: 0;
+                        width: 100%;
+                        height: 100%;
+                        background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+                        background-size: 400% 400%;
+                        animation: gradientShift 15s ease infinite;
+                        opacity: 0.8;
+                        z-index: -1;
+                    }
+                    @keyframes gradientShift {
+                        0% { background-position: 0% 50%; }
+                        50% { background-position: 100% 50%; }
+                        100% { background-position: 0% 50%; }
+                    }
+                    .container {
+                        max-width: 480px;
+                        width: 90%;
+                        background: rgba(255, 255, 255, 0.95);
+                        backdrop-filter: blur(20px);
+                        border-radius: 24px;
+                        padding: 40px;
+                        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+                        text-align: center;
+                        animation: slideIn 0.6s ease-out;
+                    }
+                    @keyframes slideIn {
+                        from { opacity: 0; transform: translateY(30px) scale(0.95); }
+                        to { opacity: 1; transform: translateY(0) scale(1); }
+                    }
+                    .success-icon {
+                        width: 80px;
+                        height: 80px;
+                        margin: 0 auto 24px;
+                        background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+                        border-radius: 50%;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        animation: successPulse 0.6s ease-out;
+                    }
+                    .success-icon svg {
+                        width: 40px;
+                        height: 40px;
+                        color: white;
+                    }
+                    @keyframes successPulse {
+                        0% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+                        50% { transform: scale(1.1); box-shadow: 0 0 0 20px rgba(16, 185, 129, 0); }
+                        100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+                    }
+                    .checkmark {
+                        stroke-dasharray: 100;
+                        stroke-dashoffset: 100;
+                        animation: drawCheck 0.8s ease-in-out 0.3s forwards;
+                    }
+                    @keyframes drawCheck {
+                        to { stroke-dashoffset: 0; }
+                    }
+                    h2 {
+                        font-size: 28px;
+                        font-weight: 700;
+                        margin-bottom: 16px;
+                        color: #059669;
+                        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                    }
+                    p {
+                        color: #047857;
+                        margin-bottom: 12px;
+                        line-height: 1.6;
+                        font-size: 16px;
+                    }
+                    .user-info {
+                        background: rgba(16, 185, 129, 0.1);
+                        border-radius: 12px;
+                        padding: 16px;
+                        margin: 20px 0;
+                    }
+                    .user-info p {
+                        margin: 8px 0;
+                        font-weight: 500;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="success-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                            <path class="checkmark" d="M20 6L9 17l-5-5"/>
+                        </svg>
+                    </div>
+                    <h2>🎉 Authentication Successful!</h2>
+                    <div class="user-info">
+                        <p>Welcome, <strong>${fullUserInfo.display_name || fullUserInfo.username || 'User'}</strong></p>
+                        <p>Organization: <strong>${fullUserInfo.organization_name || 'Your Organization'}</strong></p>
+                    </div>
+                    <p>This window will close automatically in a few seconds...</p>
+                </div>
+                <script>
+                    if (window.opener) {
+                        window.opener.postMessage({
+                            type: 'SALESFORCE_AUTH_SUCCESS',
+                            orgId: '${userInfo.organizationId}',
+                            userInfo: ${JSON.stringify(fullUserInfo)}
+                        }, '*');
+                    }
+                    setTimeout(() => window.close(), 2000);
+                </script>
+            </body>
             </html>
         `);
 
     } catch (error) {
         console.error('❌ OAuth callback failed:', error);
         res.status(500).send(`
-            <html>
-                <head><title>Authentication Failed</title></head>
-                <body style="text-align: center; padding: 50px; font-family: Arial, sans-serif;">
-                    <h2 style="color: #EA001E;">❌ Authentication Failed</h2>
-                    <p>Error: ${error.message}</p>
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Authentication Failed</title>
+                <style>
+                    * { margin: 0; padding: 0; box-sizing: border-box; }
+                    body {
+                        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        min-height: 100vh;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        color: #333;
+                        overflow: hidden;
+                    }
+                    body::before {
+                        content: '';
+                        position: fixed;
+                        top: 0;
+                        left: 0;
+                        width: 100%;
+                        height: 100%;
+                        background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+                        background-size: 400% 400%;
+                        animation: gradientShift 15s ease infinite;
+                        opacity: 0.8;
+                        z-index: -1;
+                    }
+                    @keyframes gradientShift {
+                        0% { background-position: 0% 50%; }
+                        50% { background-position: 100% 50%; }
+                        100% { background-position: 0% 50%; }
+                    }
+                    .container {
+                        max-width: 480px;
+                        width: 90%;
+                        background: rgba(255, 255, 255, 0.95);
+                        backdrop-filter: blur(20px);
+                        border-radius: 24px;
+                        padding: 40px;
+                        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+                        text-align: center;
+                        animation: slideIn 0.6s ease-out;
+                    }
+                    @keyframes slideIn {
+                        from { opacity: 0; transform: translateY(30px) scale(0.95); }
+                        to { opacity: 1; transform: translateY(0) scale(1); }
+                    }
+                    .error-icon {
+                        width: 80px;
+                        height: 80px;
+                        margin: 0 auto 24px;
+                        background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
+                        border-radius: 50%;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        animation: errorShake 0.6s ease-out;
+                    }
+                    .error-icon svg {
+                        width: 40px;
+                        height: 40px;
+                        color: white;
+                    }
+                    @keyframes errorShake {
+                        0%, 100% { transform: translateX(0); }
+                        25% { transform: translateX(-5px); }
+                        75% { transform: translateX(5px); }
+                    }
+                    h2 {
+                        font-size: 28px;
+                        font-weight: 700;
+                        margin-bottom: 16px;
+                        color: #DC2626;
+                        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                    }
+                    p {
+                        color: #B91C1C;
+                        margin-bottom: 12px;
+                        line-height: 1.6;
+                        font-size: 16px;
+                    }
+                    .error-message {
+                        background: rgba(239, 68, 68, 0.1);
+                        border-radius: 12px;
+                        padding: 16px;
+                        margin: 20px 0;
+                        font-family: monospace;
+                    }
+                    button {
+                        background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
+                        color: white;
+                        border: none;
+                        padding: 12px 32px;
+                        border-radius: 12px;
+                        font-size: 16px;
+                        font-weight: 600;
+                        cursor: pointer;
+                        transition: transform 0.2s;
+                        margin-top: 16px;
+                    }
+                    button:hover {
+                        transform: scale(1.05);
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="error-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"/>
+                            <line x1="15" y1="9" x2="9" y2="15"/>
+                            <line x1="9" y1="9" x2="15" y2="15"/>
+                        </svg>
+                    </div>
+                    <h2>❌ Authentication Failed</h2>
+                    <div class="error-message">
+                        <p><strong>Error:</strong> ${error.message}</p>
+                    </div>
+                    <p>Please close this window and try again.</p>
                     <button onclick="window.close()">Close Window</button>
-                </body>
+                </div>
+                <script>
+                    setTimeout(() => window.close(), 5000);
+                </script>
+            </body>
             </html>
         `);
     }
