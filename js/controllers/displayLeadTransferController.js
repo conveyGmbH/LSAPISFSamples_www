@@ -176,8 +176,8 @@ async function checkSalesforceConnectionWithPersistence() {
       }
       
       if (dashboardButton) {
-        dashboardButton.style.display = 'inline-flex';
-        dashboardButton.disabled = false;
+        dashboardButton.style.display = 'none';
+        dashboardButton.disabled = true;
       }
     }
 
@@ -267,7 +267,6 @@ function checkInstantConnection() {
 
 // Function to clean N/A values from all inputs
 function cleanNAValuesFromInputs() {
-  console.log("🧹 Cleaning N/A values from all inputs...");
 
   // Get all input elements
   const allInputs = document.querySelectorAll('input, textarea, select');
@@ -280,7 +279,7 @@ function cleanNAValuesFromInputs() {
     }
   });
 
-  console.log(`✨ Cleaned ${cleanedCount} inputs with N/A values`);
+ 
 }
 
 // Initialize controller when DOM is loaded
@@ -473,7 +472,10 @@ async function handleTransferButtonClick() {
   // Connection will be checked by backend during transfer
   console.log('Starting lead transfer via backend...');
 
-  if (!selectedLeadData) {
+  // Collect current data from form inputs
+  const currentLeadData = collectCurrentLeadData();
+
+  if (!currentLeadData || Object.keys(currentLeadData).length === 0) {
     showError("No lead data available for transfer.");
     return;
   }
@@ -483,7 +485,7 @@ async function handleTransferButtonClick() {
 
   // Run comprehensive Salesforce validation
   if (window.salesforceFieldMapper) {
-    const validationResult = window.salesforceFieldMapper.validateLeadData(selectedLeadData);
+    const validationResult = window.salesforceFieldMapper.validateLeadData(currentLeadData);
 
     if (!validationResult.isValid) {
       console.error('Salesforce validation failed:', validationResult.errors);
@@ -521,7 +523,7 @@ async function handleTransferButtonClick() {
   const missingRequired = [];
 
   requiredFields.forEach(field => {
-    if (!selectedLeadData[field] || !selectedLeadData[field].trim()) {
+    if (!currentLeadData[field] || !currentLeadData[field].trim()) {
       missingRequired.push(formatFieldLabel(field));
     }
   });
@@ -548,15 +550,15 @@ async function handleTransferButtonClick() {
   // Check for potential data quality issues
   const qualityWarnings = [];
 
-  if (!hasValidContent(selectedLeadData.Email)) {
+  if (!hasValidContent(currentLeadData.Email)) {
     qualityWarnings.push('No email address provided');
   }
 
-  if (!hasValidContent(selectedLeadData.Phone) && !hasValidContent(selectedLeadData.MobilePhone)) {
+  if (!hasValidContent(currentLeadData.Phone) && !hasValidContent(currentLeadData.MobilePhone)) {
     qualityWarnings.push('No phone number provided');
   }
 
-  if (!hasValidContent(selectedLeadData.Title)) {
+  if (!hasValidContent(currentLeadData.Title)) {
     qualityWarnings.push('No job title provided');
   }
 
@@ -612,7 +614,7 @@ async function handleTransferButtonClick() {
 
 
     // Prepare attachments if present
-    const attachments = await fetchAttachments(selectedLeadData.AttachmentIdList);
+    const attachments = await fetchAttachments(currentLeadData.AttachmentIdList || selectedLeadData?.AttachmentIdList);
 
     // Update status for transfer phase
     transferStatus.innerHTML = `
@@ -1051,8 +1053,8 @@ async function checkSalesforceConnection() {
         }
 
         if (dashboardButton) {
-          dashboardButton.style.display = 'inline-flex';
-          dashboardButton.disabled = false;
+          dashboardButton.style.display = 'none';
+          dashboardButton.disabled = true;
         }
 
         if (authNotice) {
@@ -2707,7 +2709,7 @@ function createDisplayWithEditIcon(fieldName, value, config) {
  */
 function formatDisplayValue(value, config) {
     if (!value || value === null || value === 'null' || value === '') {
-        return 'N/A';
+        return '';
     }
 
     switch (config.type) {
@@ -2822,14 +2824,7 @@ function validateFieldValue(fieldName, value) {
         }
     }
 
-    // Phone validation (basic)
-    if ((fieldName === 'Phone' || fieldName === 'MobilePhone') && value && value.trim()) {
-        const phoneRegex = /^[\d\s\-\+\(\)\.]{10,}$/;
-        if (!phoneRegex.test(value.trim())) {
-            result.isValid = false;
-            result.error = 'Please enter a valid phone number (at least 10 digits)';
-        }
-    }
+    // Phone validation removed per user request
 
     // Required fields validation
     const requiredFields = ['LastName', 'Email'];
@@ -3319,18 +3314,7 @@ function validateBusinessLogic() {
     }
   }
 
-  // Validate phone numbers if provided and not placeholder
-  ['Phone', 'MobilePhone', 'Fax'].forEach(phoneField => {
-    if (hasValidContent(selectedLeadData[phoneField])) {
-      const phoneValue = selectedLeadData[phoneField].trim();
-      // Clean phone number for validation (remove formatting)
-      const cleanPhone = phoneValue.replace(/[\s\-\(\)\.]/g, '');
-      if (cleanPhone.length < 7 || cleanPhone.length > 20) {
-        errors.push(`${formatFieldLabel(phoneField)} must contain 7-20 digits`);
-        isValid = false;
-      }
-    }
-  });
+  // Phone number validation removed per user request
 
   // Validate country code consistency (only if both have meaningful content)
   if (hasValidContent(selectedLeadData.CountryCode) && hasValidContent(selectedLeadData.Country)) {
@@ -3519,7 +3503,7 @@ async function displayAttachmentsPreview() {
     // File size
     const fileSize = attachment.BodyLength
       ? formatFileSize(attachment.BodyLength)
-      : "N/A";
+      : "Unknown size";
 
     listItem.innerHTML = `
       <div class="attachment-icon">${icon}</div>
@@ -3791,11 +3775,11 @@ function updateConnectionStatus(status, message, userInfo = null) {
             transferBtn.title = 'Transfer lead to Salesforce';
         }
 
-        // Show dashboard button ONLY when connected to Salesforce
+        // Dashboard button hidden - not ready for production
         if (dashboardButton) {
-            dashboardButton.style.display = 'inline-flex';
-            dashboardButton.disabled = false;
-            dashboardButton.title = 'View Salesforce Dashboard';
+            dashboardButton.style.display = 'none';
+            dashboardButton.disabled = true;
+            dashboardButton.title = 'Dashboard (Coming Soon)';
         }
 
         if (authNotice) authNotice.style.display = 'none';
@@ -4595,7 +4579,6 @@ async function fetchLatestDataBeforeEdit(fieldName, currentValue, config) {
         // Afficher un indicateur de chargement
         showLoadingIndicator(fieldName, 'Fetching latest data...');
 
-        // Récupérer l'EventId depuis le sessionStorage
         const eventId = sessionStorage.getItem('selectedEventId');
         if (!eventId) {
             throw new Error('No EventId found');

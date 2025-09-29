@@ -465,3 +465,12 @@ mock-data/
 *.ai-log
 ai-session-*
 claude-session-*
+
+# Images and Assets
+images/
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
+*.ico
