@@ -93,7 +93,8 @@ app.use(cors({
     'https://delightful-desert-016e2a610.4.azurestaticapps.net',
     'https://brave-bush-0041ef403.6.azurestaticapps.net',
     'https://lsapisfsamples.convey.de',
-    'https://lsapisfbackend.convey.de'
+    'https://lsapisfbackend.convey.de',
+    'https://lsapisfbackenddev-gnfbema5gcaxdahz.germanywestcentral-01.azurewebsites.net',
   ]; 
 
   if(!origin) return callback(null, true);
