@@ -459,6 +459,55 @@ function displayUserInfo(userInfo) {
 }
 
 
+/**
+ * Check for duplicate leads in Salesforce
+ * @param {Object} leadData - Lead data to check
+ * @returns {Promise<Object>} Object with hasDuplicates flag and duplicates array
+ */
+async function checkForDuplicates(leadData) {
+  try {
+    const searchCriteria = [];
+
+    // Search by email if provided
+    if (leadData.Email && leadData.Email.trim()) {
+      searchCriteria.push(`Email = '${leadData.Email.trim()}'`);
+    }
+
+    // Search by lastname + company if provided
+    if (leadData.LastName && leadData.Company) {
+      searchCriteria.push(`(LastName = '${leadData.LastName.trim()}' AND Company = '${leadData.Company.trim()}')`);
+    }
+
+    if (searchCriteria.length === 0) {
+      return { hasDuplicates: false, duplicates: [] };
+    }
+
+    const query = `SELECT Id, Name, Email, Company, Phone FROM Lead WHERE ${searchCriteria.join(' OR ')} LIMIT 5`;
+
+    const response = await fetch(`${appConfig.apiBaseUrl}/leads/query`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ query })
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to check for duplicates');
+    }
+
+    const result = await response.json();
+    const duplicates = result.records || [];
+
+    return {
+      hasDuplicates: duplicates.length > 0,
+      duplicates: duplicates
+    };
+  } catch (error) {
+    console.error('Error checking for duplicates:', error);
+    throw error;
+  }
+}
+
 // Handle transfer button click
 async function handleTransferButtonClick() {
   console.log("Transfer button clicked");
@@ -572,6 +621,29 @@ async function handleTransferButtonClick() {
   }
 
   console.log(' Pre-transfer validation passed!');
+
+  // Check for duplicates in Salesforce
+  console.log(' Checking for duplicate leads...');
+  try {
+    const duplicateCheck = await checkForDuplicates(currentLeadData);
+    if (duplicateCheck.hasDuplicates) {
+      const duplicateMessage = duplicateCheck.duplicates.map(dup =>
+        `- ${dup.Name} (${dup.Email || dup.Company}) - ID: ${dup.Id}`
+      ).join('\n');
+
+      const proceed = confirm(
+        `⚠️ Potential duplicate lead(s) found in Salesforce:\n\n${duplicateMessage}\n\nDo you want to create this lead anyway?`
+      );
+
+      if (!proceed) {
+        console.log('❌ Transfer cancelled by user due to duplicates');
+        return;
+      }
+    }
+  } catch (duplicateError) {
+    console.warn('⚠️ Could not check for duplicates:', duplicateError.message);
+    // Continue anyway - don't block transfer if duplicate check fails
+  }
 
   // Collect current values from inputs instead of using original data
   const configuredLeadData = collectCurrentLeadData();
