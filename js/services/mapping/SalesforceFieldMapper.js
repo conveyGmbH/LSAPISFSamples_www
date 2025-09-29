@@ -210,9 +210,10 @@ class SalesforceFieldMapper {
                 break;
 
             case 'Phone':
-                if (!this.validationRules.Phone.pattern.test(value.replace(/[\s\-\(\)]/g, ''))) {
-                    errors.push(this.validationRules.Phone.message);
-                }
+                // Validation désactivée - le client peut entrer le format qu'il souhaite
+                // if (!this.validationRules.Phone.pattern.test(value.replace(/[\s\-\(\)]/g, ''))) {
+                //     errors.push(this.validationRules.Phone.message);
+                // }
                 break;
 
             case 'Url':
