@@ -3412,70 +3412,8 @@ function validateBusinessLogic() {
   return { isValid, errors };
 }
 
-/**
- * Check for duplicate leads
- * @returns {boolean} Has duplicates
- */
-async function checkForDuplicates() {
-  try {
-    const response = await fetch(`${appConfig.apiBaseUrl}/leads/check-duplicate`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        FirstName: selectedLeadData.FirstName,
-        LastName: selectedLeadData.LastName,
-        Company: selectedLeadData.Company,
-        Email: selectedLeadData.Email
-      })
-    });
+// Duplicate function removed - using new implementation above
 
-    if (response.ok) {
-      const result = await response.json();
-      if (result.hasDuplicates) {
-        showDuplicateWarning(result.duplicates);
-        return true;
-      }
-    }
-  } catch (error) {
-    console.log('Could not check for duplicates:', error);
-  }
-
-  return false;
-}
-
-/**
- * Show duplicate warning
- * @param {Array} duplicates - Array of duplicate leads
- */
-function showDuplicateWarning(duplicates) {
-  let warningDiv = document.querySelector('.duplicate-warning');
-  if (!warningDiv) {
-    warningDiv = document.createElement('div');
-    warningDiv.className = 'duplicate-warning';
-
-    const leadGrid = document.querySelector('.lead-info-grid');
-    if (leadGrid) {
-      leadGrid.parentNode.insertBefore(warningDiv, leadGrid.nextSibling);
-    }
-  }
-
-  const duplicatesList = duplicates.map(dup =>
-    `<div class="duplicate-details">
-      <strong>${dup.Name}</strong> at ${dup.Company}
-      ${dup.Email ? `- ${dup.Email}` : ''}
-    </div>`
-  ).join('');
-
-  warningDiv.innerHTML = `
-    <h4>ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡ ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â Potential Duplicate Detected</h4>
-    <p>Similar leads already exist in Salesforce:</p>
-    ${duplicatesList}
-    <p>Please verify this is not a duplicate before proceeding.</p>
-  `;
-}
 
 /**
  * Display attachments preview
