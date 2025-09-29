@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Salesforce Lead Manager Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        'salesforce': '#0176D3',
+                        'salesforce-dark': '#014486',
+                        'success': '#04844B',
+                        'warning': '#FFB75D',
+                        'danger': '#EA001E',
+                        'dark-bg': '#1F2937',
+                        'dark-card': '#374151',
+                        'dark-border': '#4B5563'
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.5s ease-in-out',
+                        'slide-up': 'slideUp 0.3s ease-out',
+                        'pulse-slow': 'pulse 2s infinite',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes slideUp {
+            from { transform: translateY(10px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .loader {
+            border-top-color: #0176D3;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        /* Modal positioning fix */
+        .modal-overlay {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        
+        .modal-content {
+            max-height: calc(100vh - 2rem);
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-dark-bg font-sans transition-colors duration-300 min-h-screen">
+    <!-- Header -->
+    <header class="bg-white dark:bg-dark-card shadow-sm border-b dark:border-dark-border transition-colors duration-300 sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-4">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-cloud text-salesforce text-2xl mr-2"></i>
+                        <span class="text-xl font-bold text-gray-900 dark:text-white">Salesforce Lead Manager Pro</span>
+                    </div>
+                    
+                    <!-- Org Selector -->
+                    <div id="orgSelector" class="hidden">
+                        <select id="orgSelect" class="ml-4 text-sm border border-gray-300 dark:border-dark-border rounded-md px-3 py-1 bg-white dark:bg-dark-card dark:text-white focus:ring-2 focus:ring-salesforce focus:border-salesforce">
+                            <option value="default">Current Org</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="flex items-center space-x-4">
+                    <!-- User Info -->
+                    <div id="userInfo" class="hidden flex items-center space-x-3">
+                        <div class="flex-shrink-0">
+                            <img id="userAvatar" src="" alt="Profile" class="h-8 w-8 rounded-full border-2 border-gray-300 dark:border-gray-600">
+                        </div>
+                        <div class="text-right">
+                            <div class="text-sm font-medium text-gray-900 dark:text-white">Welcome, <span id="userName"></span></div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400"><span id="userEmail"></span></div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400"><span id="orgName"></span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Controls -->
+                    <div class="flex items-center space-x-2">
+                        <!-- Dark Mode Toggle -->
+                        <button id="darkModeToggle" class="p-2 rounded-md text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200" title="Toggle dark mode">
+                            <i class="fas fa-moon dark:hidden text-lg"></i>
+                            <i class="fas fa-sun hidden dark:block text-lg"></i>
+                        </button>
+                        
+                        <!-- Auth Buttons -->
+                        <button id="connectBtn" class="bg-salesforce hover:bg-salesforce-dark text-white px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center">
+                            <i class="fas fa-plug mr-2"></i>
+                            <span>Connect to Salesforce</span>
+                        </button>
+                        
+                        <button id="logoutBtn" class="hidden bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center">
+                            <i class="fas fa-sign-out-alt mr-2"></i>
+                            <span>Logout</span>
+                        </button>
+                        
+                        <button id="completeLogoutBtn" class="hidden bg-danger hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center">
+                            <i class="fas fa-door-open mr-2"></i>
+                            <span>Complete Logout</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+        <!-- Connection Status Card -->
+        <div id="connectionStatus" class="mb-6">
+            <div id="notConnected" class="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-400 p-4 rounded-r-lg">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-exclamation-triangle text-yellow-400 text-xl"></i>
+                    </div>
+                    <div class="ml-3 flex-1">
+                        <p class="text-sm font-medium text-yellow-700 dark:text-yellow-300">Not connected to Salesforce</p>
+                        <p class="text-xs text-yellow-600 dark:text-yellow-400 mt-1">Please connect to access your leads and manage your data.</p>
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+
+        <!-- Dashboard Content -->
+        <div id="dashboard" class="hidden animate-fade-in">
+            <!-- Stats Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                <div class="bg-white dark:bg-dark-card rounded-lg shadow-sm border dark:border-dark-border p-6 transition-all duration-200 hover:shadow-md">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <div class="w-12 h-12 bg-salesforce/10 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-users text-salesforce text-xl"></i>
+                            </div>
+                        </div>
+                        <div class="ml-4 flex-1">
+                            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Leads</dt>
+                            <dd id="totalLeads" class="text-2xl font-bold text-gray-900 dark:text-white">-</dd>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white dark:bg-dark-card rounded-lg shadow-sm border dark:border-dark-border p-6 transition-all duration-200 hover:shadow-md">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <div class="w-12 h-12 bg-success/10 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-user-check text-success text-xl"></i>
+                            </div>
+                        </div>
+                        <div class="ml-4 flex-1">
+                            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Qualified</dt>
+                            <dd id="qualifiedLeads" class="text-2xl font-bold text-gray-900 dark:text-white">-</dd>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white dark:bg-dark-card rounded-lg shadow-sm border dark:border-dark-border p-6 transition-all duration-200 hover:shadow-md">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <div class="w-12 h-12 bg-warning/10 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-user-clock text-warning text-xl"></i>
+                            </div>
+                        </div>
+                        <div class="ml-4 flex-1">
+                            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Working</dt>
+                            <dd id="workingLeads" class="text-2xl font-bold text-gray-900 dark:text-white">-</dd>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white dark:bg-dark-card rounded-lg shadow-sm border dark:border-dark-border p-6 transition-all duration-200 hover:shadow-md">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <div class="w-12 h-12 bg-blue-500/10 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-user-plus text-blue-500 text-xl"></i>
+                            </div>
+                        </div>
+                        <div class="ml-4 flex-1">
+                            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">New</dt>
+                            <dd id="newLeads" class="text-2xl font-bold text-gray-900 dark:text-white">-</dd>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions Bar -->
+            <div class="bg-white dark:bg-dark-card rounded-lg shadow-sm border dark:border-dark-border mb-6 p-6 transition-colors duration-200">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div class="flex items-center space-x-3">
+                        <button id="newLeadBtn" class="inline-flex items-center px-4 py-2 bg-salesforce hover:bg-salesforce-dark text-white text-sm font-medium rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-salesforce focus:ring-offset-2">
+                            <i class="fas fa-plus mr-2"></i>New Lead
+                        </button>
+                        <button id="refreshBtn" class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-dark-border text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-dark-card hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-salesforce focus:ring-offset-2">
+                            <i class="fas fa-refresh mr-2"></i>
+                            <span id="refreshText">Refresh</span>
+                        </button>
+                        <button id="exportBtn" class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-dark-border text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-dark-card hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-salesforce focus:ring-offset-2">
+                            <i class="fas fa-download mr-2"></i>Export CSV
+                        </button>
+                    </div>
+                    
+                    <div class="flex items-center space-x-3">
+                        <!-- Search -->
+                        <div class="relative">
+                            <input type="text" id="searchInput" placeholder="Search leads..." class="block w-64 pl-10 pr-3 py-2 border border-gray-300 dark:border-dark-border rounded-md leading-5 bg-white dark:bg-dark-card dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-salesforce focus:border-salesforce sm:text-sm transition-colors duration-200">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <i class="fas fa-search text-gray-400 dark:text-gray-500"></i>
+                            </div>
+                        </div>
+                        
+                        <!-- Status Filter -->
+                        <select id="statusFilter" class="block w-48 pl-3 pr-10 py-2 text-base border border-gray-300 dark:border-dark-border bg-white dark:bg-dark-card dark:text-white focus:outline-none focus:ring-2 focus:ring-salesforce focus:border-salesforce sm:text-sm rounded-md transition-colors duration-200">
+                            <option value="">All Status</option>
+                            <option value="Open - Not Contacted">Open - Not Contacted</option>
+                            <option value="Working - Contacted">Working - Contacted</option>
+                            <option value="Closed - Converted">Closed - Converted</option>
+                            <option value="Closed - Not Converted">Closed - Not Converted</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Leads Table -->
+            <div class="bg-white dark:bg-dark-card rounded-lg shadow-sm border dark:border-dark-border transition-colors duration-200">
+                <div class="p-6">
+                    <!-- Loading State -->
+                    <div id="tableLoading" class="hidden text-center py-12">
+                        <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-salesforce"></div>
+                        <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Loading leads...</p>
+                    </div>
+
+                    <!-- Empty State -->
+                    <div id="emptyState" class="hidden text-center py-12">
+                        <div class="w-16 h-16 mx-auto mb-4 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
+                            <i class="fas fa-users text-gray-400 text-2xl"></i>
+                        </div>
+                        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">No leads found</h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">Get started by creating your first lead.</p>
+                        <button class="inline-flex items-center px-4 py-2 bg-salesforce hover:bg-salesforce-dark text-white text-sm font-medium rounded-md transition-colors duration-200">
+                            <i class="fas fa-plus mr-2"></i>Create Lead
+                        </button>
+                    </div>
+
+                    <!-- Leads Table -->
+                    <div id="leadsTableContainer" class="hidden">
+                        <div class="overflow-x-auto max-h-96 overflow-y-auto shadow ring-1 ring-black ring-opacity-5 dark:ring-gray-600 md:rounded-lg">
+                            <table class="min-w-full divide-y divide-gray-300 dark:divide-gray-600">
+                                <thead class="bg-gray-50 dark:bg-gray-700 sticky top-0 z-10">
+                                    <tr>
+                                        <th scope="col" class="sticky left-0 z-30 bg-gray-50 dark:bg-gray-700 px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200 border-r border-gray-200 dark:border-gray-600" onclick="window.salesforceApp.sortTable('name')">
+                                            <div class="flex items-center space-x-1">
+                                                <span>Name</span>
+                                                <i class="fas fa-sort text-gray-400"></i>
+                                            </div>
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200" onclick="window.salesforceApp.sortTable('company')">
+                                            <div class="flex items-center space-x-1">
+                                                <span>Company</span>
+                                                <i class="fas fa-sort text-gray-400"></i>
+                                            </div>
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Email</th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Phone</th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">State</th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200" onclick="window.salesforceApp.sortTable('status')">
+                                            <div class="flex items-center space-x-1">
+                                                <span>Status</span>
+                                                <i class="fas fa-sort text-gray-400"></i>
+                                            </div>
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Owner</th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Unread</th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200" onclick="window.salesforceApp.sortTable('created')">
+                                            <div class="flex items-center space-x-1">
+                                                <span>Created</span>
+                                                <i class="fas fa-sort text-gray-400"></i>
+                                            </div>
+                                        </th>
+                                        <th scope="col" class="relative px-4 py-3"><span class="sr-only">Actions</span></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="leadsTableBody" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                    <!-- Leads will be populated here -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Pagination -->
+                        <div id="pagination" class="bg-white dark:bg-gray-800 px-4 py-3 flex items-center justify-between border-t border-gray-200 dark:border-gray-700 sm:px-6 transition-colors duration-200">
+                            <div class="flex-1 flex justify-between sm:hidden">
+                                <button id="prevPageMobile" class="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">Previous</button>
+                                <button id="nextPageMobile" class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">Next</button>
+                            </div>
+                            <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                                <div>
+                                    <p class="text-sm text-gray-700 dark:text-gray-300">
+                                        Showing <span id="showingFrom" class="font-medium">1</span> to <span id="showingTo" class="font-medium">10</span> of <span id="totalRecords" class="font-medium">0</span> results
+                                    </p>
+                                </div>
+                                <div>
+                                    <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" id="paginationNav">
+                                        <!-- Pagination buttons will be generated here -->
+                                    </nav>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden modal-overlay">
+        <div class="bg-white dark:bg-dark-card rounded-lg shadow-xl max-w-md w-full mx-4 modal-content">
+            <div class="p-6">
+                <div class="flex items-center justify-center w-12 h-12 mx-auto bg-red-100 dark:bg-red-900/20 rounded-full mb-4">
+                    <i class="fas fa-exclamation-triangle text-red-600 dark:text-red-400 text-xl"></i>
+                </div>
+                <div class="text-center">
+                    <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">Delete Lead</h3>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mb-2">Are you sure you want to delete this lead? This action cannot be undone.</p>
+                    <p id="deleteLeadName" class="text-sm font-medium text-gray-900 dark:text-white mb-6"></p>
+                </div>
+                <div class="flex items-center justify-center space-x-3">
+                    <button id="cancelDeleteBtn" class="px-4 py-2 border border-gray-300 dark:border-dark-border text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-dark-card hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
+                        Cancel
+                    </button>
+                    <button id="confirmDeleteBtn" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-md transition-colors duration-200">
+                        <span id="deleteBtnText">Delete</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create/Edit Lead Modal -->
+    <div id="leadModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden modal-overlay">
+        <div class="bg-white dark:bg-dark-card rounded-lg shadow-xl max-w-2xl w-full mx-4 modal-content">
+            <div class="flex items-center justify-between p-6 border-b dark:border-dark-border">
+                <h3 id="modalTitle" class="text-lg font-medium text-gray-900 dark:text-white">Create New Lead</h3>
+                <button id="closeModal" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-200">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <form id="leadForm" class="p-6">
+                <input type="hidden" id="leadId" name="Id">
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="firstName" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">First Name</label>
+                        <input type="text" id="firstName" name="FirstName" class="w-full border border-gray-300 dark:border-dark-border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-salesforce focus:border-salesforce bg-white dark:bg-dark-card dark:text-white transition-colors duration-200">
+                    </div>
+                    <div>
+                        <label for="lastName" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Last Name <span class="text-red-500">*</span></label>
+                        <input type="text" id="lastName" name="LastName" required class="w-full border border-gray-300 dark:border-dark-border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-salesforce focus:border-salesforce bg-white dark:bg-dark-card dark:text-white transition-colors duration-200">
+                    </div>
+                </div>
+
+                <div class="mt-6">
+                    <label for="company" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Company <span class="text-red-500">*</span></label>
+                    <input type="text" id="company" name="Company" required class="w-full border border-gray-300 dark:border-dark-border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-salesforce focus:border-salesforce bg-white dark:bg-dark-card dark:text-white transition-colors duration-200">
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                    <div>
+                        <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Email</label>
+                        <input type="email" id="email" name="Email" class="w-full border border-gray-300 dark:border-dark-border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-salesforce focus:border-salesforce bg-white dark:bg-dark-card dark:text-white transition-colors duration-200">
+                    </div>
+                    <div>
+                        <label for="phone" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Phone</label>
+                        <input type="tel" id="phone" name="Phone" class="w-full border border-gray-300 dark:border-dark-border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-salesforce focus:border-salesforce bg-white dark:bg-dark-card dark:text-white transition-colors duration-200">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                    <div>
+                        <label for="title" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Title</label>
+                        <input type="text" id="title" name="Title" class="w-full border border-gray-300 dark:border-dark-border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-salesforce focus:border-salesforce bg-white dark:bg-dark-card dark:text-white transition-colors duration-200">
+                    </div>
+                    <div>
+                        <label for="state" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">State/Province</label>
+                        <input type="text" id="state" name="State" class="w-full border border-gray-300 dark:border-dark-border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-salesforce focus:border-salesforce bg-white dark:bg-dark-card dark:text-white transition-colors duration-200">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                    <div>
+                        <label for="leadStatus" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Status</label>
+                        <select id="leadStatus" name="Status" class="w-full border border-gray-300 dark:border-dark-border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-salesforce focus:border-salesforce bg-white dark:bg-dark-card dark:text-white transition-colors duration-200">
+                            <option value="Open - Not Contacted">Open - Not Contacted</option>
+                            <option value="Working - Contacted">Working - Contacted</option>
+                            <option value="Closed - Converted">Closed - Converted</option>
+                            <option value="Closed - Not Converted">Closed - Not Converted</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="leadSource" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Lead Source</label>
+                        <select id="leadSource" name="LeadSource" class="w-full border border-gray-300 dark:border-dark-border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-salesforce focus:border-salesforce bg-white dark:bg-dark-card dark:text-white transition-colors duration-200">
+                            <option value="">--None--</option>
+                            <option value="Web">Web</option>
+                            <option value="Phone Inquiry">Phone Inquiry</option>
+                            <option value="Partner Referral">Partner Referral</option>
+                            <option value="Purchased List">Purchased List</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-end space-x-3 mt-8 pt-6 border-t dark:border-dark-border">
+                    <button type="button" id="cancelBtn" class="px-4 py-2 border border-gray-300 dark:border-dark-border text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-dark-card hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
+                        Cancel
+                    </button>
+                    <button type="submit" id="saveBtn" class="px-4 py-2 bg-salesforce hover:bg-salesforce-dark text-white text-sm font-medium rounded-md transition-colors duration-200">
+                        <span id="saveBtnText">Save Lead</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toastContainer" class="fixed top-4 right-4 z-50 space-y-2">
+        <!-- Toasts will be inserted here -->
+    </div>
+
+    <script src="../js/controllers/displayDashboardController.js"></script>
+</body>
+</html>

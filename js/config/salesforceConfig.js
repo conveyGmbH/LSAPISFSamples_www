@@ -21,9 +21,9 @@ export const appConfig = {
   // OAuth2 callback URL for Salesforce
   get callbackUrl() {
     if (isLocalDev) {
-      return `http://localhost:3000/oauth-callback.html`;
+      return `http://localhost:3000/oauth/callback`;
     }
-    return `${window.location.origin}/oauth-callback.html`;
+    return `${window.location.origin}/oauth/callback`;
   },
 
   // Salesforce default config

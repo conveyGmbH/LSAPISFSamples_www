@@ -7,7 +7,6 @@ function init() {
 }
 
 async function login() {
-  console.log("login called!");
   const errorElement = document.getElementById("errorMessage");
   if (errorElement) errorElement.style.display = "none";
 

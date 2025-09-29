@@ -1,0 +1,285 @@
+/* Salesforce Field Styling */
+
+/* Base input styling */
+.salesforce-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    background-color: #ffffff;
+}
+
+.salesforce-input:focus {
+    outline: none;
+    border-color: #0969da;
+    box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.1);
+}
+
+/* Required field styling */
+.required-field {
+    border-left: 3px solid #cf222e;
+}
+
+.required-field::after {
+    content: " *";
+    color: #cf222e;
+    font-weight: bold;
+}
+
+/* Field type specific styling */
+.email-input {
+    background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>');
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 16px;
+    padding-right: 35px;
+}
+
+.phone-input {
+    background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>');
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 16px;
+    padding-right: 35px;
+}
+
+.url-input {
+    background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>');
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 16px;
+    padding-right: 35px;
+}
+
+.picklist-input {
+    background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6,9 12,15 18,9"/></svg>');
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 16px;
+    appearance: none;
+    padding-right: 35px;
+}
+
+.textarea-input {
+    resize: vertical;
+    min-height: 80px;
+}
+
+.checkbox-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.checkbox-input {
+    width: auto;
+    margin: 0;
+}
+
+.datetime-input, .number-input {
+    font-family: monospace;
+}
+
+/* Validation styling */
+.validation-error {
+    border-color: #cf222e !important;
+    box-shadow: 0 0 0 3px rgba(207, 34, 46, 0.1) !important;
+}
+
+.validation-success {
+    border-color: #1a7f37 !important;
+    box-shadow: 0 0 0 3px rgba(26, 127, 55, 0.1) !important;
+}
+
+.field-error-message {
+    margin-top: 4px;
+    font-size: 12px;
+    color: #cf222e;
+}
+
+.error-item {
+    margin-bottom: 2px;
+}
+
+.error-item:before {
+    content: "⚠ ";
+}
+
+/* Field display styling */
+.field-display-value {
+    padding: 8px 12px;
+    background-color: #f6f8fa;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    font-size: 14px;
+    min-height: 20px;
+}
+
+.field-display-value.read-only {
+    background-color: #f1f3f4;
+    color: #656d76;
+    border-style: dashed;
+}
+
+.field-display-value.editable {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.field-display-value.editable:hover {
+    background-color: #f3f4f6;
+}
+
+/* Status badges */
+.field-status-indicator {
+    margin-top: 4px;
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.badge {
+    display: inline-block;
+    padding: 2px 6px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    border-radius: 12px;
+    letter-spacing: 0.5px;
+}
+
+.badge-required {
+    background-color: #ffebe9;
+    color: #cf222e;
+    border: 1px solid #fd8c73;
+}
+
+.badge-readonly {
+    background-color: #f1f3f4;
+    color: #656d76;
+    border: 1px solid #d0d7de;
+}
+
+.badge-custom {
+    background-color: #ddf4ff;
+    color: #0969da;
+    border: 1px solid #54aeff;
+}
+
+/* Field container styling */
+.lead-field.salesforce-enhanced {
+    position: relative;
+    margin-bottom: 16px;
+}
+
+.lead-field.salesforce-enhanced .field-header {
+    display: flex;
+    justify-content: between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.lead-field.salesforce-enhanced .field-label {
+    font-weight: 600;
+    color: #24292f;
+    font-size: 14px;
+}
+
+.lead-field.salesforce-enhanced .field-content {
+    position: relative;
+}
+
+/* Type indicators */
+.field-type-indicator {
+    position: absolute;
+    top: -8px;
+    right: 8px;
+    background: #ffffff;
+    padding: 2px 6px;
+    font-size: 10px;
+    font-weight: 600;
+    color: #656d76;
+    border: 1px solid #d0d7de;
+    border-radius: 4px;
+    text-transform: uppercase;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .salesforce-input {
+        font-size: 16px; /* Prevent zoom on iOS */
+    }
+
+    .field-status-indicator {
+        justify-content: flex-start;
+    }
+
+    .badge {
+        font-size: 9px;
+    }
+}
+
+/* Animation for field transitions */
+.field-transition {
+    transition: all 0.3s ease;
+}
+
+.field-transition.changing {
+    transform: scale(0.98);
+    opacity: 0.7;
+}
+
+.field-transition.changed {
+    transform: scale(1);
+    opacity: 1;
+    box-shadow: 0 0 0 3px rgba(26, 127, 55, 0.2);
+}
+
+/* Validation summary */
+.validation-summary {
+    background-color: #fff8f2;
+    border: 1px solid #fb8500;
+    border-radius: 6px;
+    padding: 12px;
+    margin: 16px 0;
+}
+
+.validation-summary.has-errors {
+    background-color: #ffebe9;
+    border-color: #cf222e;
+}
+
+.validation-summary.is-valid {
+    background-color: #dafbe1;
+    border-color: #1a7f37;
+}
+
+.validation-summary-title {
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.validation-summary-content {
+    font-size: 14px;
+}
+
+.validation-error-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.validation-error-list li {
+    margin-bottom: 4px;
+    padding-left: 16px;
+    position: relative;
+}
+
+.validation-error-list li:before {
+    content: "⚠";
+    position: absolute;
+    left: 0;
+    color: #cf222e;
+}

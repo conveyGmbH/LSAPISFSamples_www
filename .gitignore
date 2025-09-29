@@ -420,3 +420,48 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+
+# ========================================
+# CLAUDE AND DEVELOPMENT FILES TO IGNORE
+# ========================================
+
+# Claude AI Development Files
+CLAUDE.md
+.claude/
+*.claude*
+
+# Cursor IDE Files
+.cursor/
+*.cursor*
+
+# Windsurf IDE Files
+.windsurfrules
+*.windsurfrules*
+
+# SuperDesign Extension Files
+.superdesign/
+*.superdesign*
+
+# Development Data Files
+salesforce-backend/data/
+salesforce-backend/data.json
+salesforce-backend/data.md
+salesforce-backend/package-simple.json
+
+# Documentation & Development Notes
+*.dev.md
+*.notes.md
+dev-notes/
+docs/dev/
+temp-data/
+
+# Test & Sample Data
+sample-data/
+test-data/
+mock-data/
+
+# AI Development Artifacts
+*.prompt
+*.ai-log
+ai-session-*
+claude-session-*
