@@ -633,117 +633,62 @@ app.get('/oauth/callback', async (req, res) => {
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <title>Authentication Successful</title>
                 <style>
-                    * { margin: 0; padding: 0; box-sizing: border-box; }
                     body {
-                        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                        min-height: 100vh;
+                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+                        background: #f5f5f5;
                         display: flex;
                         align-items: center;
                         justify-content: center;
-                        color: #333;
-                        overflow: hidden;
-                    }
-                    body::before {
-                        content: '';
-                        position: fixed;
-                        top: 0;
-                        left: 0;
-                        width: 100%;
-                        height: 100%;
-                        background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
-                        background-size: 400% 400%;
-                        animation: gradientShift 15s ease infinite;
-                        opacity: 0.8;
-                        z-index: -1;
-                    }
-                    @keyframes gradientShift {
-                        0% { background-position: 0% 50%; }
-                        50% { background-position: 100% 50%; }
-                        100% { background-position: 0% 50%; }
+                        min-height: 100vh;
+                        margin: 0;
+                        padding: 20px;
                     }
                     .container {
-                        max-width: 480px;
-                        width: 90%;
-                        background: rgba(255, 255, 255, 0.95);
-                        backdrop-filter: blur(20px);
-                        border-radius: 24px;
+                        background: white;
+                        border-radius: 8px;
                         padding: 40px;
-                        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+                        max-width: 400px;
+                        width: 100%;
+                        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
                         text-align: center;
-                        animation: slideIn 0.6s ease-out;
                     }
-                    @keyframes slideIn {
-                        from { opacity: 0; transform: translateY(30px) scale(0.95); }
-                        to { opacity: 1; transform: translateY(0) scale(1); }
-                    }
-                    .success-icon {
-                        width: 80px;
-                        height: 80px;
-                        margin: 0 auto 24px;
-                        background: linear-gradient(135deg, #10B981 0%, #059669 100%);
-                        border-radius: 50%;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        animation: successPulse 0.6s ease-out;
-                    }
-                    .success-icon svg {
-                        width: 40px;
-                        height: 40px;
-                        color: white;
-                    }
-                    @keyframes successPulse {
-                        0% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
-                        50% { transform: scale(1.1); box-shadow: 0 0 0 20px rgba(16, 185, 129, 0); }
-                        100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
-                    }
-                    .checkmark {
-                        stroke-dasharray: 100;
-                        stroke-dashoffset: 100;
-                        animation: drawCheck 0.8s ease-in-out 0.3s forwards;
-                    }
-                    @keyframes drawCheck {
-                        to { stroke-dashoffset: 0; }
+                    .icon {
+                        font-size: 48px;
+                        margin-bottom: 20px;
                     }
                     h2 {
-                        font-size: 28px;
-                        font-weight: 700;
-                        margin-bottom: 16px;
                         color: #059669;
-                        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                        margin: 0 0 16px 0;
+                        font-size: 20px;
+                    }
+                    .info-box {
+                        background: #f0fdf4;
+                        border: 1px solid #bbf7d0;
+                        border-radius: 4px;
+                        padding: 16px;
+                        margin: 16px 0;
+                        font-size: 14px;
+                    }
+                    .info-box p {
+                        margin: 8px 0;
+                        color: #166534;
                     }
                     p {
-                        color: #047857;
-                        margin-bottom: 12px;
-                        line-height: 1.6;
-                        font-size: 16px;
-                    }
-                    .user-info {
-                        background: rgba(16, 185, 129, 0.1);
-                        border-radius: 12px;
-                        padding: 16px;
-                        margin: 20px 0;
-                    }
-                    .user-info p {
+                        color: #666;
                         margin: 8px 0;
-                        font-weight: 500;
+                        font-size: 14px;
                     }
                 </style>
             </head>
             <body>
                 <div class="container">
-                    <div class="success-icon">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                            <path class="checkmark" d="M20 6L9 17l-5-5"/>
-                        </svg>
+                    <div class="icon">✅</div>
+                    <h2>Authentication Successful!</h2>
+                    <div class="info-box">
+                        <p><strong>${fullUserInfo.display_name || fullUserInfo.username || 'User'}</strong></p>
+                        <p>${fullUserInfo.organization_name || 'Your Organization'}</p>
                     </div>
-                    <h2>🎉 Authentication Successful!</h2>
-                    <div class="user-info">
-                        <p>Welcome, <strong>${fullUserInfo.display_name || fullUserInfo.username || 'User'}</strong></p>
-                        <p>Organization: <strong>${fullUserInfo.organization_name || 'Your Organization'}</strong></p>
-                    </div>
-                    <p>This window will close automatically in a few seconds...</p>
+                    <p>This window will close automatically...</p>
                 </div>
                 <script>
                     if (window.opener) {
@@ -769,121 +714,68 @@ app.get('/oauth/callback', async (req, res) => {
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <title>Authentication Failed</title>
                 <style>
-                    * { margin: 0; padding: 0; box-sizing: border-box; }
                     body {
-                        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                        min-height: 100vh;
+                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+                        background: #f5f5f5;
                         display: flex;
                         align-items: center;
                         justify-content: center;
-                        color: #333;
-                        overflow: hidden;
-                    }
-                    body::before {
-                        content: '';
-                        position: fixed;
-                        top: 0;
-                        left: 0;
-                        width: 100%;
-                        height: 100%;
-                        background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
-                        background-size: 400% 400%;
-                        animation: gradientShift 15s ease infinite;
-                        opacity: 0.8;
-                        z-index: -1;
-                    }
-                    @keyframes gradientShift {
-                        0% { background-position: 0% 50%; }
-                        50% { background-position: 100% 50%; }
-                        100% { background-position: 0% 50%; }
+                        min-height: 100vh;
+                        margin: 0;
+                        padding: 20px;
                     }
                     .container {
-                        max-width: 480px;
-                        width: 90%;
-                        background: rgba(255, 255, 255, 0.95);
-                        backdrop-filter: blur(20px);
-                        border-radius: 24px;
+                        background: white;
+                        border-radius: 8px;
                         padding: 40px;
-                        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+                        max-width: 400px;
+                        width: 100%;
+                        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
                         text-align: center;
-                        animation: slideIn 0.6s ease-out;
                     }
-                    @keyframes slideIn {
-                        from { opacity: 0; transform: translateY(30px) scale(0.95); }
-                        to { opacity: 1; transform: translateY(0) scale(1); }
-                    }
-                    .error-icon {
-                        width: 80px;
-                        height: 80px;
-                        margin: 0 auto 24px;
-                        background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
-                        border-radius: 50%;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        animation: errorShake 0.6s ease-out;
-                    }
-                    .error-icon svg {
-                        width: 40px;
-                        height: 40px;
-                        color: white;
-                    }
-                    @keyframes errorShake {
-                        0%, 100% { transform: translateX(0); }
-                        25% { transform: translateX(-5px); }
-                        75% { transform: translateX(5px); }
+                    .icon {
+                        font-size: 48px;
+                        margin-bottom: 20px;
                     }
                     h2 {
-                        font-size: 28px;
-                        font-weight: 700;
-                        margin-bottom: 16px;
-                        color: #DC2626;
-                        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                        color: #dc2626;
+                        margin: 0 0 16px 0;
+                        font-size: 20px;
+                    }
+                    .error-box {
+                        background: #fee;
+                        border: 1px solid #fcc;
+                        border-radius: 4px;
+                        padding: 12px;
+                        margin: 16px 0;
+                        font-size: 14px;
+                        color: #c00;
                     }
                     p {
-                        color: #B91C1C;
-                        margin-bottom: 12px;
-                        line-height: 1.6;
-                        font-size: 16px;
-                    }
-                    .error-message {
-                        background: rgba(239, 68, 68, 0.1);
-                        border-radius: 12px;
-                        padding: 16px;
-                        margin: 20px 0;
-                        font-family: monospace;
+                        color: #666;
+                        margin: 8px 0;
+                        font-size: 14px;
                     }
                     button {
-                        background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
+                        background: #dc2626;
                         color: white;
                         border: none;
-                        padding: 12px 32px;
-                        border-radius: 12px;
-                        font-size: 16px;
-                        font-weight: 600;
+                        padding: 10px 24px;
+                        border-radius: 4px;
+                        font-size: 14px;
                         cursor: pointer;
-                        transition: transform 0.2s;
                         margin-top: 16px;
                     }
                     button:hover {
-                        transform: scale(1.05);
+                        background: #b91c1c;
                     }
                 </style>
             </head>
             <body>
                 <div class="container">
-                    <div class="error-icon">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="12" cy="12" r="10"/>
-                            <line x1="15" y1="9" x2="9" y2="15"/>
-                            <line x1="9" y1="9" x2="15" y2="15"/>
-                        </svg>
-                    </div>
-                    <h2>❌ Authentication Failed</h2>
-                    <div class="error-message">
-                        <p><strong>Error:</strong> ${error.message}</p>
-                    </div>
+                    <div class="icon">❌</div>
+                    <h2>Authentication Failed</h2>
+                    <div class="error-box">${error.message}</div>
                     <p>Please close this window and try again.</p>
                     <button onclick="window.close()">Close Window</button>
                 </div>
