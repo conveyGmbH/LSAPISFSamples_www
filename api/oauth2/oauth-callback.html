@@ -102,9 +102,35 @@
         
         document.addEventListener('DOMContentLoaded', function() {
             console.log(`Running in ${currentEnvironment} environment`);
-            
+            console.log('Current URL:', window.location.href);
+            console.log('URL hash:', window.location.hash);
+            console.log('URL search:', window.location.search);
+
             try {
-                // Handle implicit flow (with access_token in hash)
+                // First check for query parameters (authorization code flow)
+                const urlParams = new URLSearchParams(window.location.search);
+                const queryParams = {};
+                for (const [key, value] of urlParams) {
+                    queryParams[key] = value;
+                }
+
+                console.log('Parameters from query string:', queryParams);
+
+                // Handle authorization code flow success (query parameters)
+                if (queryParams.success || queryParams.access_token) {
+                    console.log('Processing authorization code flow success');
+                    processSuccess(queryParams);
+                    return;
+                }
+
+                // Handle errors from query parameters
+                if (queryParams.error) {
+                    console.error('Error from query parameters:', queryParams.error);
+                    showError(`Error: ${queryParams.error_description || queryParams.error}`);
+                    return;
+                }
+
+                // Handle implicit flow (with access_token in hash) - fallback
                 if (window.location.hash) {
                     const params = {};
                     window.location.hash.substring(1).split('&').forEach(param => {
@@ -112,75 +138,11 @@
                         params[key] = decodeURIComponent(value);
                     });
 
-                    console.log('Parameters extracted from hash:', params);
+                    console.log('Parameters extracted from hash (implicit flow):', params);
 
                     if (params.access_token) {
-                        // Token was received successfully
-                        document.getElementById('loading').style.display = 'none';
-                        document.getElementById('success').style.display = 'block';
-
-                        if (window.opener) {
-                            const targetOrigin = getTargetOrigin();
-                            console.log(`Sending message to parent window at origin: ${targetOrigin}`);
-                            
-                            try {
-                                window.opener.postMessage({
-                                    access_token: params.access_token,
-                                    instance_url: params.instance_url,
-                                    token_type: params.token_type,
-                                    issued_at: params.issued_at,
-                                    id: params.id,
-                                    environment: currentEnvironment
-                                }, targetOrigin);
-                                console.log('Message sent successfully');
-                            } catch (postError) {
-                                console.error('Error sending message to parent:', postError);
-                                // Fallback to wildcard origin
-                                try {
-                                    console.log('Trying with wildcard origin...');
-                                    window.opener.postMessage({
-                                        access_token: params.access_token,
-                                        instance_url: params.instance_url,
-                                        token_type: params.token_type,
-                                        issued_at: params.issued_at,
-                                        id: params.id,
-                                        environment: currentEnvironment,
-                                        note: 'Sent with wildcard origin as fallback'
-                                    }, '*');
-                                } catch (wildcardError) {
-                                    console.error('Wildcard origin also failed:', wildcardError);
-                                    showError('Communication with parent window failed.');
-                                    return;
-                                }
-                            }
-
-                            // Store data in localStorage as backup
-                            try {
-                                localStorage.setItem('SF_ACCESS_TOKEN', params.access_token);
-                                localStorage.setItem('SF_INSTANCE_URL', params.instance_url);
-                                localStorage.setItem('SF_TOKEN_ISSUED_AT', params.issued_at);
-                                console.log('Tokens stored in localStorage as backup');
-                            } catch (storageError) {
-                                console.warn('Could not store in localStorage:', storageError);
-                            }
-
-                            setTimeout(() => window.close(), 2000);
-                        } else {
-                            // No opener: store in localStorage and redirect
-                            try {
-                                localStorage.setItem('SF_ACCESS_TOKEN', params.access_token);
-                                localStorage.setItem('SF_INSTANCE_URL', params.instance_url);
-                                localStorage.setItem('SF_TOKEN_ISSUED_AT', params.issued_at);
-
-                                const returnUrl = isLocalDev
-                                    ? 'http://localhost:5504/displayLeadTransfer.html?auth=success'
-                                    : 'https://lsapisfsamples.convey.de/displayLeadTransfer.html?auth=success';
-
-                                window.location.href = returnUrl;
-                            } catch (storageError) {
-                                showError('Failed to store authentication data: ' + storageError.message);
-                            }
-                        }
+                        console.log('Processing implicit flow tokens');
+                        processSuccess(params);
                     } else if (params.error) {
                         showError(`Error: ${params.error_description || params.error}`);
                     } else {
@@ -207,6 +169,94 @@
                 showError(`Processing error: ${error.message}`);
             }
         });
+
+        function processSuccess(params) {
+            console.log('Processing authentication success with params:', params);
+
+            // Show success UI
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('success').style.display = 'block';
+
+            if (window.opener) {
+                const targetOrigin = getTargetOrigin();
+                console.log(`Sending success message to parent window at origin: ${targetOrigin}`);
+
+                try {
+                    window.opener.postMessage({
+                        success: true,
+                        access_token: params.access_token,
+                        instance_url: params.instance_url,
+                        token_type: params.token_type,
+                        issued_at: params.issued_at,
+                        id: params.id,
+                        sessionId: params.sessionId,
+                        environment: currentEnvironment
+                    }, targetOrigin);
+                    console.log('Success message sent successfully');
+                } catch (postError) {
+                    console.error('Error sending message to parent:', postError);
+                    // Fallback to wildcard origin
+                    try {
+                        console.log('Trying with wildcard origin...');
+                        window.opener.postMessage({
+                            success: true,
+                            access_token: params.access_token,
+                            instance_url: params.instance_url,
+                            token_type: params.token_type,
+                            issued_at: params.issued_at,
+                            id: params.id,
+                            sessionId: params.sessionId,
+                            environment: currentEnvironment,
+                            note: 'Sent with wildcard origin as fallback'
+                        }, '*');
+                        console.log('Fallback message sent successfully');
+                    } catch (wildcardError) {
+                        console.error('Wildcard origin also failed:', wildcardError);
+                        showError('Communication with parent window failed.');
+                        return;
+                    }
+                }
+
+                // Store data in localStorage as backup
+                try {
+                    localStorage.setItem('SF_ACCESS_TOKEN', params.access_token);
+                    localStorage.setItem('SF_INSTANCE_URL', params.instance_url);
+                    localStorage.setItem('SF_TOKEN_ISSUED_AT', params.issued_at || Date.now().toString());
+                    if (params.sessionId) {
+                        localStorage.setItem('SF_SESSION_ID', params.sessionId);
+                    }
+                    console.log('Tokens stored in localStorage as backup');
+                } catch (storageError) {
+                    console.warn('Could not store in localStorage:', storageError);
+                }
+
+                setTimeout(() => {
+                    console.log('Closing popup window');
+                    window.close();
+                }, 2000);
+            } else {
+                console.log('No opener window found, redirecting...');
+                // No opener: store in localStorage and redirect
+                try {
+                    localStorage.setItem('SF_ACCESS_TOKEN', params.access_token);
+                    localStorage.setItem('SF_INSTANCE_URL', params.instance_url);
+                    localStorage.setItem('SF_TOKEN_ISSUED_AT', params.issued_at || Date.now().toString());
+                    if (params.sessionId) {
+                        localStorage.setItem('SF_SESSION_ID', params.sessionId);
+                    }
+
+                    const returnUrl = isLocalDev
+                        ? 'http://localhost:5504/displayLeadTransfer.html?auth=success'
+                        : 'https://lsapisfsamples.convey.de/displayLeadTransfer.html?auth=success';
+
+                    console.log('Redirecting to:', returnUrl);
+                    window.location.href = returnUrl;
+                } catch (storageError) {
+                    console.error('Storage error:', storageError);
+                    showError('Failed to store authentication data: ' + storageError.message);
+                }
+            }
+        }
 
         function showError(message) {
             document.getElementById('loading').style.display = 'none';

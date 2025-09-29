@@ -1,4 +1,4 @@
-// Description: This file contains the code to handle the API requests and responses.
+ // handle the API requests and responses
 export default class ApiService {
   constructor(serverName, apiName) {
     this.serverName = serverName;

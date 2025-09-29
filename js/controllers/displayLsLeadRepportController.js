@@ -844,7 +844,10 @@ function handleRowClickWrapper(event) {
 // Improved addTransferButton function
 function addTransferButton() {
   // Check if the button already exists to avoid duplicates
-  if (document.getElementById("transferButton")) return;
+   if (document.getElementById('transferButton')) {
+    console.log("Transfer button already exists");
+    return;
+  }
 
   // Create the button
   const transferButton = document.createElement("button");
