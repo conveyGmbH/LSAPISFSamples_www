@@ -84,15 +84,16 @@ app.use(cors({
     const allowedOrigins = [
     // Development origins
     'http://127.0.0.1:5504',
-    'http://localhost:5504', 
-    'http://localhost:3000', 
+    'http://localhost:5504',
+    'http://localhost:3000',
     'https://leadsuccess.convey.de/apisflsm/',
-    'https://leadsuccess.convey.de',    
-  
+    'https://leadsuccess.convey.de',
+
     // Production origins
     'https://delightful-desert-016e2a610.4.azurestaticapps.net',
     'https://brave-bush-0041ef403.6.azurestaticapps.net',
     'https://lsapisfsamples.convey.de',
+    'https://lstest.convey.de',
     'https://lsapisfbackend.convey.de',
     'https://lsapisfbackenddev-gnfbema5gcaxdahz.germanywestcentral-01.azurewebsites.net',
   ]; 
