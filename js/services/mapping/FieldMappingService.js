@@ -778,26 +778,11 @@ async bulkSaveToDatabase() {
 }
     
 
-    // Formater le label d'un champ
+    // MODIFICATION CLIENT: Retourner le nom du champ API tel quel (pas de formatage)
+    // Le client verra "Company" au lieu de "Company Name", "Question01" au lieu de "Question 01"
     formatFieldLabel(fieldName) {
-        const labelMap = {
-            'FirstName': 'First Name',
-            'LastName': 'Last Name',
-            'Email': 'Email Address',
-            'Company': 'Company Name',
-            'Phone': 'Phone Number',
-            'MobilePhone': 'Mobile Phone',
-            'Title': 'Job Title',
-            'Industry': 'Industry',
-            'Street': 'Street Address',
-            'City': 'City',
-            'State': 'State/Province',
-            'PostalCode': 'Postal Code',
-            'Country': 'Country',
-            'Description': 'Description'
-        };
-
-        return labelMap[fieldName] || fieldName.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+        // Retourner simplement le nom du champ de l'API sans transformation
+        return fieldName;
     }
 
     // Exporter la configuration
@@ -932,20 +917,88 @@ async bulkSaveToDatabase() {
 
     /**
      * Apply custom field name mappings to lead data for Salesforce transfer
+     * MODIFICATION CLIENT: Utilise customLabel comme nom de champ SF si modifié
+     * Exemple: Si customLabel = "Question07__c", alors le champ sera posté comme "Question07__c"
      * @param {Object} leadData - Original lead data
      * @returns {Object} Lead data with Salesforce field names
      */
     mapFieldNamesForSalesforce(leadData) {
         const mappedData = {};
 
-        for (const [originalField, value] of Object.entries(leadData)) {
-            const salesforceField = this.getCustomFieldName(originalField);
-            mappedData[salesforceField] = value;
+        // Champs système à exclure du POST vers Salesforce
+        const systemFieldsToExclude = [
+            '__metadata', 'KontaktViewId', 'Id', 'CreatedDate', 'LastModifiedDate',
+            'CreatedById', 'LastModifiedById', 'DeviceId', 'DeviceRecordId',
+            'RequestBarcode', 'EventId', 'SystemModstamp', 'AttachmentIdList',
+            'IsReviewed', 'StatusMessage'
+        ];
 
-            if (originalField !== salesforceField) {
-                console.log(`Field mapped: ${originalField} → ${salesforceField}`);
+        // MODIFICATION CLIENT: Pas de validation côté frontend
+        // Tous les champs (mappés ou non) seront envoyés à Salesforce
+        // Salesforce retournera une erreur si un champ n'existe pas
+
+        for (const [originalField, value] of Object.entries(leadData)) {
+            // Exclure les champs système lors du POST vers SF
+            if (systemFieldsToExclude.includes(originalField)) {
+                console.log(`Excluding system field from SF transfer: ${originalField}`);
+                continue;
             }
+
+            // MODIFICATION CLIENT: Exclure les champs inactifs
+            const isActive = this.isFieldActive(originalField);
+            if (isActive === false) {
+                console.log(`Excluding inactive field from SF transfer: ${originalField}`);
+                continue;
+            }
+
+            // Priorité 1: Utiliser customLabel si défini et différent du label par défaut
+            let salesforceFieldName = originalField;
+
+            const customLabel = this.customLabels[originalField];
+            const defaultLabel = this.formatFieldLabel(originalField);
+
+            // MODIFICATION CLIENT: Utiliser customLabel UNIQUEMENT s'il ressemble à un nom de champ SF valide
+            // Format valide: commence par lettre, contient seulement lettres/chiffres/underscore, peut finir par __c
+            const isValidSalesforceFieldName = (name) => {
+                if (!name || name.trim() === '') return false;
+                // Pattern pour champs SF: commence par lettre, contient lettres/chiffres/underscore, peut finir par __c
+                return /^[a-zA-Z][a-zA-Z0-9_]*(__c)?$/.test(name.trim());
+            };
+
+            // Si customLabel existe ET est différent du label par défaut ET est un nom de champ SF valide
+            if (customLabel && customLabel.trim() !== '' && customLabel !== defaultLabel) {
+                const trimmedLabel = customLabel.trim();
+
+                if (isValidSalesforceFieldName(trimmedLabel)) {
+                    salesforceFieldName = trimmedLabel;
+                    console.log(`✅ Using custom label as SF field name: ${originalField} → ${salesforceFieldName}`);
+                } else {
+                    // customLabel est un label d'affichage (avec espaces), pas un nom de champ SF
+                    // Utiliser le nom original du champ
+                    console.log(`ℹ️ Custom label "${trimmedLabel}" is display label only, using original field name: ${originalField}`);
+                    salesforceFieldName = originalField;
+                }
+            }
+            // Priorité 2: Utiliser le mapping explicite customFieldNames (legacy)
+            else if (this.customFieldNames[originalField]) {
+                salesforceFieldName = this.customFieldNames[originalField];
+                console.log(`Using explicit field mapping: ${originalField} → ${salesforceFieldName}`);
+            }
+            // Priorité 3: Utiliser le nom original
+            else {
+                console.log(`Using original field name: ${originalField}`);
+            }
+
+            // MODIFICATION CLIENT: Envoyer tous les champs mappés à Salesforce
+            // Salesforce validera si le champ existe et retournera une erreur claire si nécessaire
+            mappedData[salesforceFieldName] = value;
         }
+
+        console.log('🔄 Field mapping summary:', {
+            originalFields: Object.keys(leadData).length,
+            mappedFields: Object.keys(mappedData).length,
+            excluded: Object.keys(leadData).length - Object.keys(mappedData).length
+        });
 
         return mappedData;
     }

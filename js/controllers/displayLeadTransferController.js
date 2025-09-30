@@ -318,7 +318,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Load lead data
   loadLeadData();
 
-  // Initialize SmartFieldManager with real API service AFTER loadLeadData
+  // TEMPORARY FIX: SmartFieldManager not defined - commented out to unblock mapping functionality
+  // TODO: Import or define SmartFieldManager if needed
+  /*
   const eventId = sessionStorage.getItem('selectedEventId');
   const serverName = sessionStorage.getItem('serverName');
   const apiName = sessionStorage.getItem('apiName');
@@ -334,6 +336,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       hasApiName: !!apiName
     });
   }
+  */
+  console.log('ℹ️ SmartFieldManager disabled temporarily')
 
   // Check Salesforce connection status (will verify with backend before enabling buttons)
   await checkSalesforceConnection();
@@ -423,8 +427,10 @@ function collectCurrentLeadData() {
 
   console.log('📋 Final merged data:', mergedData);
 
-  // Apply field filtering for only active fields
-  return filterConfiguredFields(mergedData);
+  // MODIFICATION CLIENT: Ne pas appliquer le mapping ici
+  // Le mapping sera appliqué dans transferLeadDirectlyToSalesforce()
+  // Retourner les données brutes avec les noms originaux des champs
+  return mergedData;
 }
 
 /* Display user information in the interface
@@ -811,10 +817,24 @@ async function handleTransferButtonClick() {
   } catch (error) {
     console.error("Transfer error:", error);
 
-    // Clear previous content and show error
-    transferResults.style.display = "block";
-    transferStatus.innerHTML = ""; // Clear previous content
+    // MODIFICATION CLIENT: Afficher l'erreur dans un dialogue modal
+    let errorMessage = error.message || "Unknown error";
+    let fieldName = null;
 
+    // Pattern: "No such column 'FieldName__c' on sobject of type Lead"
+    const fieldMatch = errorMessage.match(/No such column '([^']+)'/i);
+    if (fieldMatch) {
+      fieldName = fieldMatch[1];
+
+      // Créer et afficher un dialogue modal avec l'erreur
+      showFieldErrorModal(fieldName);
+    } else {
+      // Erreur générique
+      showError(`Transfer failed: ${errorMessage}`);
+    }
+
+    // Aussi afficher dans le transferStatus pour historique
+    transferResults.style.display = "block";
     transferStatus.innerHTML = `
       <div class="status-error">
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -822,7 +842,7 @@ async function handleTransferButtonClick() {
           <line x1="15" y1="9" x2="9" y2="15"/>
           <line x1="9" y1="9" x2="15" y2="15"/>
         </svg>
-        Transfer failed: ${error.message || "Unknown error"}
+        Transfer failed - check details above
       </div>
     `;
   } finally {
@@ -946,9 +966,9 @@ async function handleConnectClick() {
     // Update UI to show connecting state
     updateConnectionStatus("connecting", "Connecting to Salesforce...");
 
-    // Open Salesforce OAuth in a popup - direct to auth endpoint
+    // Open Salesforce OAuth popup - user will select environment there
     const authUrl = `${appConfig.apiBaseUrl.replace('/api', '/auth/salesforce')}?orgId=${encodeURIComponent(orgId)}`;
-    const popup = window.open(authUrl, 'salesforce-auth', 'width=600,height=700,scrollbars=yes,resizable=yes');
+    const popup = window.open(authUrl, 'salesforce-auth', 'width=500,height=650,scrollbars=no,resizable=no');
 
     // Check if popup was blocked
     if (!popup) {
@@ -1001,9 +1021,11 @@ function filterConfiguredFields(leadData) {
     // Required fields that must always be included regardless of configuration
     const requiredFields = ['LastName', 'Company'];
 
-    // Read-only system fields that should be excluded from transfer
-    const systemFields = [
-        'Id', 'CreatedDate', 'LastModifiedDate', 'CreatedById', 'LastModifiedById',
+    // MODIFICATION CLIENT: Ne plus exclure les champs - afficher TOUS les champs
+    // Les champs système ci-dessous seront affichés mais marqués comme READ-ONLY dans l'UI
+    // Ils seront exclus uniquement lors du POST vers Salesforce
+    const systemFieldsToExcludeFromTransfer = [
+        '__metadata', 'KontaktViewId', 'Id', 'CreatedDate', 'LastModifiedDate',
         'DeviceId', 'DeviceRecordId', 'RequestBarcode', 'EventId', 'SystemModstamp',
         'AttachmentIdList', 'IsReviewed', 'StatusMessage'
     ];
@@ -1011,50 +1033,51 @@ function filterConfiguredFields(leadData) {
     console.log('Filtering lead data for transfer...');
     console.log('Original lead data keys:', Object.keys(leadData));
 
-    // First, filter fields based on configuration
+    // MODIFICATION CLIENT: Inclure TOUS les champs (même vides/null)
     const tempFilteredData = {};
     for (const [fieldName, value] of Object.entries(leadData)) {
-        // Always exclude system fields
-        if (systemFields.includes(fieldName)) {
-            console.log(`Excluding system field: ${fieldName}`);
+        // Exclure uniquement les métadonnées techniques (__metadata, KontaktViewId)
+        if (fieldName === '__metadata' || fieldName === 'KontaktViewId') {
+            console.log(`Excluding metadata field: ${fieldName}`);
             continue;
         }
 
-        // Always include required fields
-        if (requiredFields.includes(fieldName)) {
-            console.log(`Including required field: ${fieldName} = ${value}`);
-            tempFilteredData[fieldName] = value;
-            continue;
-        }
-
-        // Check if field is active in configuration
+        // Inclure TOUS les autres champs (même avec valeur null)
+        // Les champs système seront exclus plus tard lors du POST vers SF
         const isFieldActive = window.fieldMappingService?.isFieldActive(fieldName);
 
-        console.log(`Field ${fieldName}: active = ${isFieldActive}, value = ${value}`);
-
-        // Only include fields that are explicitly active or undefined (default active)
+        // Inclure le champ si actif OU si pas de configuration (défaut = actif)
         if (isFieldActive !== false) {
-            // Include active fields, even with null/empty values
-            tempFilteredData[fieldName] = value || null;
-            console.log(`Including active field: ${fieldName}`);
+            tempFilteredData[fieldName] = value !== undefined ? value : null;
+            console.log(`Including field: ${fieldName} = ${value}`);
         } else {
             console.log(`Excluding inactive field: ${fieldName}`);
         }
     }
 
     // Apply Salesforce transformations and field mappings
+    console.log('🔍 Checking available field mapping services:', {
+        hasSalesforceFieldMapper: !!window.salesforceFieldMapper,
+        hasFieldMappingService: !!window.fieldMappingService,
+        hasMapFieldNamesMethod: !!window.fieldMappingService?.mapFieldNamesForSalesforce
+    });
+
     if (window.salesforceFieldMapper && window.salesforceFieldMapper.transformForSalesforce) {
+        console.log('Using salesforceFieldMapper.transformForSalesforce');
         const { transformed: salesforceData, excluded } = window.salesforceFieldMapper.transformForSalesforce(tempFilteredData);
         console.log('Applied Salesforce field transformations');
         console.log('Excluded fields:', excluded);
         Object.assign(filteredData, salesforceData);
     } else if (window.fieldMappingService?.mapFieldNamesForSalesforce) {
-        // Legacy field mapping fallback
+        // MODIFICATION CLIENT: Utiliser le mapping customLabel
+        console.log('✅ Using fieldMappingService.mapFieldNamesForSalesforce');
+        console.log('Custom labels available:', window.fieldMappingService.customLabels);
         const mappedData = window.fieldMappingService.mapFieldNamesForSalesforce(tempFilteredData);
-        console.log('Applied legacy custom field mappings for Salesforce');
+        console.log('📋 Mapped data result:', mappedData);
         Object.assign(filteredData, mappedData);
     } else {
         // Fallback: use original field names
+        console.log('⚠️ No field mapping service available - using original field names');
         Object.assign(filteredData, tempFilteredData);
     }
 
@@ -1251,8 +1274,10 @@ function displayLeadData(data) {
         if (filterValue === 'active' && !fieldInfo.active) return;
         if (filterValue === 'inactive' && fieldInfo.active) return;
 
-        // Exclure les champs système
-        if (isSystemField(fieldName)) return;
+        // MODIFICATION CLIENT: Ne plus exclure les champs système de l'affichage
+        // Afficher TOUS les champs (même __metadata sera exclu par le filtre plus bas)
+        // Exclure uniquement les métadonnées techniques inutiles
+        if (fieldName === '__metadata' || fieldName === 'KontaktViewId') return;
 
         const fieldElement = createFieldElement(fieldName, fieldInfo);
         infoGrid.appendChild(fieldElement);
@@ -1781,30 +1806,46 @@ async function transferLeadDirectlyToSalesforce(leadData, attachments) {
     // Get current API base URL from config
     const appConfig = window.salesforceConfig || { apiBaseUrl: 'http://localhost:3000/api' };
 
-    // Prepare lead data for backend API
-    const salesforceLeadData = {
-      LastName: leadData.LastName,
-      FirstName: leadData.FirstName || null,
-      Company: leadData.Company,
-      Title: leadData.Title || null,
-      Phone: leadData.Phone || null,
-      MobilePhone: leadData.MobilePhone || null,
-      Fax: leadData.Fax || null,
-      Email: leadData.Email || null,
-      Website: leadData.Website || null,
-      Street: leadData.Street || null,
-      City: leadData.City || null,
-      State: leadData.State || null,
-      PostalCode: leadData.PostalCode || null,
-      Country: leadData.Country || null,
-      CountryCode: leadData.CountryCode || null,
-      Description: leadData.Description || null,
-      Industry: leadData.Industry || null,
-      Salutation: leadData.Salutation || null,
-      // Department__c: leadData.Department || null, // Champ personnalisé désactivé - n'existe pas dans Salesforce
-    };
+    // MODIFICATION CLIENT: Appliquer le mapping customLabel directement
+    console.log('🔄 Applying field mapping with customLabels...');
+    console.log('Original lead data:', leadData);
 
-    // Add active Question/Answer/Text fields from LS_LeadReport to Description field
+    let salesforceLeadData = {};
+
+    // Vérifier si fieldMappingService est disponible
+    if (window.fieldMappingService && window.fieldMappingService.mapFieldNamesForSalesforce) {
+      console.log('✅ FieldMappingService found!');
+      console.log('Custom labels:', window.fieldMappingService.customLabels);
+
+      // Appliquer le mapping directement
+      salesforceLeadData = window.fieldMappingService.mapFieldNamesForSalesforce(leadData);
+      console.log('✅ Field mapping applied successfully!');
+      console.log('Mapped data:', salesforceLeadData);
+    } else {
+      console.warn('⚠️ FieldMappingService not available - using original field names');
+      // Filtrer manuellement les champs système
+      const systemFields = ['__metadata', 'KontaktViewId', 'Id', 'CreatedDate', 'LastModifiedDate',
+        'CreatedById', 'LastModifiedById', 'DeviceId', 'DeviceRecordId', 'RequestBarcode',
+        'EventId', 'SystemModstamp', 'AttachmentIdList', 'IsReviewed', 'StatusMessage'];
+
+      Object.keys(leadData).forEach(key => {
+        if (!systemFields.includes(key)) {
+          salesforceLeadData[key] = leadData[key];
+        }
+      });
+    }
+
+    console.log('📊 Mapping summary:', {
+      originalFieldCount: Object.keys(leadData).length,
+      mappedFieldCount: Object.keys(salesforceLeadData).length,
+      mappedFields: Object.keys(salesforceLeadData)
+    });
+
+    // MODIFICATION CLIENT: Les champs Question/Answer/Text sont maintenant envoyés directement
+    // avec leurs noms mappés (Question01__c, Answer01__c, etc.) grâce à filterConfiguredFields()
+    // Ce code legacy est conservé en commentaire au cas où vous souhaitez l'ancienne logique
+    // qui ajoutait tout dans le champ Description
+    /*
     if (leadSource === "LeadReport") {
       console.log('Source is LeadReport - checking for Question/Answer/Text fields...');
 
@@ -1812,12 +1853,11 @@ async function transferLeadDirectlyToSalesforce(leadData, attachments) {
       let activeQACount = 0;
 
       for (let i = 1; i <= 50; i++) {
-        const questionNum = i.toString().padStart(2, '0'); // Format: 01, 02, ..., 50
+        const questionNum = i.toString().padStart(2, '0');
         const questionField = `Question${questionNum}`;
         const answersField = `Answers${questionNum}`;
         const textField = `Text${questionNum}`;
 
-        // Only include fields that have values (active fields)
         const hasQuestion = leadData[questionField] && leadData[questionField].trim() !== '' && leadData[questionField] !== 'N/A';
         const hasAnswers = leadData[answersField] && leadData[answersField].trim() !== '' && leadData[answersField] !== 'N/A';
         const hasText = leadData[textField] && leadData[textField].trim() !== '' && leadData[textField] !== 'N/A';
@@ -1840,7 +1880,6 @@ async function transferLeadDirectlyToSalesforce(leadData, attachments) {
         }
       }
 
-      // Append Q&A to existing Description or create new one
       if (questionsAndAnswers.length > 0) {
         const qaContent = '\n\n=== Questions & Answers ===\n' + questionsAndAnswers.join('\n\n');
 
@@ -1855,6 +1894,8 @@ async function transferLeadDirectlyToSalesforce(leadData, attachments) {
         console.log('ℹ️ No active Q&A fields found in LeadReport');
       }
     }
+    */
+    console.log('ℹ️ Question/Answer fields are now sent as individual mapped fields (e.g., Question01__c)');
 
     // Remove null/empty values
     Object.keys(salesforceLeadData).forEach(key => {
@@ -4245,6 +4286,25 @@ async function saveCustomLabel() {
     if (!customLabel) {
         showError('Please enter a custom label');
         customLabelInput.focus();
+        return;
+    }
+
+    // MODIFICATION CLIENT: Validation du format du label
+    // Le label doit être un nom de champ Salesforce valide (pas d'espaces)
+    const hasSpaces = /\s/.test(customLabel);
+    if (hasSpaces) {
+        showError('❌ Invalid field name: Spaces are not allowed.\n\nExamples of valid names:\n• Company__c\n• Question01__c\n• CustomField__c\n\nExamples of invalid names:\n• Company Name (has space)\n• Job title new (has spaces)');
+        customLabelInput.focus();
+        customLabelInput.select();
+        return;
+    }
+
+    // Vérifier que c'est un nom de champ SF valide
+    const isValidSFFieldName = /^[a-zA-Z][a-zA-Z0-9_]*(__c|__C)?$/.test(customLabel);
+    if (!isValidSFFieldName) {
+        showError('❌ Invalid Salesforce field name format.\n\nField names must:\n• Start with a letter\n• Contain only letters, numbers, and underscores\n• End with __c for custom fields\n\nExamples: Company, Title, Question01__c, CustomField__c');
+        customLabelInput.focus();
+        customLabelInput.select();
         return;
     }
 

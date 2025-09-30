@@ -30,7 +30,7 @@ function determineEnvironmentAndConfig() {
     // Determine redirect URI based on environment
     let redirectUri;
     if (isProduction) {
-        redirectUri = process.env.SF_REDIRECT_URI_PRODUCTION || 'https://lsapisfsamples.convey.de/oauth-callback.html';
+        redirectUri = process.env.SF_REDIRECT_URI_PRODUCTION || 'https://lsapisfbackenddev-gnfbema5gcaxdahz.germanywestcentral-01.azurewebsites.net/oauth/callback';
     } else {
         redirectUri = process.env.SF_REDIRECT_URI_DEV || `http://localhost:${port}/oauth/callback`;
     }
@@ -306,8 +306,13 @@ function validateAndFixLeadData(leadData) {
 
 // AUTHENTICATION ROUTES
 
-// Start OAuth flow
+// Show environment selection page
 app.get('/auth/salesforce', (req, res) => {
+    res.sendFile(path.join(__dirname, 'views', 'auth-start.html'));
+});
+
+// OAuth redirect with environment selection
+app.get('/auth/salesforce/redirect', (req, res) => {
     try {
         const orgId = req.query.orgId || 'default';
         // Client provides their own credentials via query params OR use defaults from .env
@@ -1091,40 +1096,51 @@ app.post('/api/salesforce/auth', (req, res) => {
 });
 
 // Check Salesforce connection status
-app.get('/api/salesforce/check', (req, res) => {
+app.get('/api/salesforce/check', async (req, res) => {
     try {
-        const orgId = getCurrentOrgId(req);
-        const userInfo = getUserInfo(orgId);
-        const conn = getConnection(orgId);
+        // Get orgId from header (sent by frontend after OAuth success)
+        const orgId = req.headers['x-org-id'] || 'default';
 
-        if (!userInfo || !conn || !req.session.authenticated) {
+        // Check if connection exists in salesforceService (stateless, no session needed)
+        try {
+            const conn = salesforceService.getConnection(orgId);
+
+            // Verify connection is valid by calling identity
+            const identity = await conn.identity();
+
+            // Extract user info from identity response
+            const userInfo = {
+                username: identity.username,
+                display_name: identity.display_name,
+                organization_name: identity.organization_name || 'Unknown Org',
+                organization_id: identity.organization_id,
+                user_id: identity.user_id
+            };
+
+            res.json({
+                connected: true,
+                userInfo: userInfo,
+                // Add tokens for direct API calls
+                tokens: {
+                    access_token: conn.accessToken,
+                    instance_url: conn.instanceUrl
+                }
+            });
+
+        } catch (connError) {
+            // Connection doesn't exist or is invalid
             return res.status(401).json({
                 connected: false,
-                message: 'Not connected to Salesforce'
+                message: `No valid Salesforce connection for org: ${orgId}`
             });
         }
-
-        res.json({
-            connected: true,
-            userInfo: {
-                username: userInfo.username,
-                display_name: userInfo.display_name,
-                organization_name: userInfo.organization_name,
-                organization_id: userInfo.organizationId,
-                user_id: userInfo.id
-            },
-            // Add tokens for direct API calls
-            tokens: {
-                access_token: req.session.salesforce?.accessToken,
-                instance_url: req.session.salesforce?.instanceUrl
-            }
-        });
 
     } catch (error) {
         console.error('❌ Connection check failed:', error);
         res.status(500).json({
             connected: false,
-            message: 'Connection check failed'
+            message: 'Connection check failed',
+            error: error.message
         });
     }
 });
@@ -1371,7 +1387,32 @@ app.post('/api/leads/check-duplicate', async (req, res) => {
     }
 });
 
-// Transfer lead with attachments
+// Cache for Lead object valid fields
+let leadObjectFieldsCache = null;
+let leadObjectFieldsCacheTimestamp = 0;
+const LEAD_FIELDS_CACHE_TTL = 60 * 60 * 1000; // 1 hour cache TTL
+
+// Function to fetch Lead object fields metadata from Salesforce
+async function fetchLeadObjectFields(conn) {
+    const now = Date.now();
+    if (leadObjectFieldsCache && (now - leadObjectFieldsCacheTimestamp) < LEAD_FIELDS_CACHE_TTL) {
+        return leadObjectFieldsCache;
+    }
+    try {
+        const metadata = await conn.describe('Lead');
+        const fields = metadata.fields.map(f => f.name);
+        leadObjectFieldsCache = new Set(fields);
+        leadObjectFieldsCacheTimestamp = now;
+        console.log(`Fetched ${fields.length} Lead object fields from Salesforce metadata`);
+        return leadObjectFieldsCache;
+    } catch (error) {
+        console.error('Failed to fetch Lead object fields metadata:', error);
+        // Fallback: return null to skip filtering
+        return null;
+    }
+}
+
+// Transfer lead with attachments - enhanced with field filtering and detailed error
 app.post('/api/salesforce/leads', async (req, res) => {
     try {
         const orgId = getCurrentOrgId(req);
@@ -1385,7 +1426,7 @@ app.post('/api/salesforce/leads', async (req, res) => {
 
         console.log('📝 Creating lead with data:', leadData);
 
-        
+        // Remove null or undefined fields
         const processedLeadData = {};
         Object.keys(leadData).forEach(field => {
             const value = leadData[field];
@@ -1394,9 +1435,9 @@ app.post('/api/salesforce/leads', async (req, res) => {
             }
         });
 
-        
+        // Validate and fix lead data
         const validationResults = validateAndFixLeadData(processedLeadData);
-        const validatedLeadData = validationResults.data;
+        let validatedLeadData = validationResults.data;
 
         // Check for blocking validation errors
         if (validationResults.errors.length > 0) {
@@ -1405,6 +1446,24 @@ app.post('/api/salesforce/leads', async (req, res) => {
                 errors: validationResults.errors,
                 warnings: validationResults.warnings
             });
+        }
+
+        // Fetch valid Lead fields from Salesforce metadata
+        const validLeadFields = await fetchLeadObjectFields(conn);
+
+        let unknownFields = [];
+        if (validLeadFields) {
+            // Filter out unknown fields
+            unknownFields = Object.keys(validatedLeadData).filter(field => !validLeadFields.has(field));
+            if (unknownFields.length > 0) {
+                unknownFields.forEach(field => {
+                    delete validatedLeadData[field];
+                });
+                validationResults.warnings.push(`Removed unknown Lead fields: ${unknownFields.join(', ')}`);
+                console.log(`Removed unknown Lead fields: ${unknownFields.join(', ')}`);
+            }
+        } else {
+            console.warn('Skipping Lead field filtering due to metadata fetch failure');
         }
 
         // Check for duplicates
@@ -1449,7 +1508,14 @@ app.post('/api/salesforce/leads', async (req, res) => {
         const leadResult = await conn.sobject('Lead').create(validatedLeadData);
 
         if (!leadResult.success) {
-            throw new Error('Failed to create lead: ' + JSON.stringify(leadResult.errors));
+            // Include detailed Salesforce errors if available
+            let detailedError = 'Failed to create lead';
+            if (leadResult.errors && Array.isArray(leadResult.errors) && leadResult.errors.length > 0) {
+                detailedError += ': ' + leadResult.errors.map(e => e.message || JSON.stringify(e)).join('; ');
+            } else {
+                detailedError += ': ' + JSON.stringify(leadResult.errors);
+            }
+            throw new Error(detailedError);
         }
 
         const leadId = leadResult.id;
@@ -1520,10 +1586,15 @@ app.post('/api/salesforce/leads', async (req, res) => {
 
     } catch (error) {
         console.error('❌ Lead transfer failed:', error);
+        // Include detailed error info if available
+        let errorMessage = error.message || 'Unknown error';
+        if (error.errors && Array.isArray(error.errors)) {
+            errorMessage += ': ' + error.errors.map(e => e.message || JSON.stringify(e)).join('; ');
+        }
         res.status(500).json({
             success: false,
             message: 'Failed to transfer lead to Salesforce',
-            error: error.message
+            error: errorMessage
         });
     }
 });
