@@ -467,11 +467,4 @@ mock-data/
 ai-session-*
 claude-session-*
 
-# Images and Assets
-img/
-*.png
-*.jpg
-*.jpeg
-*.gif
-*.svg
-*.ico
+
