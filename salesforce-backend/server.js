@@ -1459,10 +1459,14 @@ app.post('/api/salesforce/leads', async (req, res) => {
 
             for (const attachment of attachments) {
                 try {
+                    // Support both old format (filename/content) and new format (Name/Body)
+                    const fileName = attachment.filename || attachment.Name || 'Untitled';
+                    const fileContent = attachment.content || attachment.Body;
+
                     const contentVersion = {
-                        Title: attachment.filename,
-                        PathOnClient: attachment.filename,
-                        VersionData: attachment.content,
+                        Title: fileName,
+                        PathOnClient: fileName,
+                        VersionData: fileContent,
                         FirstPublishLocationId: leadId
                     };
 
@@ -1470,22 +1474,22 @@ app.post('/api/salesforce/leads', async (req, res) => {
 
                     if (attachResult.success) {
                         attachmentResults.push({
-                            filename: attachment.filename,
+                            filename: fileName,
                             salesforceId: attachResult.id,
                             success: true
                         });
-                        console.log(` Attachment uploaded: ${attachment.filename}`);
+                        console.log(`✅ Attachment uploaded: ${fileName}`);
                     } else {
                         attachmentResults.push({
-                            filename: attachment.filename,
+                            filename: fileName,
                             success: false,
                             error: JSON.stringify(attachResult.errors)
                         });
                     }
                 } catch (attachError) {
-                    console.error(`❌ Attachment upload failed for ${attachment.filename}:`, attachError);
+                    console.error(`❌ Attachment upload failed for ${fileName}:`, attachError);
                     attachmentResults.push({
-                        filename: attachment.filename,
+                        filename: fileName,
                         success: false,
                         error: attachError.message
                     });
