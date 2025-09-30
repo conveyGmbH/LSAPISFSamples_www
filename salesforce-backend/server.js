@@ -65,7 +65,9 @@ const config = {
         cookie: {
             secure: envConfig.isProduction, // Secure cookies in production
             httpOnly: true,
-            maxAge: 24 * 60 * 60 * 1000 // 24 hours
+            maxAge: 24 * 60 * 60 * 1000, // 24 hours
+            sameSite: envConfig.isProduction ? 'none' : 'lax', // Allow cross-domain in production
+            domain: envConfig.isProduction ? undefined : 'localhost' // No domain restriction for cross-origin
         }
     }
 };
