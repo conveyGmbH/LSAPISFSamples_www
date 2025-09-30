@@ -152,29 +152,29 @@ function cleanupOldLeadData() {
 }
 
 
-// Enhanced connection check with proper persistence 
+// Enhanced connection check with proper persistence
 async function checkSalesforceConnectionWithPersistence() {
   try {
     // First, try to restore from localStorage
     const savedConnection = ConnectionPersistenceManager.loadConnection();
-    
+
     if (savedConnection && savedConnection.userInfo) {
       console.log('Attempting to restore connection from localStorage...');
-      
+
       // Temporarily update UI with saved connection
       updateConnectionStatus("connecting", "Restoring connection...");
       updateUserProfile(savedConnection.userInfo);
-      
-      // Enable buttons temporarily while verifying
+
+      // DO NOT enable buttons - wait for backend verification
       const transferBtn = document.getElementById('transferToSalesforceBtn');
       const dashboardButton = document.getElementById('dashboardButton');
-      
+
       if (transferBtn) {
-        transferBtn.disabled = false;
-        transferBtn.classList.remove('disabled');
-        transferBtn.title = 'Transfer lead to Salesforce';
+        transferBtn.disabled = true;
+        transferBtn.classList.add('disabled');
+        transferBtn.title = 'Verifying connection...';
       }
-      
+
       if (dashboardButton) {
         dashboardButton.style.display = 'none';
         dashboardButton.disabled = true;
@@ -335,10 +335,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
-  // Check Salesforce connection with persistence
-  await checkSalesforceConnectionWithPersistence();
-
-  // Check Salesforce connection on page load for persistence
+  // Check Salesforce connection status (will verify with backend before enabling buttons)
   await checkSalesforceConnection();
 
   // Add required styles
@@ -371,10 +368,10 @@ function initializeButtonListeners() {
   const transferBtn = document.getElementById('transferToSalesforceBtn');
   if (transferBtn) {
     transferBtn.addEventListener('click', handleTransferButtonClick);
-    // Enable transfer button - backend will handle connection check
-    transferBtn.disabled = false;
-    transferBtn.classList.remove('disabled');
-    transferBtn.title = 'Transfer lead to Salesforce';
+    // Keep button disabled until backend connection is verified
+    transferBtn.disabled = true;
+    transferBtn.classList.add('disabled');
+    transferBtn.title = 'Please connect to Salesforce first';
   }
 
   // Initially hide dashboard button - will be shown when connected
@@ -1084,7 +1081,7 @@ async function checkSalesforceConnection() {
     // First check if we have valid persisted connection data
     const persistedConnection = ConnectionPersistenceManager.loadConnection();
 
-    //  INSTANT UI RESTORATION - No server call, immediate response
+    //  CONDITIONAL UI RESTORATION - Show user info but DO NOT enable transfer button
     if (persistedConnection?.userInfo && persistedConnection.status === 'connected') {
       console.log('Found persisted connection data, checking validity...', {
         user: persistedConnection.userInfo.display_name,
@@ -1095,16 +1092,16 @@ async function checkSalesforceConnection() {
 
       // Check if connection hasn't expired (24 hours)
       if (persistedConnection.expiresAt > Date.now()) {
-        console.log('Persisted connection valid - INSTANT UI restore!');
+        console.log('Persisted connection found - verifying with backend before enabling buttons');
 
         // Update orgId from persisted data
         if (persistedConnection.orgId && persistedConnection.orgId !== 'default') {
           localStorage.setItem('orgId', persistedConnection.orgId);
         }
 
-        // INSTANT UI RESTORATION - Show as connected immediately
-        updateConnectionStatus("connected",
-          `Connected as ${persistedConnection.userInfo.display_name || persistedConnection.userInfo.username} (verifying...)`,
+        // Show user info but indicate verification is in progress
+        updateConnectionStatus("connecting",
+          `Verifying connection for ${persistedConnection.userInfo.display_name || persistedConnection.userInfo.username}...`,
           persistedConnection.userInfo);
 
         displayUserInfo({
@@ -1113,15 +1110,15 @@ async function checkSalesforceConnection() {
           organization_id: persistedConnection.userInfo.organization_id
         });
 
-        // Enable buttons immediately
+        // Keep buttons disabled until backend verification completes
         const transferBtn = document.getElementById('transferToSalesforceBtn');
         const dashboardButton = document.getElementById('dashboardButton');
         const authNotice = document.getElementById('auth-required-notice');
 
         if (transferBtn) {
-          transferBtn.disabled = false;
-          transferBtn.classList.remove('disabled');
-          transferBtn.title = 'Transfer lead to Salesforce';
+          transferBtn.disabled = true;
+          transferBtn.classList.add('disabled');
+          transferBtn.title = 'Verifying connection with Salesforce...';
         }
 
         if (dashboardButton) {
@@ -1806,6 +1803,58 @@ async function transferLeadDirectlyToSalesforce(leadData, attachments) {
       Salutation: leadData.Salutation || null,
       // Department__c: leadData.Department || null, // Champ personnalisé désactivé - n'existe pas dans Salesforce
     };
+
+    // Add active Question/Answer/Text fields from LS_LeadReport to Description field
+    if (leadSource === "LeadReport") {
+      console.log('Source is LeadReport - checking for Question/Answer/Text fields...');
+
+      const questionsAndAnswers = [];
+      let activeQACount = 0;
+
+      for (let i = 1; i <= 50; i++) {
+        const questionNum = i.toString().padStart(2, '0'); // Format: 01, 02, ..., 50
+        const questionField = `Question${questionNum}`;
+        const answersField = `Answers${questionNum}`;
+        const textField = `Text${questionNum}`;
+
+        // Only include fields that have values (active fields)
+        const hasQuestion = leadData[questionField] && leadData[questionField].trim() !== '' && leadData[questionField] !== 'N/A';
+        const hasAnswers = leadData[answersField] && leadData[answersField].trim() !== '' && leadData[answersField] !== 'N/A';
+        const hasText = leadData[textField] && leadData[textField].trim() !== '' && leadData[textField] !== 'N/A';
+
+        if (hasQuestion || hasAnswers || hasText) {
+          activeQACount++;
+          const qaSection = [];
+
+          if (hasQuestion) {
+            qaSection.push(`Q${i}: ${leadData[questionField]}`);
+          }
+          if (hasAnswers) {
+            qaSection.push(`A${i}: ${leadData[answersField]}`);
+          }
+          if (hasText) {
+            qaSection.push(`Text${i}: ${leadData[textField]}`);
+          }
+
+          questionsAndAnswers.push(qaSection.join('\n'));
+        }
+      }
+
+      // Append Q&A to existing Description or create new one
+      if (questionsAndAnswers.length > 0) {
+        const qaContent = '\n\n=== Questions & Answers ===\n' + questionsAndAnswers.join('\n\n');
+
+        if (salesforceLeadData.Description) {
+          salesforceLeadData.Description += qaContent;
+        } else {
+          salesforceLeadData.Description = qaContent.trim();
+        }
+
+        console.log(`✅ Added ${activeQACount} Q&A groups to Description field`);
+      } else {
+        console.log('ℹ️ No active Q&A fields found in LeadReport');
+      }
+    }
 
     // Remove null/empty values
     Object.keys(salesforceLeadData).forEach(key => {
