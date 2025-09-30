@@ -1862,9 +1862,11 @@ app.use((req, res, next) => {
 });
 
 app.use((error, req, res, next) => {
+    console.error('❌ Unhandled error:', error);
     res.status(500).json({
         message: 'Internal server error',
-        error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
+        error: error.message || 'Something went wrong',
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
 });
 
