@@ -1803,12 +1803,7 @@ async function transferLeadDirectlyToSalesforce(leadData, attachments) {
     console.log('Lead data:', leadData);
     console.log('Attachments count:', attachments.length);
 
-    // Get current API base URL from config
-    const appConfig = window.salesforceConfig || { apiBaseUrl: 'http://localhost:3000/api' };
-
-    // MODIFICATION CLIENT: Appliquer le mapping customLabel directement
-    console.log('🔄 Applying field mapping with customLabels...');
-    console.log('Original lead data:', leadData);
+   
 
     let salesforceLeadData = {};
 
