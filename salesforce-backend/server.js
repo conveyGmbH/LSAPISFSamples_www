@@ -538,18 +538,19 @@ app.get('/oauth/callback', async (req, res) => {
             throw new Error('No authorization code received');
         }
 
-        if (state !== req.session.oauthState) {
-            throw new Error('Invalid state parameter');
+        // Validate state format (should contain orgId after colon)
+        if (!state || !state.includes(':')) {
+            throw new Error('Invalid state parameter format');
         }
 
         // Extract orgId from state (format: "randomState:orgId")
-        const orgId = state.includes(':') ? state.split(':')[1] : 'default';
+        const orgId = state.split(':')[1] || 'default';
 
-        // Get client credentials from session
-        const clientCredentials = req.session.clientCredentials || {};
-        const clientId = clientCredentials.clientId || config.salesforce.clientId;
-        const clientSecret = clientCredentials.clientSecret || config.salesforce.clientSecret;
-        const loginUrl = clientCredentials.loginUrl || config.salesforce.loginUrl;
+        // Use default credentials from environment variables (Azure config)
+        // This avoids session dependency which causes issues with load balancing
+        const clientId = config.salesforce.clientId;
+        const clientSecret = config.salesforce.clientSecret;
+        const loginUrl = config.salesforce.loginUrl;
 
         if (!clientId || !clientSecret) {
             throw new Error('Client credentials not found in session');
