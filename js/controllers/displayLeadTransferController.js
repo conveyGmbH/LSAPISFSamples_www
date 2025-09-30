@@ -123,8 +123,7 @@ let isLabelEditMode = false;
 let fieldMappingConfig = {};
 
 
-// Clean up old localStorage entries for lead data
- 
+// Clean up old localStorage entries for lead data 
 function cleanupOldLeadData() {
   try {
     const prefix = 'selectedLeadData_';
@@ -152,95 +151,8 @@ function cleanupOldLeadData() {
 }
 
 
-// Enhanced connection check with proper persistence
-async function checkSalesforceConnectionWithPersistence() {
-  try {
-    // First, try to restore from localStorage
-    const savedConnection = ConnectionPersistenceManager.loadConnection();
 
-    if (savedConnection && savedConnection.userInfo) {
-      console.log('Attempting to restore connection from localStorage...');
-
-      // Temporarily update UI with saved connection
-      updateConnectionStatus("connecting", "Restoring connection...");
-      updateUserProfile(savedConnection.userInfo);
-
-      // DO NOT enable buttons - wait for backend verification
-      const transferBtn = document.getElementById('transferToSalesforceBtn');
-      const dashboardButton = document.getElementById('dashboardButton');
-
-      if (transferBtn) {
-        transferBtn.disabled = true;
-        transferBtn.classList.add('disabled');
-        transferBtn.title = 'Verifying connection...';
-      }
-
-      if (dashboardButton) {
-        dashboardButton.style.display = 'none';
-        dashboardButton.disabled = true;
-      }
-    }
-
-    // Verify connection with server
-    updateConnectionStatus("connecting", "Verifying connection...");
-
-    const orgId = localStorage.getItem('orgId') || 'default';
-    const response = await fetch(`${appConfig.apiBaseUrl}/user`, {
-      method: 'GET',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Org-Id': orgId
-      }
-    });
-
-    if (response.ok) {
-      const responseData = await response.json();
-      const userInfo = responseData.userInfo || responseData;
-
-      // Store SF TOKENS for direct API calls
-      if (responseData.tokens) {
-        console.log('Storing Salesforce tokens for direct API access');
-        localStorage.setItem('sf_access_token', responseData.tokens.access_token);
-        localStorage.setItem('sf_instance_url', responseData.tokens.instance_url);
-        console.log('Tokens stored successfully');
-      }
-
-      // Save the verified connection and update orgId if different
-      if (userInfo.organization_id && userInfo.organization_id !== orgId) {
-        localStorage.setItem('orgId', userInfo.organization_id);
-      }
-      ConnectionPersistenceManager.saveConnection(userInfo);
-
-      // Update UI with verified connection
-      updateConnectionStatus("connected",
-        `Connected as ${userInfo.display_name || userInfo.username}`,
-        userInfo);
-
-      console.log('Salesforce connection verified and persisted');
-      
-    } else if (response.status === 401) {
-      // 401 is expected when not authenticated
-      console.log('Not authenticated with Salesforce');
-      ConnectionPersistenceManager.clearConnection();
-      updateConnectionStatus("not-connected", "Not connected to Salesforce");
-      
-    } else {
-      // Other errors should be logged
-      console.error("Unexpected response status:", response.status);
-      ConnectionPersistenceManager.clearConnection();
-      updateConnectionStatus("not-connected", "Connection error");
-    }
-    
-  } catch (error) {
-    console.error("Connection check error:", error);
-    ConnectionPersistenceManager.clearConnection();
-    updateConnectionStatus("not-connected", "Connection error");
-  }
-}
-
-// check Instant Connection
- 
+// check Instant Connection 
 function checkInstantConnection() {
   const persistedConnection = ConnectionPersistenceManager.loadConnection();
 
@@ -318,28 +230,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Load lead data
   loadLeadData();
 
-  // TEMPORARY FIX: SmartFieldManager not defined - commented out to unblock mapping functionality
-  // TODO: Import or define SmartFieldManager if needed
-  /*
-  const eventId = sessionStorage.getItem('selectedEventId');
-  const serverName = sessionStorage.getItem('serverName');
-  const apiName = sessionStorage.getItem('apiName');
 
-  if (eventId && serverName && apiName) {
-    window.smartFieldManager = new SmartFieldManager(eventId, serverName, apiName);
-    await window.smartFieldManager.initialize();
-    console.log('SmartFieldManager initialized with real database API');
-  } else {
-    console.warn('Missing configuration for SmartFieldManager:', {
-      hasEventId: !!eventId,
-      hasServerName: !!serverName,
-      hasApiName: !!apiName
-    });
-  }
-  */
-  console.log('ℹ️ SmartFieldManager disabled temporarily')
-
-  // Check Salesforce connection status (will verify with backend before enabling buttons)
   await checkSalesforceConnection();
 
   // Add required styles
@@ -532,8 +423,6 @@ async function handleTransferButtonClick() {
     return;
   }
 
-  // Professional pre-transfer validation
-  console.log(' Running pre-transfer validation...');
 
   // Run comprehensive Salesforce validation
   if (window.salesforceFieldMapper) {
@@ -623,7 +512,6 @@ async function handleTransferButtonClick() {
     setTimeout(() => {}, 3000);
   }
 
-  console.log(' Pre-transfer validation passed!');
 
   // Check for duplicates in Salesforce
   console.log(' Checking for duplicate leads...');
@@ -645,7 +533,6 @@ async function handleTransferButtonClick() {
     }
   } catch (duplicateError) {
     console.warn('⚠️ Could not check for duplicates:', duplicateError.message);
-    // Continue anyway - don't block transfer if duplicate check fails
   }
 
   // Collect current values from inputs instead of using original data
@@ -1736,7 +1623,7 @@ function getSalesforceFieldConfig(fieldName) {
         'Website': { type: 'Url', required: false },
         'Title': { type: 'Text', required: false, maxLength: 128 },
         'Description': { type: 'LongTextArea', required: false },
-        'Industry': { type: 'Picklist', required: false },
+        'Industry': { type: 'Text', required: false, maxLength: 40 }, // MODIFICATION CLIENT: Changé de Picklist à Text pour accepter toutes les valeurs
         'Department': { type: 'Text', required: false, maxLength: 80 },
         'Street': { type: 'TextArea', required: false },
         'City': { type: 'Text', required: false, maxLength: 40 },
@@ -1905,6 +1792,9 @@ async function transferLeadDirectlyToSalesforce(leadData, attachments) {
     const apiUrl = `${appConfig.apiBaseUrl}/salesforce/leads`;
     console.log('Making API call to backend:', apiUrl);
 
+    // Get orgId for authentication in production cross-origin requests
+    const orgId = localStorage.getItem('orgId') || 'default';
+
     // Prepare payload for backend API
     const payload = {
       leadData: salesforceLeadData,
@@ -1915,7 +1805,8 @@ async function transferLeadDirectlyToSalesforce(leadData, attachments) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json'
+        'Accept': 'application/json',
+        'X-Org-Id': orgId
       },
       credentials: 'include',
       body: JSON.stringify(payload)
@@ -3143,7 +3034,6 @@ function loadSavedChanges() {
     const eventId = sessionStorage.getItem('selectedEventId') || 'default';
     const storageKey = `lead_edits_${eventId}`;
 
-    // Try sessionStorage first (current session), then localStorage (persistent)
     let savedData = null;
 
     // Check sessionStorage first
@@ -4303,6 +4193,32 @@ async function saveCustomLabel() {
         return;
     }
 
+    // MODIFICATION CLIENT: Vérifier que les champs standards ne sont pas renommés avec __c
+    const standardLeadFields = [
+        'FirstName', 'LastName', 'Email', 'Phone', 'MobilePhone', 'Fax', 'Company',
+        'Title', 'Street', 'City', 'State', 'PostalCode', 'Country', 'CountryCode',
+        'Salutation', 'Website', 'Description', 'Industry', 'Department'
+    ];
+
+    // Vérifier si on essaie de mapper un champ standard vers un nom avec __c
+    if (standardLeadFields.includes(fieldName) && customLabel.endsWith('__c')) {
+        showError(`❌ Warning: "${fieldName}" is a STANDARD Salesforce field.\n\nYou are trying to map it to "${customLabel}" which is a CUSTOM field name.\n\n💡 Solution:\n• Keep the standard name: "${fieldName}"\n• OR create a custom field "${customLabel}" in Salesforce first\n\nStandard fields should NOT have __c suffix.`);
+        customLabelInput.focus();
+        customLabelInput.select();
+        return;
+    }
+
+    // Vérifier si on essaie de mapper vers un champ standard mal orthographié
+    const customLabelLower = customLabel.toLowerCase();
+    const similarStandard = standardLeadFields.find(sf => sf.toLowerCase() === customLabelLower);
+    if (similarStandard && similarStandard !== customLabel) {
+        const shouldCorrect = confirm(`⚠️ Did you mean "${similarStandard}"?\n\nYou entered: "${customLabel}"\nStandard field: "${similarStandard}"\n\nClick OK to use the correct standard field name, or Cancel to keep your entry.`);
+        if (shouldCorrect) {
+            customLabelInput.value = similarStandard;
+            return;
+        }
+    }
+
     if (!window.fieldMappingService) {
         showError('Field mapping service not available');
         return;
@@ -4367,6 +4283,79 @@ async function saveCustomLabel() {
 }
 
 
+
+/**
+ * Show error modal when a Salesforce field doesn't exist
+ * @param {string} fieldName - The field name that doesn't exist in Salesforce
+ */
+function showFieldErrorModal(fieldName) {
+    // Remove existing modal if any
+    const existingModal = document.getElementById('field-error-modal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+
+    const modal = document.createElement('div');
+    modal.id = 'field-error-modal';
+    modal.className = 'config-modal-overlay';
+    modal.style.display = 'flex';
+
+    modal.innerHTML = `
+        <div class="config-modal-content" style="max-width: 600px;">
+            <div class="config-modal-header" style="background: #fee; border-bottom: 2px solid #fcc;">
+                <h3 style="color: #c00;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 8px;">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="15" y1="9" x2="9" y2="15"/>
+                        <line x1="9" y1="9" x2="15" y2="15"/>
+                    </svg>
+                    Salesforce Field Not Found
+                </h3>
+                <button class="config-modal-close" onclick="document.getElementById('field-error-modal').remove()">&times;</button>
+            </div>
+            <div class="config-modal-body">
+                <p style="font-size: 16px; margin-bottom: 16px;">
+                    The field <code style="background: #fee; padding: 4px 8px; border-radius: 4px; color: #c00; font-weight: bold;">${fieldName}</code> does not exist in your Salesforce Lead object.
+                </p>
+
+                <div style="background: #fff3cd; padding: 16px; border-left: 4px solid #ffc107; border-radius: 4px; margin-top: 16px;">
+                    <strong style="display: flex; align-items: center; margin-bottom: 12px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 8px;">
+                            <circle cx="12" cy="12" r="10"/>
+                            <line x1="12" y1="16" x2="12" y2="12"/>
+                            <line x1="12" y1="8" x2="12.01" y2="8"/>
+                        </svg>
+                        Solutions:
+                    </strong>
+                    <ol style="margin: 0; padding-left: 20px; line-height: 1.8;">
+                        <li><strong>Create the field in Salesforce:</strong><br>
+                            Go to Setup → Object Manager → Lead → Fields & Relationships → New Field<br>
+                            Create a field named <code>${fieldName}</code>
+                        </li>
+                        <li><strong>Change the field mapping:</strong><br>
+                            Edit the field label to use an existing Salesforce field name
+                        </li>
+                        <li><strong>Disable the field:</strong><br>
+                            Mark the field as inactive so it won't be sent to Salesforce
+                        </li>
+                    </ol>
+                </div>
+            </div>
+            <div class="config-modal-footer">
+                <button class="btn-secondary" onclick="document.getElementById('field-error-modal').remove()">Close</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Close on overlay click
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
+}
 
 // Create edit label modal if it doesn't exist
 function createEditLabelModal(fieldName) {
@@ -4710,7 +4699,6 @@ async function fetchLatestDataBeforeEdit(fieldName, currentValue, config) {
         }
 
         const latestData = await response.json();
-        console.log('✅ Latest data fetched successfully:', latestData);
 
         // Mettre à jour la valeur avec les données fraîches
         const latestValue = latestData[fieldName] || currentValue;
@@ -4769,11 +4757,8 @@ function hideLoadingIndicator(fieldName) {
     }
 }
 
-/**
- * Afficher une notification d'erreur
- */
+
 function showErrorNotification(message) {
-    // Créer ou réutiliser le container de notifications
     let notificationContainer = document.getElementById('notification-container');
     if (!notificationContainer) {
         notificationContainer = document.createElement('div');
@@ -4782,7 +4767,6 @@ function showErrorNotification(message) {
         document.body.appendChild(notificationContainer);
     }
 
-    // Créer la notification d'erreur
     const notification = document.createElement('div');
     notification.className = 'notification notification-error';
     notification.innerHTML = `
@@ -4802,15 +4786,12 @@ function showErrorNotification(message) {
 
     notificationContainer.appendChild(notification);
 
-    // Auto-remove après 5 secondes
     setTimeout(() => {
         if (notification.parentNode) {
             notification.remove();
         }
     }, 5000);
 }
-
-
 
 
 // Export functions that other modules might use
