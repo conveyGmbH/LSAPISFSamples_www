@@ -3,7 +3,6 @@ import ApiService from "../services/apiService.js";
 
 
 // Enhanced connection persistence manager
-
 class ConnectionPersistenceManager {
   static CONNECTION_KEY = 'sf_connection_status';
   static USER_INFO_KEY = 'sf_user_info';
@@ -92,8 +91,6 @@ class ConnectionPersistenceManager {
       localStorage.removeItem(this.CONNECTION_KEY);
       localStorage.removeItem(this.USER_INFO_KEY);
       localStorage.removeItem(this.CONNECTED_AT_KEY);
-      // Keep orgId for next connection attempt
-      console.log(`Connection cleared from localStorage for org ${orgId}`);
       return true;
     } catch (error) {
       console.error('Failed to clear connection:', error);
@@ -117,13 +114,10 @@ class ConnectionPersistenceManager {
 let selectedLeadData = null;
 let leadSource = null;
 let isTransferInProgress = false;
-
-// Enhanced field mapping system variables
 let isLabelEditMode = false;
 let fieldMappingConfig = {};
 
 
-// Clean up old localStorage entries for lead data 
 function cleanupOldLeadData() {
   try {
     const prefix = 'selectedLeadData_';
@@ -142,15 +136,12 @@ function cleanupOldLeadData() {
       const keysToRemove = leadDataKeys.slice(0, leadDataKeys.length - 10);
       keysToRemove.forEach(key => {
         localStorage.removeItem(key);
-        console.log(`Cleaned up old lead data: ${key}`);
       });
     }
   } catch (error) {
     console.warn('Error during localStorage cleanup:', error);
   }
 }
-
-
 
 // check Instant Connection 
 function checkInstantConnection() {
@@ -160,13 +151,9 @@ function checkInstantConnection() {
       persistedConnection.status === 'connected' &&
       persistedConnection.expiresAt > Date.now()) {
 
-
-    // Update orgId immediately
     if (persistedConnection.orgId && persistedConnection.orgId !== 'default') {
       localStorage.setItem('orgId', persistedConnection.orgId);
     }
-
-    // Return connection data like sessionStorage.getItem('credentials')
     return {
       isConnected: true,
       userInfo: persistedConnection.userInfo,
@@ -179,8 +166,6 @@ function checkInstantConnection() {
 
 // Function to clean N/A values from all inputs
 function cleanNAValuesFromInputs() {
-
-  // Get all input elements
   const allInputs = document.querySelectorAll('input, textarea, select');
   let cleanedCount = 0;
 
@@ -189,15 +174,11 @@ function cleanNAValuesFromInputs() {
       input.value = '';
       cleanedCount++;
     }
-  });
-
- 
+  }); 
 }
 
 // Initialize controller when DOM is loaded
 document.addEventListener("DOMContentLoaded", async () => {
-  console.log("Enhanced Lead Transfer System with Salesforce validation loaded");
-
   const instantConnection = checkInstantConnection();
   if (instantConnection.isConnected) {
 
@@ -230,6 +211,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Load lead data
   loadLeadData();
 
+  // Display userName in header
+  displayUserName();
 
   await checkSalesforceConnection();
 
@@ -376,183 +359,627 @@ async function checkForDuplicates(leadData) {
       return { hasDuplicates: false, duplicates: [] };
     }
 
-    const query = `SELECT Id, Name, Email, Company, Phone FROM Lead WHERE ${searchCriteria.join(' OR ')} LIMIT 5`;
-
-    const response = await fetch(`${appConfig.apiBaseUrl}/leads/query`, {
+    // Use the existing duplicate check endpoint
+    const response = await fetch('http://localhost:3000/api/leads/check-duplicate', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Org-Id': 'default'
+      },
       credentials: 'include',
-      body: JSON.stringify({ query })
+      body: JSON.stringify({
+        LastName: leadData.LastName,
+        Company: leadData.Company,
+        Email: leadData.Email
+      })
     });
 
     if (!response.ok) {
-      throw new Error('Failed to check for duplicates');
+      // If endpoint not available, skip duplicate check
+      console.warn('⚠️ Duplicate check endpoint not available, skipping...');
+      return { hasDuplicates: false, duplicates: [] };
     }
 
     const result = await response.json();
-    const duplicates = result.records || [];
 
-    return {
-      hasDuplicates: duplicates.length > 0,
-      duplicates: duplicates
-    };
+    // The endpoint returns { duplicate: true/false, existing: {...} }
+    if (result.duplicate && result.existing) {
+      return {
+        hasDuplicates: true,
+        duplicates: [{
+          Id: result.existing.Id,
+          Name: `${result.existing.FirstName || ''} ${result.existing.LastName}`.trim(),
+          Email: result.existing.Email,
+          Company: result.existing.Company
+        }]
+      };
+    }
+
+    return { hasDuplicates: false, duplicates: [] };
+
   } catch (error) {
-    console.error('Error checking for duplicates:', error);
-    throw error;
+    console.error('⚠️ Error checking for duplicates:', error);
+    // Don't block the transfer if duplicate check fails
+    return { hasDuplicates: false, duplicates: [] };
   }
 }
 
 // Handle transfer button click
+// ============================================================================
+// ENHANCED TRANSFER SYSTEM - Active Fields Only with Custom Field Creation
+// ============================================================================
+
+/**
+ * Update Transfer button state based on active fields
+ */
+function updateTransferButtonState() {
+    const transferBtn = document.getElementById('transferToSalesforceBtn');
+    if (!transferBtn) return;
+
+    // Check connection state
+    const isConnected = !transferBtn.classList.contains('disabled');
+
+    if (!isConnected) {
+        // Keep disabled if not connected
+        transferBtn.disabled = true;
+        transferBtn.title = 'Please connect to Salesforce first';
+        return;
+    }
+
+    // Get current filter mode
+    const filterValue = document.getElementById('field-display-filter')?.value || 'all';
+
+    // System/metadata fields to exclude
+    const excludedFields = new Set([
+        'Id', 'CreatedDate', 'LastModifiedDate', 'CreatedById', 'LastModifiedById',
+        'SystemModstamp', 'IsDeleted', 'AttachmentIdList', 'EventID', 'EVENTID',
+        'apiEndpoint', 'credentials', 'serverName', 'apiName', '__metadata', 'KontaktViewId'
+    ]);
+
+    let activeFieldCount = 0;
+
+    // Count fields from VISIBLE DOM elements (source of truth for UI state)
+    const visibleFieldElements = document.querySelectorAll('.lead-field:not([style*="display: none"]), .field-row:not([style*="display: none"])');
+
+    visibleFieldElements.forEach(fieldElement => {
+        const fieldName = fieldElement.dataset?.fieldName || fieldElement.dataset?.field;
+
+        // Skip if no field name or excluded field
+        if (!fieldName || excludedFields.has(fieldName)) return;
+
+        // Get field value from input
+        const fieldInput = fieldElement.querySelector('.field-input, input:not([type="checkbox"]), select, textarea');
+        const fieldValue = fieldInput ? getInputValue(fieldInput) : null;
+
+        // Skip empty values
+        if (!fieldValue || fieldValue.trim() === '' || fieldValue === 'N/A') return;
+
+        // Count based on filter mode
+        if (filterValue === 'all') {
+            // In "All fields" mode: count all visible fields with values
+            activeFieldCount++;
+        } else if (filterValue === 'active') {
+            // In "Active fields Only" mode: count only active fields
+            // Check if field has active toggle or is in active class
+            const isActive = fieldElement.classList.contains('field-active') ||
+                           !fieldElement.classList.contains('field-inactive');
+
+            if (isActive) {
+                activeFieldCount++;
+            }
+        } else if (filterValue === 'inactive') {
+            // In "Inactive fields Only" mode: button should be disabled
+            // (don't count anything)
+        }
+    });
+
+    // Update button state
+    if (activeFieldCount === 0) {
+        transferBtn.disabled = true;
+        transferBtn.classList.add('no-active-fields');
+
+        if (filterValue === 'inactive') {
+            transferBtn.title = 'Cannot transfer inactive fields. Switch to "All Fields" or "Active Fields Only".';
+        } else {
+            transferBtn.title = 'No fields to transfer. Please load a lead first.';
+        }
+
+        transferBtn.style.opacity = '0.5';
+        transferBtn.style.cursor = 'not-allowed';
+    } else {
+        transferBtn.disabled = false;
+        transferBtn.classList.remove('no-active-fields');
+
+        if (filterValue === 'active') {
+            transferBtn.title = `Transfer ${activeFieldCount} active field${activeFieldCount > 1 ? 's' : ''} to Salesforce`;
+        } else {
+            transferBtn.title = `Transfer ${activeFieldCount} field${activeFieldCount > 1 ? 's' : ''} to Salesforce`;
+        }
+
+        transferBtn.style.opacity = '1';
+        transferBtn.style.cursor = 'pointer';
+    }
+
+    console.log(`🔄 Transfer button updated: ${activeFieldCount} fields (mode: ${filterValue}, visible: ${visibleFieldElements.length})`);
+}
+
+/**
+ * Initialize toggle change listeners
+ */
+function initializeToggleListeners() {
+    // Listen for all checkbox changes
+    document.addEventListener('change', (e) => {
+        if (e.target.type === 'checkbox' && (e.target.id?.endsWith('-toggle') || e.target.closest('.field-row, .field-container'))) {
+            updateTransferButtonState();
+        }
+    });
+
+    console.log('✅ Toggle listeners initialized');
+}
+
+/**
+ * Collect only ACTIVE fields (toggle enabled) from the UI
+ * @returns {Object} { leadData, fieldsList, labels }
+ */
+function collectActiveFieldsOnly() {
+    const leadData = {};
+    const fieldsList = [];
+    const labels = {};
+
+    // System/metadata fields to exclude (not transferable to Salesforce)
+    const excludedFields = new Set([
+        'Id', 'CreatedDate', 'LastModifiedDate', 'CreatedById', 'LastModifiedById',
+        'SystemModstamp', 'IsDeleted', 'MasterRecordId', 'LastActivityDate',
+        'LastViewedDate', 'LastReferencedDate', 'Jigsaw', 'JigsawContactId',
+        'CleanStatus', 'CompanyDunsNumber', 'DandbCompanyId', 'EmailBouncedReason',
+        'EmailBouncedDate', 'IndividualId', 'apiEndpoint', 'credentials',
+        'serverName', 'apiName', 'AttachmentIdList', 'EventID'
+    ]);
+
+    // Get all field elements from the DOM
+    const fieldElements = document.querySelectorAll('.field-row, .field-container');
+
+    console.log(`📋 Found ${fieldElements.length} field elements in DOM`);
+
+    fieldElements.forEach(fieldElement => {
+        // Get field name from data attribute
+        const fieldName = fieldElement.dataset.fieldName || fieldElement.dataset.field;
+
+        if (!fieldName) return;
+
+        // Skip excluded/system fields
+        if (excludedFields.has(fieldName)) {
+            console.log(`⏭️  Skipping system field: ${fieldName}`);
+            return;
+        }
+
+        // Check if field is active (toggle is checked)
+        const toggleInput = fieldElement.querySelector('input[type="checkbox"][id$="-toggle"]');
+        const isActive = toggleInput ? toggleInput.checked : true; // Default to true if no toggle
+
+        if (!isActive) {
+            console.log(`⏭️  Skipping inactive field: ${fieldName}`);
+            return;
+        }
+
+        // Get the field value
+        const valueInput = fieldElement.querySelector('.field-input, input, select, textarea');
+
+        if (valueInput) {
+            const value = getInputValue(valueInput);
+
+            if (value && value.trim() !== '' && value !== 'N/A') {
+                leadData[fieldName] = value.trim();
+                fieldsList.push(fieldName);
+
+                // Get label from the field header or use formatted name
+                const labelElement = fieldElement.querySelector('.field-label, .field-name');
+                const label = labelElement?.textContent?.trim() ||
+                             window.fieldMappingService?.formatFieldLabel(fieldName) ||
+                             formatFieldLabel(fieldName);
+
+                labels[fieldName] = label;
+
+                console.log(`✅ Active field: ${fieldName} = "${value.substring(0, 50)}${value.length > 50 ? '...' : ''}"`);
+            }
+        }
+    });
+
+    console.log(`✅ Collected ${fieldsList.length} Salesforce-valid active fields with values`);
+
+    // Validation: ensure required fields are present
+    if (!leadData.LastName && !leadData.Company) {
+        console.warn('⚠️  No required fields found. Falling back to collectCurrentLeadData()');
+        // Fallback to old method if new method fails
+        const fallbackData = collectCurrentLeadData();
+        return {
+            leadData: fallbackData,
+            fieldsList: Object.keys(fallbackData),
+            labels: Object.fromEntries(
+                Object.keys(fallbackData).map(f => [f, formatFieldLabel(f)])
+            )
+        };
+    }
+
+    return { leadData, fieldsList, labels };
+}
+
+/**
+ * Check which fields exist in Salesforce
+ * @param {Array} fieldNames - Array of field API names to check
+ * @returns {Promise<Object>} { existing, missing }
+ */
+async function checkMissingFields(fieldNames) {
+    try {
+        const response = await fetch('http://localhost:3000/api/salesforce/fields/check', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Org-Id': 'default'
+            },
+            credentials: 'include',
+            body: JSON.stringify({ fieldNames })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Failed to check fields in Salesforce');
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('❌ Error checking fields:', error);
+        throw error;
+    }
+}
+
+/**
+ * Show modal to confirm creation of missing custom fields
+ * @param {Array} missingFields - Array of field API names
+ * @param {Object} labels - Map of fieldName to label
+ * @returns {Promise<boolean>} true if user wants to create, false to skip
+ */
+function showMissingFieldsModal(missingFields, labels) {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('missing-fields-modal');
+        const list = document.getElementById('missing-fields-list');
+        const createBtn = document.getElementById('create-fields-btn');
+        const skipBtn = document.getElementById('skip-field-creation-btn');
+        const closeBtn = document.getElementById('close-missing-fields-modal');
+
+        // Build list of missing fields with labels
+        list.innerHTML = missingFields.map(fieldName => `
+            <div style="display: flex; justify-content: space-between; padding: 12px; border-bottom: 1px solid #E5E7EB; align-items: center;">
+                <div>
+                    <div style="font-weight: 600; color: #1F2937; margin-bottom: 4px;">${labels[fieldName] || fieldName}</div>
+                    <div style="font-size: 12px; color: #6B7280; font-family: monospace;">${fieldName}</div>
+                </div>
+                <div style="background: #EFF6FF; color: #1E40AF; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 500; white-space: nowrap;">
+                    Text (255)
+                </div>
+            </div>
+        `).join('');
+
+        // Show modal
+        modal.style.display = 'flex';
+
+        // Handle create
+        const handleCreate = () => {
+            modal.style.display = 'none';
+            createBtn.removeEventListener('click', handleCreate);
+            skipBtn.removeEventListener('click', handleSkip);
+            closeBtn?.removeEventListener('click', handleClose);
+            resolve(true);
+        };
+
+        // Handle skip
+        const handleSkip = () => {
+            modal.style.display = 'none';
+            createBtn.removeEventListener('click', handleCreate);
+            skipBtn.removeEventListener('click', handleSkip);
+            closeBtn?.removeEventListener('click', handleClose);
+            resolve(false);
+        };
+
+        // Handle close (same as skip)
+        const handleClose = () => {
+            modal.style.display = 'none';
+            createBtn.removeEventListener('click', handleCreate);
+            skipBtn.removeEventListener('click', handleSkip);
+            closeBtn?.removeEventListener('click', handleClose);
+            resolve(false);
+        };
+
+        createBtn.addEventListener('click', handleCreate);
+        skipBtn.addEventListener('click', handleSkip);
+        closeBtn?.addEventListener('click', handleClose);
+    });
+}
+
+/**
+ * Create custom fields in Salesforce
+ * @param {Array} missingFields - Array of field API names
+ * @param {Object} labels - Map of fieldName to label
+ * @returns {Promise<Object>} Creation results
+ */
+async function createCustomFields(missingFields, labels) {
+    const fields = missingFields.map(apiName => ({
+        apiName,
+        label: labels[apiName] || apiName.replace(/__c$/, '').replace(/_/g, ' ')
+    }));
+
+    try {
+        const response = await fetch('http://localhost:3000/api/salesforce/fields/create', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Org-Id': 'default'
+            },
+            credentials: 'include',
+            body: JSON.stringify({ fields })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Failed to create custom fields');
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('❌ Error creating fields:', error);
+        throw error;
+    }
+}
+
+/**
+ * Show modern toast notification
+ * @param {string} message - Message to display
+ * @param {string} type - Type: 'success', 'error', 'warning', 'info'
+ * @param {number} duration - Duration in ms (default 4000)
+ */
+function showModernToast(message, type = 'info', duration = 4000) {
+    // Create container if it doesn't exist
+    let container = document.getElementById('toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toast-container';
+        container.style.cssText = `
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
+        `;
+        document.body.appendChild(container);
+    }
+
+    const icons = {
+        success: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>',
+        error: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>',
+        warning: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>',
+        info: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>'
+    };
+
+    const colors = {
+        success: { bg: '#10B981', border: '#059669' },
+        error: { bg: '#EF4444', border: '#DC2626' },
+        warning: { bg: '#F59E0B', border: '#D97706' },
+        info: { bg: '#3B82F6', border: '#2563EB' }
+    };
+
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+        background: ${colors[type].bg};
+        color: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.06);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 14px;
+        font-weight: 500;
+        animation: slideDown 0.3s ease-out;
+        border: 2px solid ${colors[type].border};
+        min-width: 300px;
+        max-width: 500px;
+    `;
+
+    toast.innerHTML = `
+        <div style="flex-shrink: 0;">${icons[type]}</div>
+        <div style="flex: 1;">${message}</div>
+    `;
+
+    container.appendChild(toast);
+
+    // Add animation
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes slideDown {
+            from { transform: translateY(-100px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes slideUp {
+            from { transform: translateY(0); opacity: 1; }
+            to { transform: translateY(-100px); opacity: 0; }
+        }
+    `;
+    if (!document.querySelector('#toast-animations')) {
+        style.id = 'toast-animations';
+        document.head.appendChild(style);
+    }
+
+    // Remove after duration
+    setTimeout(() => {
+        toast.style.animation = 'slideUp 0.3s ease-out';
+        setTimeout(() => toast.remove(), 300);
+    }, duration);
+}
+
+/**
+ * Show modern duplicate modal
+ * @param {Array} duplicates - Array of duplicate leads
+ * @returns {Promise<boolean>} true to proceed, false to cancel
+ */
+function showDuplicateModal(duplicates) {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('duplicateModal');
+        if (!modal) {
+            // Fallback to confirm dialog
+            const message = duplicates.map(dup =>
+                `${dup.Name} (${dup.Email || dup.Company})`
+            ).join('\n');
+            resolve(confirm(`⚠️ Potential duplicate lead(s) found:\n\n${message}\n\nCreate anyway?`));
+            return;
+        }
+
+        // Use existing duplicate modal
+        modal.style.display = 'block';
+
+        const proceedBtn = modal.querySelector('.proceed-btn');
+        const cancelBtn = modal.querySelector('.cancel-btn');
+
+        const handleProceed = () => {
+            modal.style.display = 'none';
+            resolve(true);
+        };
+
+        const handleCancel = () => {
+            modal.style.display = 'none';
+            resolve(false);
+        };
+
+        proceedBtn?.addEventListener('click', handleProceed, { once: true });
+        cancelBtn?.addEventListener('click', handleCancel, { once: true });
+    });
+}
+
+// ============================================================================
+// TRANSFER BUTTON HANDLER - ENHANCED VERSION
+// ============================================================================
+
 async function handleTransferButtonClick() {
   console.log("Transfer button clicked");
   if (isTransferInProgress) return;
-  console.log("=== STARTING LEAD TRANSFER ===");
+  console.log("=== STARTING ENHANCED LEAD TRANSFER ===");
 
   const transferBtn = document.getElementById("transferToSalesforceBtn");
   const transferResults = document.getElementById("transferResults");
   const transferStatus = document.getElementById("transferStatus");
 
-  // Connection will be checked by backend during transfer
-  console.log('Starting lead transfer via backend...');
-
-  // Collect current data from form inputs
-  const currentLeadData = collectCurrentLeadData();
-
-  if (!currentLeadData || Object.keys(currentLeadData).length === 0) {
-    showError("No lead data available for transfer.");
-    return;
-  }
-
-
-  // Run comprehensive Salesforce validation
-  if (window.salesforceFieldMapper) {
-    const validationResult = window.salesforceFieldMapper.validateLeadData(currentLeadData);
-
-    if (!validationResult.isValid) {
-      console.error('Salesforce validation failed:', validationResult.errors);
-
-      // Display validation errors to user
-      const errorFields = Object.keys(validationResult.errors);
-      const errorMessages = errorFields.map(fieldName => {
-        const fieldLabel = formatFieldLabel(fieldName);
-        const fieldErrors = validationResult.errors[fieldName];
-        return `${fieldLabel}: ${fieldErrors.join(', ')}`;
-      });
-
-      showError(`Cannot transfer lead. Please fix the following issues:\n${errorMessages.join('\n')}`);
-
-      // Highlight problematic fields in UI
-      errorFields.forEach(fieldName => {
-        const fieldElement = document.querySelector(`[data-field-name="${fieldName}"]`);
-        if (fieldElement) {
-          fieldElement.classList.add('validation-error');
-          const inputElement = fieldElement.querySelector('.field-input');
-          if (inputElement) {
-            inputElement.classList.add('validation-error');
-          }
-        }
-      });
-
-      return;
-    } else {
-      console.log(' Salesforce validation passed');
-    }
-  }
-
-  // Validate required fields (legacy validation as fallback)
-  const requiredFields = ['LastName', 'Company'];
-  const missingRequired = [];
-
-  requiredFields.forEach(field => {
-    if (!currentLeadData[field] || !currentLeadData[field].trim()) {
-      missingRequired.push(formatFieldLabel(field));
-    }
-  });
-
-  if (missingRequired.length > 0) {
-    showError(`Cannot transfer lead. Missing required fields: ${missingRequired.join(', ')}`);
-    return;
-  }
-
-  // Validate data integrity
-  const dataValidation = validateBusinessLogic();
-  if (!dataValidation.isValid) {
-    showError(`Cannot transfer lead. Data validation failed: ${dataValidation.errors.join('; ')}`);
-    return;
-  }
-
-  // Helper function to check if field has meaningful content
-  const hasValidContent = (value) => {
-    if (!value) return false;
-    const trimmed = value.trim();
-    return trimmed && trimmed !== 'N/A' && trimmed !== 'null' && trimmed !== 'undefined' && trimmed !== '';
-  };
-
-  // Check for potential data quality issues
-  const qualityWarnings = [];
-
-  if (!hasValidContent(currentLeadData.Email)) {
-    qualityWarnings.push('No email address provided');
-  }
-
-  if (!hasValidContent(currentLeadData.Phone) && !hasValidContent(currentLeadData.MobilePhone)) {
-    qualityWarnings.push('No phone number provided');
-  }
-
-  if (!hasValidContent(currentLeadData.Title)) {
-    qualityWarnings.push('No job title provided');
-  }
-
-  if (qualityWarnings.length > 0) {
-    // Show warning but don't block transfer
-    const warningMessage = `Data quality notice: ${qualityWarnings.join(', ')}. Lead will still be transferred.`;
-    showError(warningMessage);
-
-    // Give user time to read the warning
-    setTimeout(() => {}, 3000);
-  }
-
-
-  // Check for duplicates in Salesforce
-  console.log(' Checking for duplicate leads...');
   try {
-    const duplicateCheck = await checkForDuplicates(currentLeadData);
-    if (duplicateCheck.hasDuplicates) {
-      const duplicateMessage = duplicateCheck.duplicates.map(dup =>
-        `- ${dup.Name} (${dup.Email || dup.Company}) - ID: ${dup.Id}`
-      ).join('\n');
+    // ========== PHASE 1: Collect ONLY Active Fields ==========
+    console.log('📋 Phase 1: Collecting active fields only...');
+    const { leadData, fieldsList, labels } = collectActiveFieldsOnly();
 
-      const proceed = confirm(
-        `⚠️ Potential duplicate lead(s) found in Salesforce:\n\n${duplicateMessage}\n\nDo you want to create this lead anyway?`
+    if (!leadData || Object.keys(leadData).length === 0) {
+      showModernToast("No active fields with values to transfer", 'warning');
+      return;
+    }
+
+    console.log(`✅ Collected ${fieldsList.length} active fields`);
+
+    // ========== PHASE 2: Validate Required Fields ==========
+    console.log('📋 Phase 2: Validating required fields...');
+    if (!leadData.LastName || !leadData.Company) {
+      showModernToast('Last Name and Company are required fields', 'error');
+      return;
+    }
+
+    // ========== PHASE 3: Check Missing Custom Fields ==========
+    console.log('📋 Phase 3: Checking for missing custom fields in Salesforce...');
+    showModernToast('Checking fields in Salesforce...', 'info', 2000);
+
+    const fieldCheck = await checkMissingFields(fieldsList);
+    console.log(`✅ Existing fields: ${fieldCheck.existing.length}`);
+    console.log(`❌ Missing fields: ${fieldCheck.missing.length}`);
+
+    // ========== PHASE 4: Handle Missing Custom Fields ==========
+    if (fieldCheck.missing.length > 0) {
+      console.log(`⚠️ Found ${fieldCheck.missing.length} missing custom fields`);
+
+      const userWantsToCreate = await showMissingFieldsModal(
+        fieldCheck.missing,
+        labels
       );
 
+      if (userWantsToCreate) {
+        // Create the fields
+        console.log('🛠️  Creating custom fields...');
+        showModernToast(`Creating ${fieldCheck.missing.length} custom field(s)...`, 'info');
+
+        const createResult = await createCustomFields(
+          fieldCheck.missing,
+          labels
+        );
+
+        if (createResult.failed.length > 0) {
+          showModernToast(
+            `Failed to create ${createResult.failed.length} field(s). Check console for details.`,
+            'error',
+            6000
+          );
+          console.error('❌ Failed to create fields:', createResult.failed);
+        }
+
+        if (createResult.created.length > 0) {
+          showModernToast(
+            `✅ Created ${createResult.created.length} custom field(s) successfully!`,
+            'success',
+            5000
+          );
+          console.log('✅ Created fields:', createResult.created);
+        }
+
+        // Wait a moment for Salesforce to process the field creation
+        if (createResult.created.length > 0) {
+          showModernToast('Waiting for Salesforce to process new fields...', 'info', 3000);
+          await new Promise(resolve => setTimeout(resolve, 3000));
+        }
+
+      } else {
+        // User chose to skip - remove missing fields from leadData
+        console.log('⏭️  User chose to skip field creation');
+        fieldCheck.missing.forEach(fieldName => {
+          delete leadData[fieldName];
+        });
+        showModernToast(`Proceeding without ${fieldCheck.missing.length} missing field(s)...`, 'info', 3000);
+      }
+    }
+
+    // ========== PHASE 5: Check for Duplicates ==========
+    console.log('📋 Phase 5: Checking for duplicate leads...');
+    showModernToast('Checking for duplicates...', 'info', 2000);
+
+    const duplicateCheck = await checkForDuplicates(leadData);
+    if (duplicateCheck.hasDuplicates) {
+      console.log(`⚠️ Found ${duplicateCheck.duplicates.length} potential duplicate(s)`);
+      const proceed = await showDuplicateModal(duplicateCheck.duplicates);
       if (!proceed) {
-        console.log('❌ Transfer cancelled by user due to duplicates');
+        showModernToast('Transfer cancelled by user', 'info');
+        console.log('❌ Transfer cancelled due to duplicates');
         return;
       }
     }
-  } catch (duplicateError) {
-    console.warn('⚠️ Could not check for duplicates:', duplicateError.message);
-  }
 
-  // Collect current values from inputs instead of using original data
-  const configuredLeadData = collectCurrentLeadData();
+    // ========== PHASE 6: Transfer Lead to Salesforce ==========
+    console.log('📋 Phase 6: Transferring lead to Salesforce...');
 
-  isTransferInProgress = true;
-  transferBtn.disabled = true;
-  transferBtn.innerHTML = `
-    <div class="spinner"></div>
-    Transferring to Salesforce...
-  `;
+    isTransferInProgress = true;
+    transferBtn.disabled = true;
+    transferBtn.innerHTML = `
+      <div class="spinner"></div>
+      Transferring to Salesforce...
+    `;
 
-  // Hide transfer results initially to avoid confusion
-  transferResults.style.display = "none";
+    showModernToast('Transferring lead to Salesforce...', 'info', 3000);
 
-  try {
-    // Clear previous results and show transfer results section
+    // Show transfer status UI
     transferResults.style.display = "block";
-    transferStatus.innerHTML = ""; // Clear previous content
-
     transferStatus.innerHTML = `
       <div class="transfer-pending">
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -562,166 +989,38 @@ async function handleTransferButtonClick() {
         Transferring lead to Salesforce...
       </div>
     `;
-
-    // Save current field configuration to database before transfer
-    transferStatus.innerHTML = `
-      <div class="transfer-pending">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"/>
-          <polyline points="12 6 12 12 16 14"/>
-        </svg>
-        Saving field configuration...
-      </div>
-    `;
-
 
     // Prepare attachments if present
-    const attachments = await fetchAttachments(currentLeadData.AttachmentIdList || selectedLeadData?.AttachmentIdList);
+    const attachmentIds = leadData.AttachmentIdList || selectedLeadData?.AttachmentIdList;
+    const attachments = await fetchAttachments(attachmentIds);
 
-    // Update status for transfer phase
-    transferStatus.innerHTML = `
-      <div class="transfer-pending">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"/>
-          <polyline points="12 6 12 12 16 14"/>
-        </svg>
-        Transferring lead to Salesforce...
-      </div>
-    `;
-
-    // Transfer the lead directly to Salesforce using stored tokens
-    const response = await transferLeadDirectlyToSalesforce(configuredLeadData, attachments);
+    // IMPORTANT: Transfer ONLY active fields (leadData), NOT merged data
+    console.log('📤 Transferring active fields only:', Object.keys(leadData));
+    const response = await transferLeadDirectlyToSalesforce(leadData, attachments);
 
     if (!response.ok) {
       const errorData = await response.json();
-
-      // Handle specific error types
-      if (response.status === 409) {
-        // Duplicate lead found
-        transferStatus.innerHTML = `
-          <div class="status-warning">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-              <line x1="12" y1="9" x2="12" y2="13"/>
-              <line x1="12" y1="17" x2="12.01" y2="17"/>
-            </svg>
-            Duplicate Lead Detected
-          </div>
-          <div class="status-details">
-            <p><strong>Message:</strong> ${errorData.message}</p>
-            <p><strong>Existing Lead ID:</strong> ${errorData.salesforceId}</p>
-            ${errorData.existingLead ? `<p><strong>Existing Lead:</strong> ${errorData.existingLead.name} (${errorData.existingLead.email}) - ${errorData.existingLead.company}</p>` : ''}
-          </div>
-        `;
-        return;
-      } else if (response.status === 400) {
-        // Validation errors
-        const errorsList = errorData.errors ? errorData.errors.map(err => `<li>${err}</li>`).join('') : '';
-        const warningsList = errorData.warnings ? errorData.warnings.map(warn => `<li>${warn}</li>`).join('') : '';
-
-        transferStatus.innerHTML = `
-          <div class="status-error">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10"/>
-              <line x1="15" y1="9" x2="9" y2="15"/>
-              <line x1="9" y1="9" x2="15" y2="15"/>
-            </svg>
-            Validation Failed
-          </div>
-          <div class="status-details">
-            <p><strong>Message:</strong> ${errorData.message}</p>
-            ${errorsList ? `<div><strong>Errors:</strong><ul style="margin: 5px 0 0 20px;">${errorsList}</ul></div>` : ''}
-            ${warningsList ? `<div><strong>Warnings:</strong><ul style="margin: 5px 0 0 20px;">${warningsList}</ul></div>` : ''}
-          </div>
-        `;
-        return;
-      }
-
-      throw new Error(errorData.message || 'Failed to transfer lead');
+      throw new Error(errorData.message || 'Transfer failed');
     }
 
     const result = await response.json();
 
-    // Show success message
-    let attachmentStatus = "";
-    if (attachments.length > 0) {
-      attachmentStatus = `<p><strong>Attachments:</strong> ${result.attachmentsTransferred || attachments.length}/${attachments.length} transferred</p>`;
-    }
-
-    let duplicateWarning = "";
-    if (result.duplicateWarning) {
-      duplicateWarning = `
-        <div class="status-warning" style="margin-top: 10px;">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-            <line x1="12" y1="9" x2="12" y2="13"/>
-            <line x1="12" y1="17" x2="12.01" y2="17"/>
-          </svg>
-          <div>
-            <strong>Duplicate Warning:</strong> ${result.duplicateWarning.message}
-            <br><small>Existing lead: ${result.duplicateWarning.existingLead.name} (${result.duplicateWarning.existingLead.email}) - ${result.duplicateWarning.existingLead.company}</small>
-          </div>
-        </div>
-      `;
-    }
-
-    let validationWarnings = "";
-    if (result.validationWarnings && result.validationWarnings.length > 0) {
-      const warningsList = result.validationWarnings.map(warning => `<li>${warning}</li>`).join('');
-      validationWarnings = `
-        <div class="status-info" style="margin-top: 10px;">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"/>
-            <line x1="12" y1="16" x2="12" y2="12"/>
-            <line x1="12" y1="8" x2="12.01" y2="8"/>
-          </svg>
-          <div>
-            <strong>Salesforce Validation Notes:</strong>
-            <ul style="margin: 5px 0 0 20px; padding: 0;">${warningsList}</ul>
-          </div>
-        </div>
-      `;
-    }
-
+    // Success!
     transferStatus.innerHTML = `
       <div class="status-success">
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-          <polyline points="22 4 12 14.01 9 11.01"/>
+          <polyline points="20 6 9 17 4 12"/>
         </svg>
-        Lead successfully transferred to Salesforce
+        Lead transferred successfully to Salesforce!
       </div>
-      <div class="status-details">
-        <p><strong>Salesforce ID:</strong> ${result.leadId}</p>
-        <p><strong>Status:</strong> ${result.status}</p>
-        <p><strong>Message:</strong> ${result.message || "Success"}</p>
-        ${attachmentStatus}
-      </div>
-      ${duplicateWarning}
-      ${validationWarnings}
     `;
 
+    showModernToast('✅ Lead transferred successfully!', 'success', 5000);
+    console.log('✅ Transfer complete:', result);
+
   } catch (error) {
-    console.error("Transfer error:", error);
+    console.error('❌ Transfer failed:', error);
 
-    // MODIFICATION CLIENT: Afficher l'erreur dans un dialogue modal
-    let errorMessage = error.message || "Unknown error";
-    let fieldName = null;
-
-    // Pattern: "No such column 'FieldName__c' on sobject of type Lead"
-    const fieldMatch = errorMessage.match(/No such column '([^']+)'/i);
-    if (fieldMatch) {
-      fieldName = fieldMatch[1];
-
-      // Créer et afficher un dialogue modal avec l'erreur
-      showFieldErrorModal(fieldName);
-    } else {
-      // Erreur générique
-      showError(`Transfer failed: ${errorMessage}`);
-    }
-
-    // Aussi afficher dans le transferStatus pour historique
-    transferResults.style.display = "block";
     transferStatus.innerHTML = `
       <div class="status-error">
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -729,21 +1028,22 @@ async function handleTransferButtonClick() {
           <line x1="15" y1="9" x2="9" y2="15"/>
           <line x1="9" y1="9" x2="15" y2="15"/>
         </svg>
-        Transfer failed - check details above
+        Transfer failed: ${error.message}
       </div>
     `;
+
+    showModernToast(`❌ Transfer failed: ${error.message}`, 'error', 6000);
+
   } finally {
-    // Reset button state
     isTransferInProgress = false;
     transferBtn.disabled = false;
-    transferBtn.innerHTML = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12 5v14M19 12l-7 7-7-7"/>
-      </svg>
-      Transfer to Salesforce
-    `;
+    transferBtn.innerHTML = `Transfer to Salesforce`;
   }
 }
+
+// ============================================================================
+// DISCONNECT & CONNECT HANDLERS
+// ============================================================================
 
 /* Handle disconnect button click */
 async function handleDisconnectClick() {
@@ -1177,6 +1477,15 @@ function displayLeadData(data) {
 
     // Clean N/A values from all inputs after data is displayed
     setTimeout(() => cleanNAValuesFromInputs(), 200);
+
+    // Initialize toggle listeners (only once)
+    if (!window.toggleListenersInitialized) {
+        initializeToggleListeners();
+        window.toggleListenersInitialized = true;
+    }
+
+    // Update transfer button state based on active fields
+    setTimeout(() => updateTransferButtonState(), 300);
 }
 
 
@@ -1910,6 +2219,18 @@ function transformNullValues(data) {
     });
 
     return transformed;
+}
+
+/**
+ * Display userName from sessionStorage in the page header
+ */
+function displayUserName() {
+    const userName = sessionStorage.getItem("userName");
+    const userNameDisplay = document.getElementById("userNameDisplay");
+
+    if (userNameDisplay && userName) {
+        userNameDisplay.textContent = userName;
+    }
 }
 
 /**
@@ -2692,7 +3013,10 @@ function isReadOnlyField(fieldName) {
         'EventId', 'RequestBarcode', 'StatusMessage',
 
         // Champs audit système
-        'CurrencyIsoCode', 'RecordTypeId', 'MasterRecordId'
+        'CurrencyIsoCode', 'RecordTypeId', 'MasterRecordId',
+
+        // Champs spéciaux non éditables
+        'AttachmentIdList', 'EVENTID'
     ];
     return readOnlyFields.includes(fieldName);
 }
@@ -3753,18 +4077,18 @@ function updateConnectionStatus(status, message, userInfo = null) {
         ConnectionPersistenceManager.saveConnection(userInfo);
         updateUserProfile(userInfo);
 
-        // Enable transfer button
+        // Enable transfer button ONLY if there are active fields
         if (transferBtn) {
-            transferBtn.disabled = false;
             transferBtn.classList.remove('disabled');
-            transferBtn.title = 'Transfer lead to Salesforce';
+            // Don't enable yet - updateTransferButtonState() will check for active fields
+            setTimeout(() => updateTransferButtonState(), 300);
         }
 
-        // Dashboard button hidden - not ready for production
+        // Dashboard button enabled - ready with OAuth integration
         if (dashboardButton) {
-            dashboardButton.style.display = 'none';
-            dashboardButton.disabled = true;
-            dashboardButton.title = 'Dashboard (Coming Soon)';
+            dashboardButton.style.display = 'inline-flex';
+            dashboardButton.disabled = false;
+            dashboardButton.title = 'Open Lead Dashboard';
         }
 
         if (authNotice) authNotice.style.display = 'none';
@@ -3957,6 +4281,9 @@ function handleFieldFilterChange(event) {
 
     // Update statistics after filtering
     updateFieldStats();
+
+    // Update transfer button state based on visible active fields
+    setTimeout(() => updateTransferButtonState(), 100);
 }
 
 
@@ -4531,7 +4858,7 @@ function updateStatCounter(elementId, newValue) {
         return;
     }
 
-    console.log(`Updating ${elements.length} element(s) with ID ${elementId}: ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬  ${newValue}`);
+    console.log(`Updating ${elements.length} element(s) with ID ${elementId}:   ${newValue}`);
 
     // Update all elements with this ID (no animations)
     elements.forEach(element => {

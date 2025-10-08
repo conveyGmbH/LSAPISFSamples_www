@@ -21,7 +21,7 @@ async function login() {
 
   try {
     const credentials = btoa(`${userName}:${password}`);
-    saveSessionData(serverName, apiName, credentials);
+    saveSessionData(serverName, apiName, credentials, userName);
     const apiService = new ApiService(serverName, apiName);
     const response = await apiService.request("GET", "");
 
@@ -39,10 +39,11 @@ function getInputValue(id) {
   return document.getElementById(id).value.trim();
 }
 
-function saveSessionData(serverName, apiName, credentials) {
+function saveSessionData(serverName, apiName, credentials, userName) {
   sessionStorage.setItem("serverName", serverName);
   sessionStorage.setItem("apiName", apiName);
   sessionStorage.setItem("credentials", credentials);
+  sessionStorage.setItem("userName", userName);
 }
 
 function clearInputs(ids) {

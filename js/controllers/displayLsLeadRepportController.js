@@ -884,7 +884,22 @@ function addTransferButton() {
   }
 }
 
+/**
+ * Display userName from sessionStorage in the page header
+ */
+function displayUserName() {
+  const userName = sessionStorage.getItem("userName");
+  const userNameDisplay = document.getElementById("userNameDisplay");
+
+  if (userNameDisplay && userName) {
+    userNameDisplay.textContent = userName;
+  }
+}
+
 function init() {
+  // Display userName in header
+  displayUserName();
+
   fetchLsLeadReportData();
 
   // Setup back button

@@ -66,8 +66,8 @@
             <span>Dashboard</span>
         </button>
     </div>
-    
-    <h2>Lead Data Preview</h2>
+
+    <h2>LS Lead - <span id="userNameDisplay"></span></h2>
 
     <div id="sf-connection-card" class="sf-connection-card">
         <button id="connectSalesforceBtn" class="sf-connect-btn">
@@ -1216,6 +1216,51 @@
                     <line x1="12" y1="15" x2="12" y2="3"></line>
                 </svg>
                 Download Configuration
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Missing Custom Fields Modal -->
+<div id="missing-fields-modal" class="modern-modal" style="display: none;">
+    <div class="modern-modal-content">
+        <div class="modern-modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); position: relative;">
+            <h3 style="margin: 0; color: white; font-size: 1.25rem; font-weight: 600;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 8px;">
+                    <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                </svg>
+                Custom Fields Missing in Salesforce
+            </h3>
+            <button id="close-missing-fields-modal" style="position: absolute; top: 16px; right: 16px; background: rgba(255,255,255,0.2); border: none; color: white; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 20px; line-height: 1; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
+                ×
+            </button>
+        </div>
+        <div class="modern-modal-body" style="padding: 24px;">
+            <p style="margin: 0 0 16px 0; color: #4B5563; line-height: 1.6;">
+                The following custom fields don't exist in your Salesforce org. Would you like to create them automatically?
+            </p>
+            <div id="missing-fields-list" style="background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 8px; padding: 16px; max-height: 300px; overflow-y: auto;">
+                <!-- Fields will be listed here -->
+            </div>
+            <div style="margin-top: 16px; padding: 12px; background: #EFF6FF; border-left: 4px solid #3B82F6; border-radius: 4px;">
+                <p style="margin: 0; font-size: 14px; color: #1E40AF;">
+                    <strong>Note:</strong> Fields will be created as Text fields with length 255. You can modify them later in Salesforce Setup.
+                </p>
+            </div>
+        </div>
+        <div class="modern-modal-footer" style="padding: 16px 24px; background: #F9FAFB; border-top: 1px solid #E5E7EB; display: flex; justify-content: flex-end; gap: 12px;">
+            <button id="skip-field-creation-btn" style="padding: 10px 20px; background: #F3F4F6; color: #374151; border: 1px solid #D1D5DB; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px;" onmouseover="this.style.background='#E5E7EB'" onmouseout="this.style.background='#F3F4F6'">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+                Skip & Continue
+            </button>
+            <button id="create-fields-btn" style="padding: 10px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 4px rgba(102, 126, 234, 0.4);" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 8px rgba(102, 126, 234, 0.5)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px rgba(102, 126, 234, 0.4)'">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+                Create Fields
             </button>
         </div>
     </div>

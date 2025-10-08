@@ -1,4 +1,4 @@
-// SalesforceFieldMapper.js - Service de mapping et validation des champs Salesforce
+// SalesforceFieldMapper.js
 class SalesforceFieldMapper {
     constructor() {
         this.fieldMapping = this.loadFieldMapping();
@@ -7,9 +7,7 @@ class SalesforceFieldMapper {
         this.picklistValues = this.getPicklistValues();
     }
 
-    /**
-     * Load field mapping configuration from CSV data
-     */
+    // Load field mapping configuration from CSV data
     loadFieldMapping() {
         return {
             // Standard Salesforce Lead fields
@@ -47,16 +45,13 @@ class SalesforceFieldMapper {
             'EventId': { type: 'Text', maxLength: 36, writable: false, required: false },
             'IsReviewed': { type: 'Checkbox', writable: true, required: false },
             'Department': { type: 'Text', maxLength: 80, writable: true, required: false },
-            'Industry': { type: 'Picklist', writable: true, required: false },
-
-            // LS_LeadReport specific fields (Questions/Answers/Text)
+            'Industry': { type: 'Text', maxLength: 40, writable: true, required: false }, 
             ...this.generateQuestionFields()
         };
     }
 
-    /**
-     * Generate Question/Answer/Text fields for LeadReport
-     */
+    // Generate Question/Answer/Text fields for LeadReport
+    
     generateQuestionFields() {
         const fields = {};
         for (let i = 1; i <= 30; i++) {
@@ -68,9 +63,8 @@ class SalesforceFieldMapper {
         return fields;
     }
 
-    /**
-     * Get read-only fields
-     */
+    // Get read-only fields
+     
     getReadOnlyFields() {
         return [
             'Id', 'CreatedDate', 'LastModifiedDate', 'CreatedById', 'LastModifiedById',
@@ -79,9 +73,7 @@ class SalesforceFieldMapper {
         ];
     }
 
-    /**
-     * Get validation rules for different field types
-     */
+    // Get validation rules for different field types
     getValidationRules() {
         return {
             Email: {
@@ -93,10 +85,11 @@ class SalesforceFieldMapper {
                 message: 'Please enter a valid phone number'
             },
             Url: {
-                pattern: /^https?:\/\/.+/,
-                message: 'Please enter a valid URL (must start with http:// or https://)',
+                pattern: /^.+\..+/, 
+                message: 'Please enter a valid URL (e.g., example.com)',
                 transform: (value) => {
-                    if (value && !value.startsWith('http://') && !value.startsWith('https://')) {
+                    if (!value) return value;
+                    if (!value.startsWith('http://') && !value.startsWith('https://')) {
                         return 'https://' + value;
                     }
                     return value;
@@ -210,10 +203,6 @@ class SalesforceFieldMapper {
                 break;
 
             case 'Phone':
-                // Validation désactivée - le client peut entrer le format qu'il souhaite
-                // if (!this.validationRules.Phone.pattern.test(value.replace(/[\s\-\(\)]/g, ''))) {
-                //     errors.push(this.validationRules.Phone.message);
-                // }
                 break;
 
             case 'Url':
@@ -248,9 +237,8 @@ class SalesforceFieldMapper {
         return errors;
     }
 
-    /**
-     * Transform field value for Salesforce
-     */
+    //Transform field value for Salesforce
+     
     transformFieldValue(fieldName, value) {
         const config = this.getFieldConfig(fieldName);
 

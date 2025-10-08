@@ -197,11 +197,24 @@ function enhanceTableResponsiveness() {
   }
 }
 
+/**
+ * Display userName from sessionStorage in the page header
+ */
+function displayUserName() {
+  const userName = sessionStorage.getItem("userName");
+  const userNameDisplay = document.getElementById("userNameDisplay");
+
+  if (userNameDisplay && userName) {
+    userNameDisplay.textContent = userName;
+  }
+}
 
 document.addEventListener('DOMContentLoaded', () => {
-  
+  // Display userName in header
+  displayUserName();
+
   addTransferButton();
-  
+
 });
 
 

@@ -3,7 +3,7 @@ class FieldMappingService {
     constructor() {
         this.fieldConfig = this.loadConfig();
         this.customLabels = {};
-        this.customFieldNames = {}; // NEW: Maps original field name to Salesforce API name
+        this.customFieldNames = {}; 
         this.credentials = sessionStorage.getItem('credentials');
         this.currentEventId = null;
 
@@ -12,20 +12,10 @@ class FieldMappingService {
 
         // Load custom field name mappings
         this.loadCustomFieldNames();
-
-        console.log('FieldMappingService initialized:', {
-            serverName: this.serverName,
-            apiName: this.apiName,
-            customFieldMappings: Object.keys(this.customFieldNames).length
-        });
     }
 
-    /**
-     * Create ApiService instance when needed
-     * @returns {Object} ApiService instance
-     */
+    // Create a basic API service for database interactions
     createApiService() {
-        // Create inline ApiService-like object for API calls
         return {
             request: async (method, endpoint, data = null) => {
                 const errorElement = document.getElementById("errorMessage");
@@ -77,8 +67,6 @@ class FieldMappingService {
                     console.log(`API Response (${response.status}):`, text.substring(0, 200) + (text.length > 200 ? '...' : ''));
 
                     if (!text.trim()) {
-                        // Empty response is valid for some operations (like DELETE, PUT)
-                        console.log('Empty response, returning success');
                         return { success: true };
                     }
 
@@ -96,53 +84,33 @@ class FieldMappingService {
         };
     }
 
-       /**
-     * Initialize fields and load from API
-     * @param {Object} leadData - Lead data
-     * @param {string} eventId - Current event ID
-     */
+       
+    // Initialize fields and load from API     
     async initializeFields(leadData, eventId) {
     try {
         this.currentEventId = eventId;
 
-        // STEP 1: Load existing configuration from API FIRST if eventId is provided
-        // This ensures custom labels and configurations are available before field processing
+        //Load existing configuration from API FIRST if eventId is provided
         if (eventId) {
             console.log(`Loading field mappings from API for event: ${eventId}`);
             await this.loadFieldMappingsFromAPI(eventId);
-            console.log('API configurations loaded:', {
-                customLabels: Object.keys(this.customLabels).length,
-                configuredFields: this.fieldConfig.config?.fields?.length || 0
-            });
+            
         }
 
-        // STEP 2: Initialize any new fields from lead data (only if not already configured)
+        // Initialize any new fields from lead data (only if not already configured)
         if (leadData) {
-            console.log('Processing lead data fields...');
             Object.keys(leadData).forEach(fieldName => {
                 const existingConfig = this.getFieldConfig(fieldName);
                 if (!existingConfig) {
-                    // Don't await this as we don't want to slow down the UI
-                    console.log(`Adding new field to local config: ${fieldName}`);
                     this.setFieldConfigLocal(fieldName, { active: true });
                 } else {
-                    console.log(`Field ${fieldName} already configured:`, existingConfig);
                 }
             });
         }
-
-        console.log('Field mapping initialization completed successfully');
-        console.log('Final state:', {
-            eventId: this.currentEventId,
-            totalCustomLabels: Object.keys(this.customLabels).length,
-            totalConfiguredFields: this.fieldConfig.config?.fields?.length || 0,
-            customLabelsKeys: Object.keys(this.customLabels)
-        });
         return true;
 
     } catch (error) {
         console.error('Field mapping initialization failed, falling back to local-only mode:', error);
-        // Don't throw error - continue with local initialization
 
         // Initialize fields locally if API failed
         if (leadData) {
@@ -153,8 +121,6 @@ class FieldMappingService {
                 }
             });
         }
-
-        console.log('Field mapping initialized in local-only mode');
         return true;
     }
 }
@@ -188,11 +154,7 @@ setFieldConfigLocal(fieldName, config) {
     this.saveConfig();
 }
 
-    /**
-     * Load field mappings from API
-     * @param {string} eventId - Event ID to load mappings for
-     */
-
+    // Load field mappings from API
     async loadFieldMappingsFromAPI(eventId) {
     if (!eventId) {
         console.log('❌ No event ID provided, skipping database load');
@@ -200,22 +162,13 @@ setFieldConfigLocal(fieldName, config) {
     }
 
     if (!this.credentials) {
-        console.warn('❌ No credentials available for database access');
+        console.warn('No credentials available for database access');
         return;
     }
 
     try {
-        console.log(`🔄 Loading field mappings from database for event: ${eventId}`);
-        console.log('🔧 Current service state before loading:', {
-            currentEventId: this.currentEventId,
-            hasCredentials: !!this.credentials,
-            existingCustomLabels: Object.keys(this.customLabels).length,
-            serverName: this.serverName,
-            apiName: this.apiName
-        });
-
         const endpoint = `LS_FieldMappings?$filter=EventId eq '${eventId}'&$format=json`;
-        console.log(`🌐 API Endpoint: https://${this.serverName}/${this.apiName}/${endpoint}`);
+        console.log(`API Endpoint: https://${this.serverName}/${this.apiName}/${endpoint}`);
 
         const data = await this.createApiService().request('GET', endpoint);
 
@@ -228,73 +181,39 @@ setFieldConfigLocal(fieldName, config) {
         if (data.d && data.d.results && data.d.results.length > 0) {
             const configRecord = data.d.results[0];
 
-            console.log('✅ Found configuration record:', {
-                id: configRecord.FieldMappingsViewId,
-                hasConfigData: !!configRecord.ConfigData,
-                configDataLength: configRecord.ConfigData?.length,
-                eventId: configRecord.EventId
-            });
-
             if (configRecord.ConfigData) {
                 try {
-                    console.log('🔍 Parsing ConfigData from database...');
                     const parsedConfig = JSON.parse(configRecord.ConfigData);
-
-                    console.log('📦 Parsed config structure:', {
-                        hasFieldConfig: !!parsedConfig.fieldConfig,
-                        hasCustomLabels: !!parsedConfig.customLabels,
-                        customLabelsKeys: Object.keys(parsedConfig.customLabels || {}),
-                        customLabelsCount: Object.keys(parsedConfig.customLabels || {}).length
-                    });
 
                     // Load configuration with validation
                     if (parsedConfig.fieldConfig) {
                         this.fieldConfig = parsedConfig.fieldConfig;
-                        console.log('✅ Loaded field configuration from database');
                     }
 
                     if (parsedConfig.customLabels) {
                         this.customLabels = parsedConfig.customLabels;
-                        console.log('✅ Loaded custom labels from database:', parsedConfig.customLabels);
                     }
 
-                    console.log('🎉 Successfully loaded field mappings from database:', {
-                        configuredFields: this.fieldConfig.config?.fields?.length || 0,
-                        customLabels: Object.keys(this.customLabels).length,
-                        customLabelsContent: this.customLabels
-                    });
-
                 } catch (parseError) {
-                    console.error('❌ Failed to parse ConfigData from database, using default config:', parseError);
-                    console.log('🔍 Raw ConfigData:', configRecord.ConfigData?.substring(0, 500));
-                    // Continue with default configuration instead of throwing
+                    console.error('Failed to parse ConfigData from database, using default config:', parseError);
+                    console.log('Raw ConfigData:', configRecord.ConfigData?.substring(0, 500));
                 }
             } else {
-                console.log('⚠️ Configuration record found but no ConfigData');
+                console.log('Configuration record found but no ConfigData');
             }
         } else {
-            console.log('❌ No existing field mappings found in database for this event');
-            console.log('🔍 API Response structure:', data);
+            console.log('No existing field mappings found in database for this event');
+            console.log('API Response structure:', data);
         }
 
     } catch (error) {
         console.error('Failed to load field mappings from database, continuing with local config:', error);
-        // Don't throw - continue with default/local configuration
         return false;
     }
 }
 
-    /**
-     * Save field mappings to API immediately
-     * @param {string} fieldName - Field that was modified
-     * @param {string} operation - Type of operation (label, toggle, etc.)
-     */
 
-/**
- * Save field mappings to API/Database
- * @param {string} fieldName - Field that was modified
- * @param {string} operation - Type of operation (label, toggle, etc.)
- */
+//  Save field mappings to API/Database
 async saveFieldMappingsToAPI(fieldName, operation = 'update') {
     if (!this.currentEventId) {
         console.warn('No event ID available for saving to database');
@@ -306,10 +225,7 @@ async saveFieldMappingsToAPI(fieldName, operation = 'update') {
         return false;
     }
 
-    try {
-        console.log(`Saving field mappings to database for event: ${this.currentEventId}`);
-        
-        // Show loading indicator (skip for bulk operations)
+    try {        
         if (fieldName !== 'bulk_save') {
             this.showSaveIndicator(fieldName, 'saving');
         }
@@ -359,22 +275,16 @@ async saveFieldMappingsToAPI(fieldName, operation = 'update') {
     }
 }
 
-/**
- * Find existing record in database
- * @returns {Object|null} Existing record or null
- */
+
+// Find existing record in database
 async findExistingRecord() {
     try {
-
         const endpoint = `LS_FieldMappings?$filter=EventId eq '${this.currentEventId}'&$format=json`;
         const data = await this.createApiService().request('GET', endpoint);
 
         if (data.d && data.d.results && data.d.results.length > 0) {
-            console.log('Found existing configuration record');
             return data.d.results[0];
         }
-        
-        console.log('No existing configuration record found');
         return null;
 
     } catch (error) {
@@ -383,11 +293,7 @@ async findExistingRecord() {
     }
 }
 
-/**
- * Create new record in database
- * @param {Object} configData - Configuration data to save
- * @returns {Object} Success/error result
- */
+//  Create new record in database
 async createRecord(configData) {
     try {
         const payload = {
@@ -395,12 +301,6 @@ async createRecord(configData) {
             EventId: this.currentEventId,
             ConfigData: JSON.stringify(configData)
         };
-
-        console.log('Creating new record with payload:', {
-            ApiEndpoint: payload.ApiEndpoint,
-            EventId: payload.EventId,
-            ConfigDataLength: payload.ConfigData.length
-        });
 
         const result = await this.createApiService().request('POST', 'LS_FieldMappings', payload);
 
@@ -418,18 +318,9 @@ async createRecord(configData) {
     }
 }
 
-
-/**
- * Update existing record in database
- * @param {number} recordId - Record ID to update
- * @param {Object} configData - Configuration data to save
- * @returns {Object} Success/error result
- */
+// Update existing record in database
 async updateRecord(recordId, configData) {
-    try {
-        
-        console.log(`Updating record ID ${recordId} using delete-recreate strategy`);
-
+    try {        
         const currentData = await this.findExistingRecord();
         if (!currentData) {
             throw new Error('Cannot find record to update');
@@ -437,14 +328,10 @@ async updateRecord(recordId, configData) {
 
         try {
             await this.createApiService().request('DELETE', `LS_FieldMappings(${recordId})`);
-            console.log('Old record deleted successfully');
         } catch (deleteError) {
-            console.warn('Delete failed, will try direct update:', deleteError);
         }
 
-        const createResult = await this.createRecord(configData);
-
-        
+        const createResult = await this.createRecord(configData);        
         if (createResult.success) {
             console.log('Record updated via delete-recreate strategy');
             return { success: true };
@@ -452,12 +339,8 @@ async updateRecord(recordId, configData) {
             throw new Error('Failed to recreate record');
         }
 
-} catch (error) {
-        console.error('Error updating record:', error);
-        
-        // FALLBACK: Essayer avec votre ApiService et PUT si disponible
+} catch (error) {        
         try {
-            console.log('Trying PUT as fallback...');
             const payload = { ConfigData: JSON.stringify(configData) };
             const result = await this.createApiService().request('PUT', `LS_FieldMappings(${recordId})`, payload);
             
@@ -473,28 +356,8 @@ async updateRecord(recordId, configData) {
     }
 }
 
-async updateRecordReadOnly(recordId, configData) {
-    // Si aucune méthode de mise à jour ne fonctionne
-    console.warn('Update operations not available due to CORS. Saving locally only.');
-    
-    // Sauvegarder localement
-    this.saveConfig();
-    this.saveCustomLabels();
-    
-    // Notifier l'utilisateur
-    if (typeof showError === 'function') {
-        showError('Configuration saved locally. Server update not available due to API restrictions.');
-    }
-    
-    return { success: true, localOnly: true };
-}
 
-
-    /**
-     * Show save indicator for user feedback
-     * @param {string} fieldName - Field being saved
-     * @param {string} status - Status: saving, success, error
-     */
+    // Show save indicator for user feedback
     showSaveIndicator(fieldName, status) {
         const fieldElement = document.querySelector(`[data-field-name="${fieldName}"]`);
         if (!fieldElement) return;
@@ -533,20 +396,14 @@ async updateRecordReadOnly(recordId, configData) {
         }
     }
 
-    /**
-     * Set custom label and save immediately to API
-     * @param {string} fieldName - Field name
-     * @param {string} label - Custom label
-     */
+    //  Set custom label and save immediately to API
     async setCustomLabel(fieldName, label) {
         this.customLabels[fieldName] = label;
         
-        // Update field config as well
         const fieldConfig = this.getFieldConfig(fieldName) || {};
         fieldConfig.customLabel = label;
         this.setFieldConfig(fieldName, fieldConfig);
         
-        // Save to API immediately
         await this.saveFieldMappingsToAPI(fieldName, 'label');
         
         // Also save locally as backup
@@ -609,10 +466,8 @@ async updateRecordReadOnly(recordId, configData) {
     }
 }
 
-/**
- * Get current event ID
- * @returns {string|null} Current event ID
- */
+
+// Get current event ID
 getCurrentEventId() {
     if (!this.currentEventId) {
         // Try to get from sessionStorage if not set
@@ -777,15 +632,10 @@ async bulkSaveToDatabase() {
     return success;
 }
     
-
-    // MODIFICATION CLIENT: Retourner le nom du champ API tel quel (pas de formatage)
-    // Le client verra "Company" au lieu de "Company Name", "Question01" au lieu de "Question 01"
     formatFieldLabel(fieldName) {
-        // Retourner simplement le nom du champ de l'API sans transformation
         return fieldName;
     }
 
-    // Exporter la configuration
     exportConfiguration() {
         const exportData = {
             exportedAt: new Date().toISOString(),
@@ -802,7 +652,6 @@ async bulkSaveToDatabase() {
         return exportData;
     }
 
-    // Filtrer les champs selon leur état
     filterFields(fields, filterType) {
         if (filterType === 'all') return fields;
         
@@ -816,14 +665,7 @@ async bulkSaveToDatabase() {
         }).filter(field => field !== null);
     }
 
-    // Appliquer les labels personnalisés aux données de lead
     applyCustomLabels(leadData) {
-        console.log('applyCustomLabels called with:', {
-            leadDataKeys: Object.keys(leadData),
-            availableCustomLabels: Object.keys(this.customLabels),
-            customLabelsData: this.customLabels
-        });
-
         const result = {};
 
         for (const [key, value] of Object.entries(leadData)) {
@@ -835,17 +677,9 @@ async bulkSaveToDatabase() {
                 value: value,
                 label: finalLabel,
                 active: fieldConfig ? fieldConfig.active !== false : true
-            };
-
-            // Debug logging for custom labels
-            if (customLabel) {
-                console.log(`Field ${key}: Using custom label "${customLabel}"`);
-            } else {
-                console.log(`Field ${key}: Using default label "${finalLabel}"`);
-            }
+            };  
         }
 
-        console.log('applyCustomLabels result:', result);
         return result;
     }
 
@@ -859,38 +693,24 @@ async bulkSaveToDatabase() {
         const config = this.getFieldConfig(fieldName);
         return config ? config.active !== false : true;
     }
-
-    /**
-     * Set custom Salesforce field name for a field
-     * @param {string} originalFieldName - Original field name (e.g., "Title")
-     * @param {string} salesforceFieldName - Salesforce API name (e.g., "Title__c")
-     */
+    // Set custom Salesforce field name for a field
     setCustomFieldName(originalFieldName, salesforceFieldName) {
         this.customFieldNames[originalFieldName] = salesforceFieldName;
         this.saveCustomFieldNames();
-        console.log(`Custom field mapping set: ${originalFieldName} → ${salesforceFieldName}`);
     }
 
-    /**
-     * Get custom Salesforce field name for a field
-     * @param {string} originalFieldName - Original field name
-     * @returns {string} Salesforce field name or original if no mapping exists
-     */
+    // Get custom Salesforce field name for a field
     getCustomFieldName(originalFieldName) {
         return this.customFieldNames[originalFieldName] || originalFieldName;
     }
 
-    /**
-     * Get all custom field name mappings
-     * @returns {Object} All custom field mappings
-     */
+
+    // Get all custom field name mappings
     getAllCustomFieldNames() {
         return { ...this.customFieldNames };
     }
 
-    /**
-     * Save custom field names to localStorage
-     */
+    // Save custom field names to localStorage
     saveCustomFieldNames() {
         try {
             localStorage.setItem('fieldMappingCustomNames', JSON.stringify(this.customFieldNames));
@@ -899,9 +719,7 @@ async bulkSaveToDatabase() {
         }
     }
 
-    /**
-     * Load custom field names from localStorage
-     */
+    //  Load custom field names from localStorage
     loadCustomFieldNames() {
         try {
             const saved = localStorage.getItem('fieldMappingCustomNames');
@@ -915,108 +733,67 @@ async bulkSaveToDatabase() {
         }
     }
 
-    /**
-     * Apply custom field name mappings to lead data for Salesforce transfer
-     * MODIFICATION CLIENT: Utilise customLabel comme nom de champ SF si modifié
-     * Exemple: Si customLabel = "Question07__c", alors le champ sera posté comme "Question07__c"
-     * @param {Object} leadData - Original lead data
-     * @returns {Object} Lead data with Salesforce field names
-     */
     mapFieldNamesForSalesforce(leadData) {
         const mappedData = {};
 
-        // Champs système à exclure du POST vers Salesforce
+        // Excluding system field from SF transfer
         const systemFieldsToExclude = [
             '__metadata', 'KontaktViewId', 'Id', 'CreatedDate', 'LastModifiedDate',
             'CreatedById', 'LastModifiedById', 'DeviceId', 'DeviceRecordId',
-            'RequestBarcode', 'EventId', 'SystemModstamp', 'AttachmentIdList',
+            'RequestBarcode', 'EventId', 'SystemModstamp','AttachmentIdList',
             'IsReviewed', 'StatusMessage'
         ];
 
-        // MODIFICATION CLIENT: Pas de validation côté frontend
-        // Tous les champs (mappés ou non) seront envoyés à Salesforce
-        // Salesforce retournera une erreur si un champ n'existe pas
-
         for (const [originalField, value] of Object.entries(leadData)) {
-            // Exclure les champs système lors du POST vers SF
             if (systemFieldsToExclude.includes(originalField)) {
                 console.log(`Excluding system field from SF transfer: ${originalField}`);
                 continue;
             }
 
-            // MODIFICATION CLIENT: Exclure les champs inactifs
             const isActive = this.isFieldActive(originalField);
             if (isActive === false) {
                 console.log(`Excluding inactive field from SF transfer: ${originalField}`);
                 continue;
             }
 
-            // Priorité 1: Utiliser customLabel si défini et différent du label par défaut
             let salesforceFieldName = originalField;
 
             const customLabel = this.customLabels[originalField];
             const defaultLabel = this.formatFieldLabel(originalField);
 
-            // MODIFICATION CLIENT: Utiliser customLabel UNIQUEMENT s'il ressemble à un nom de champ SF valide
-            // Format valide: commence par lettre, contient seulement lettres/chiffres/underscore, peut finir par __c
             const isValidSalesforceFieldName = (name) => {
                 if (!name || name.trim() === '') return false;
-                // Pattern pour champs SF: commence par lettre, contient lettres/chiffres/underscore, peut finir par __c
                 return /^[a-zA-Z][a-zA-Z0-9_]*(__c)?$/.test(name.trim());
             };
 
-            // Si customLabel existe ET est différent du label par défaut ET est un nom de champ SF valide
             if (customLabel && customLabel.trim() !== '' && customLabel !== defaultLabel) {
                 const trimmedLabel = customLabel.trim();
 
                 if (isValidSalesforceFieldName(trimmedLabel)) {
-                    salesforceFieldName = trimmedLabel;
-                    console.log(`✅ Using custom label as SF field name: ${originalField} → ${salesforceFieldName}`);
+                    salesforceFieldName = trimmedLabel;                    
                 } else {
-                    // customLabel est un label d'affichage (avec espaces), pas un nom de champ SF
-                    // Utiliser le nom original du champ
-                    console.log(`ℹ️ Custom label "${trimmedLabel}" is display label only, using original field name: ${originalField}`);
                     salesforceFieldName = originalField;
                 }
             }
-            // Priorité 2: Utiliser le mapping explicite customFieldNames (legacy)
             else if (this.customFieldNames[originalField]) {
                 salesforceFieldName = this.customFieldNames[originalField];
-                console.log(`Using explicit field mapping: ${originalField} → ${salesforceFieldName}`);
             }
-            // Priorité 3: Utiliser le nom original
             else {
                 console.log(`Using original field name: ${originalField}`);
             }
-
-            // MODIFICATION CLIENT: Envoyer tous les champs mappés à Salesforce
-            // Salesforce validera si le champ existe et retournera une erreur claire si nécessaire
             mappedData[salesforceFieldName] = value;
         }
-
-        console.log('🔄 Field mapping summary:', {
-            originalFields: Object.keys(leadData).length,
-            mappedFields: Object.keys(mappedData).length,
-            excluded: Object.keys(leadData).length - Object.keys(mappedData).length
-        });
 
         return mappedData;
     }
 
-
-    /**
-     * Apply enhanced data processing with field values
-     * @param {Object} leadData - Lead data to process  
-     * @returns {Object} Enhanced data with labels and values
-     */
+    // Apply enhanced data processing with field values
     applyEnhancedLabels(leadData) {
         if (window.enhancedFieldMappingService) {
             return window.enhancedFieldMappingService.applyEnhancedDataProcessing(leadData);
         }
-        // Fallback à la méthode existante
         return this.applyCustomLabels(leadData);
     }
 }
-
-// Exporter le service
+ 
 window.FieldMappingService = FieldMappingService;

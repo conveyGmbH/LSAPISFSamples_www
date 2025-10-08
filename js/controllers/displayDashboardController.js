@@ -45,9 +45,12 @@ class SalesforceLeadManager {
 
     initializeElements() {
         this.elements = {
+            // Navigation
+            backToLeadTransferBtn: document.getElementById('backToLeadTransferBtn'),
+
             // Theme
             darkModeToggle: document.getElementById('darkModeToggle'),
-            
+
             // Auth
             connectBtn: document.getElementById('connectBtn'),
             logoutBtn: document.getElementById('logoutBtn'),
@@ -123,9 +126,14 @@ class SalesforceLeadManager {
     }
 
     attachEventListeners() {
+        // Navigation
+        this.elements.backToLeadTransferBtn?.addEventListener('click', () => {
+            window.location.href = '../pages/displayLeadTransfer.html';
+        });
+
         // Theme toggle
         this.elements.darkModeToggle.addEventListener('click', () => this.toggleDarkMode());
-        
+
         // Auth buttons
         this.elements.connectBtn.addEventListener('click', () => this.connectToSalesforce());
         this.elements.logoutBtn.addEventListener('click', () => this.logout());
@@ -177,11 +185,20 @@ class SalesforceLeadManager {
     async checkAuthentication() {
         try {
             this.showConnectionStatus('checking', 'Checking connection...');
-            
-            const response = await this.apiCall('/api/user');
-            
-            if (response && response.username) {
-                this.setAuthenticatedState(response);
+
+            // Use the same endpoint as displayLeadTransfer for OAuth connection
+            const response = await this.apiCall('/api/salesforce/check');
+
+            if (response && response.connected && response.userInfo) {
+                // Transform response to match expected format
+                const userInfo = {
+                    username: response.userInfo.username,
+                    display_name: response.userInfo.display_name,
+                    organization_name: response.userInfo.organization_name,
+                    organization_id: response.userInfo.organization_id,
+                    user_id: response.userInfo.user_id
+                };
+                this.setAuthenticatedState(userInfo);
                 await this.loadDashboard();
             } else {
                 this.setUnauthenticatedState();
@@ -189,7 +206,7 @@ class SalesforceLeadManager {
         } catch (error) {
             console.error('L Auth check failed:', error);
             this.setUnauthenticatedState();
-            
+
             if (error.message.includes('401') || error.message.includes('Unauthorized')) {
                 // Ne pas afficher de toast, juste montrer le statut de déconnexion
             } else {
@@ -315,39 +332,9 @@ class SalesforceLeadManager {
     }
 
     connectToSalesforce() {
-        this.showButtonLoading(this.elements.connectBtn, 'Connecting...');
-        
-        // Open OAuth popup
-        const authUrl = `${this.apiBase}/auth/salesforce`;
-        const popup = window.open(
-            authUrl,
-            'salesforce-auth',
-            'width=600,height=700,scrollbars=yes,resizable=yes'
-        );
-        
-        // Monitor popup
-        const checkClosed = setInterval(() => {
-            if (popup.closed) {
-                clearInterval(checkClosed);
-                this.resetButtonLoading(this.elements.connectBtn, 'Connect to Salesforce');
-                
-                // Show loading state during auth check and data loading
-                this.showConnectionStatus('checking', 'Connecting and loading data...');
-                
-                // Check auth status after popup closes
-                setTimeout(() => this.checkAuthentication(), 2000);
-            }
-        }, 1000);
-        
-        // Timeout after 5 minutes
-        setTimeout(() => {
-            if (!popup.closed) {
-                popup.close();
-                clearInterval(checkClosed);
-                this.resetButtonLoading(this.elements.connectBtn, 'Connect to Salesforce');
-                this.showToast('Connection timeout. Please try again.', 'warning');
-            }
-        }, 300000);
+        // Redirect to displayLeadTransfer page to authenticate
+        // The OAuth connection will be shared between pages
+        window.location.href = '../pages/displayLeadTransfer.html';
     }
 
     async logout() {

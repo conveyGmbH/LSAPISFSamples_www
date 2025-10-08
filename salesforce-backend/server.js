@@ -534,24 +534,44 @@ app.get('/auth/salesforce/redirect', (req, res) => {
 
 // OAuth callback
 app.get('/oauth/callback', async (req, res) => {
+    console.log('\n========================================');
+    console.log('🔙 GET /oauth/callback - Callback received');
+    console.log('========================================');
+
     try {
         const { code, state, error } = req.query;
 
+        console.log('📋 Query parameters:');
+        console.log('   - code:', code ? code.substring(0, 20) + '...' : 'missing');
+        console.log('   - state:', state || 'missing');
+        console.log('   - error:', error || 'none');
+
         if (error) {
+            console.log('❌ OAuth error from Salesforce:', error);
             throw new Error(`OAuth error: ${error}`);
         }
 
         if (!code) {
+            console.log('❌ No authorization code received');
             throw new Error('No authorization code received');
         }
 
-        // Validate state format (should contain orgId after colon)
-        if (!state || !state.includes(':')) {
-            throw new Error('Invalid state parameter format');
+        // Validate state exists
+        if (!state) {
+            console.log('❌ State parameter is missing');
+            throw new Error('Invalid state parameter - missing state');
         }
 
-        // Extract orgId from state (format: "randomState:orgId")
-        const orgId = state.split(':')[1] || 'default';
+        // Extract orgId from state
+        // Supports multiple formats for backward compatibility:
+        // - New format: "randomState:orgId" (e.g., "abc123:client_a")
+        // - Legacy format: "randomState" (e.g., "abc123") → defaults to 'default'
+        const orgId = state.includes(':') ? state.split(':')[1] : 'default';
+
+        console.log('🔍 State parameter analysis:');
+        console.log('   - Format detected:', state.includes(':') ? 'Multi-org (state:orgId)' : 'Legacy (state only)');
+        console.log('   - Extracted orgId:', orgId);
+        console.log('   - State value:', state.substring(0, 20) + '...');
 
         // Use default credentials from environment variables (Azure config)
         // This avoids session dependency which causes issues with load balancing
@@ -559,7 +579,13 @@ app.get('/oauth/callback', async (req, res) => {
         const clientSecret = config.salesforce.clientSecret;
         const loginUrl = config.salesforce.loginUrl;
 
+        console.log('🔐 Using credentials from .env:');
+        console.log('   - Client ID:', clientId ? clientId.substring(0, 20) + '...' : 'missing');
+        console.log('   - Client Secret:', clientSecret ? '***CONFIGURED***' : 'missing');
+        console.log('   - Login URL:', loginUrl);
+
         if (!clientId || !clientSecret) {
+            console.log('❌ Client credentials not found');
             throw new Error('Client credentials not found in session');
         }
 
@@ -570,11 +596,17 @@ app.get('/oauth/callback', async (req, res) => {
             loginUrl: loginUrl
         });
 
+        console.log('🔄 Exchanging authorization code for tokens...');
+
         // Exchange code for tokens
         const conn = new jsforce.Connection({ oauth2 });
         const userInfo = await conn.authorize(code);
 
-        console.log(' OAuth successful for user:', userInfo.id);
+        console.log('✅ OAuth successful!');
+        console.log('👤 User info:');
+        console.log('   - User ID:', userInfo.id);
+        console.log('   - Organization ID:', userInfo.organizationId);
+        console.log('   - Instance URL:', conn.instanceUrl);
 
         // Get detailed user info from Salesforce API
         let fullUserInfo = userInfo;
@@ -599,6 +631,8 @@ app.get('/oauth/callback', async (req, res) => {
             console.log('⚠️ Could not fetch detailed user info, using basic info:', apiError.message);
         }
 
+        console.log('💾 Storing connection data...');
+
         // Store session data with client credentials
         const sessionData = {
             accessToken: conn.accessToken,
@@ -610,14 +644,34 @@ app.get('/oauth/callback', async (req, res) => {
             // Store client-specific credentials
             clientId: clientId,
             clientSecret: clientSecret,
-            loginUrl: loginUrl
+            loginUrl: loginUrl,
+            // Store the orgId from state parameter for mapping
+            stateOrgId: orgId
         };
 
         // Store in session and connection manager
         req.session.salesforce = sessionData;
-        req.session.currentOrgId = userInfo.organizationId;
+        req.session.currentOrgId = orgId; // Use state orgId, not Salesforce orgId
         req.session.authenticated = true;
-        storeConnection(sessionData);
+
+        // Store with BOTH identifiers for flexibility
+        storeConnection(sessionData); // Stores with Salesforce organizationId
+
+        // Also store with the state orgId (default, custom, etc.)
+        if (orgId !== userInfo.organizationId) {
+            const conn = createConnection(sessionData);
+            connections.set(orgId, {
+                ...sessionData,
+                connection: conn,
+                connectedAt: new Date(),
+                lastRefresh: new Date()
+            });
+            console.log(`✅ Connection also stored with state orgId: ${orgId}`);
+        }
+
+        console.log('✅ Connection stored in session');
+        console.log('   - Access Token:', conn.accessToken ? conn.accessToken.substring(0, 20) + '...' : 'none');
+        console.log('   - Refresh Token:', conn.refreshToken ? conn.refreshToken.substring(0, 20) + '...' : 'none');
 
         // Also store in the new multi-org service for better persistence
         try {
@@ -634,6 +688,16 @@ app.get('/oauth/callback', async (req, res) => {
         } catch (multiOrgError) {
             console.warn('⚠️ Failed to store multi-org connection:', multiOrgError.message);
         }
+
+        console.log('🎉 OAuth flow completed successfully!');
+        console.log('   - State OrgId:', orgId);
+        console.log('   - Salesforce Org ID:', userInfo.organizationId);
+        console.log('   - Organization:', fullUserInfo.organization_name || 'Unknown');
+        console.log('   - User:', fullUserInfo.display_name || fullUserInfo.username);
+        console.log('📊 Connection accessible via:');
+        console.log('   - X-Org-Id:', orgId);
+        console.log('   - X-Org-Id:', userInfo.organizationId);
+        console.log('========================================\n');
 
         res.send(`
             <!DOCTYPE html>
@@ -1013,6 +1077,7 @@ app.get('/api/salesforce/auth', (req, res) => {
         const clientId = req.query.clientId || config.salesforce.clientId;
         const clientSecret = req.query.clientSecret || config.salesforce.clientSecret;
         const loginUrl = req.query.loginUrl || config.salesforce.loginUrl;
+        const orgId = req.query.orgId; // Optional orgId for multi-org support
 
         if (!clientId || !clientSecret) {
             return res.status(400).json({
@@ -1021,14 +1086,21 @@ app.get('/api/salesforce/auth', (req, res) => {
             });
         }
 
-        const state = generateState();
-        req.session.oauthState = state;
+        const randomState = generateState();
 
-        // Store credentials in session for callback
+        // Build state parameter
+        // If orgId provided: "randomState:orgId" (multi-org)
+        // If not provided: just "randomState" (single org, backward compatible)
+        const state = orgId ? `${randomState}:${orgId}` : randomState;
+
+        req.session.oauthState = randomState; // Store only random part for CSRF validation
+
+        // Store credentials in session for callback (fallback if needed)
         req.session.clientCredentials = {
             clientId,
             clientSecret,
-            loginUrl
+            loginUrl,
+            orgId: orgId || 'default'
         };
 
         const oauth2 = new jsforce.OAuth2({
@@ -1043,8 +1115,11 @@ app.get('/api/salesforce/auth', (req, res) => {
             state: state
         });
 
-        console.log('🔗 Generated auth URL with client-provided credentials');
-        res.json({ authUrl });
+        console.log(`🔗 Generated auth URL (GET) - orgId: ${orgId || 'default'}`);
+        res.json({
+            authUrl,
+            orgId: orgId || 'default'
+        });
 
     } catch (error) {
         console.error('❌ Failed to generate auth URL:', error);
@@ -1054,24 +1129,46 @@ app.get('/api/salesforce/auth', (req, res) => {
 
 // POST version for sending credentials in body (more secure)
 app.post('/api/salesforce/auth', (req, res) => {
+    console.log('\n========================================');
+    console.log('📨 POST /api/salesforce/auth - Request received');
+    console.log('========================================');
+
     try {
-        const { clientId, clientSecret, loginUrl } = req.body;
+        const { clientId, clientSecret, loginUrl, orgId } = req.body;
+
+        console.log('📋 Request body:', {
+            clientId: clientId ? `${clientId.substring(0, 20)}...` : 'missing',
+            clientSecret: clientSecret ? '***HIDDEN***' : 'missing',
+            loginUrl: loginUrl || 'using default',
+            orgId: orgId || 'not provided (will use "default")'
+        });
 
         if (!clientId || !clientSecret) {
+            console.log('❌ Missing credentials');
             return res.status(400).json({
                 message: 'Salesforce Client ID and Client Secret are required',
                 hint: 'Provide clientId and clientSecret in request body'
             });
         }
 
-        const state = generateState();
-        req.session.oauthState = state;
+        const randomState = generateState();
+        // Include orgId in state for multi-org support (format: "randomState:orgId")
+        const orgIdentifier = orgId || 'default';
+        const state = `${randomState}:${orgIdentifier}`;
+
+        console.log('🔐 Generated state parameter:');
+        console.log('   - Random part:', randomState.substring(0, 16) + '...');
+        console.log('   - OrgId:', orgIdentifier);
+        console.log('   - Full state:', `${randomState.substring(0, 16)}...:${orgIdentifier}`);
+
+        req.session.oauthState = randomState; // Store only random part for validation
 
         // Store credentials in session for callback
         req.session.clientCredentials = {
             clientId,
             clientSecret,
-            loginUrl: loginUrl || config.salesforce.loginUrl
+            loginUrl: loginUrl || config.salesforce.loginUrl,
+            orgId: orgIdentifier
         };
 
         const oauth2 = new jsforce.OAuth2({
@@ -1086,27 +1183,46 @@ app.post('/api/salesforce/auth', (req, res) => {
             state: state
         });
 
-        console.log('🔗 Generated auth URL with client-provided credentials (POST)');
-        res.json({ authUrl });
+        console.log('✅ Auth URL generated successfully');
+        console.log('🔗 Redirect URI:', config.salesforce.redirectUri);
+        console.log('🌐 Login URL:', loginUrl || config.salesforce.loginUrl);
+        console.log('🎯 State format:', state.includes(':') ? 'Multi-org (state:orgId)' : 'Legacy (state only)');
+        console.log('========================================\n');
+
+        res.json({ authUrl, orgId: orgIdentifier });
 
     } catch (error) {
         console.error('❌ Failed to generate auth URL:', error);
+        console.log('========================================\n');
         res.status(500).json({ message: 'Failed to generate auth URL' });
     }
 });
 
 // Check Salesforce connection status
 app.get('/api/salesforce/check', async (req, res) => {
+    console.log('\n========================================');
+    console.log('🔍 GET /api/salesforce/check - Checking connection');
+    console.log('========================================');
+
     try {
         // Get orgId from header (sent by frontend after OAuth success)
         const orgId = req.headers['x-org-id'] || 'default';
 
-        // Check if connection exists in salesforceService (stateless, no session needed)
+        console.log('📋 Request info:');
+        console.log('   - OrgId from header:', orgId);
+
+        // Check if connection exists in local connections Map (supports both default and Salesforce orgId)
         try {
-            const conn = salesforceService.getConnection(orgId);
+            console.log('🔎 Looking for connection in local Map...');
+            const conn = getConnection(orgId);
+
+            console.log('✅ Connection found!');
+            console.log('🔄 Verifying connection with identity call...');
 
             // Verify connection is valid by calling identity
             const identity = await conn.identity();
+
+            console.log('✅ Identity verified successfully');
 
             // Extract user info from identity response
             const userInfo = {
@@ -1116,6 +1232,13 @@ app.get('/api/salesforce/check', async (req, res) => {
                 organization_id: identity.organization_id,
                 user_id: identity.user_id
             };
+
+            console.log('👤 User info:');
+            console.log('   - Username:', userInfo.username);
+            console.log('   - Display name:', userInfo.display_name);
+            console.log('   - Organization:', userInfo.organization_name);
+            console.log('   - Org ID:', userInfo.organization_id);
+            console.log('========================================\n');
 
             res.json({
                 connected: true,
@@ -1128,6 +1251,9 @@ app.get('/api/salesforce/check', async (req, res) => {
             });
 
         } catch (connError) {
+            console.log('❌ Connection not found or invalid:', connError.message);
+            console.log('========================================\n');
+
             // Connection doesn't exist or is invalid
             return res.status(401).json({
                 connected: false,
@@ -1137,6 +1263,8 @@ app.get('/api/salesforce/check', async (req, res) => {
 
     } catch (error) {
         console.error('❌ Connection check failed:', error);
+        console.log('========================================\n');
+
         res.status(500).json({
             connected: false,
             message: 'Connection check failed',
@@ -1166,6 +1294,81 @@ app.get('/api/salesforce/userinfo', (req, res) => {
     } catch (error) {
         console.error('❌ User info failed:', error);
         res.status(500).json({ message: 'Failed to get user info' });
+    }
+});
+
+// Refresh Salesforce access token using refresh token
+app.post('/api/salesforce/refresh', async (req, res) => {
+    console.log('\n========================================');
+    console.log('🔄 POST /api/salesforce/refresh - Refreshing token');
+    console.log('========================================');
+
+    try {
+        const orgId = req.headers['x-org-id'] || req.body.orgId || 'default';
+
+        console.log('📋 Request info:');
+        console.log('   - OrgId from header:', req.headers['x-org-id'] || 'not provided');
+        console.log('   - OrgId from body:', req.body.orgId || 'not provided');
+        console.log('   - Using orgId:', orgId);
+
+        // Get existing connection from local Map (supports both default and Salesforce orgId)
+        console.log('🔎 Looking for existing connection in local Map...');
+        const conn = getConnection(orgId);
+
+        if (!conn || !conn.refreshToken) {
+            console.log('❌ No refresh token found for org:', orgId);
+            console.log('========================================\n');
+            return res.status(401).json({
+                success: false,
+                message: 'No refresh token available. Please re-authenticate.'
+            });
+        }
+
+        console.log('✅ Connection found with refresh token');
+        console.log('   - Refresh token:', conn.refreshToken.substring(0, 20) + '...');
+
+        // Use jsforce to refresh the token
+        try {
+            console.log('🔄 Calling Salesforce to refresh token...');
+            await conn.oauth2.refreshToken(conn.refreshToken);
+
+            console.log('✅ Token refreshed successfully!');
+            console.log('   - New access token:', conn.accessToken.substring(0, 20) + '...');
+            console.log('   - Instance URL:', conn.instanceUrl);
+            console.log('========================================\n');
+
+            res.json({
+                success: true,
+                message: 'Token refreshed successfully',
+                tokens: {
+                    access_token: conn.accessToken,
+                    instance_url: conn.instanceUrl
+                }
+            });
+
+        } catch (refreshError) {
+            console.error('❌ Token refresh failed:', refreshError.message);
+            console.log('🗑️  Clearing invalid connection for org:', orgId);
+            console.log('========================================\n');
+
+            // If refresh fails, clear the connection from local Map
+            connections.delete(orgId);
+
+            return res.status(401).json({
+                success: false,
+                message: 'Token refresh failed. Please re-authenticate.',
+                error: refreshError.message
+            });
+        }
+
+    } catch (error) {
+        console.error('❌ Refresh endpoint error:', error);
+        console.log('========================================\n');
+        res.status(500).json({
+            success: false,
+            message: 'Failed to refresh token',
+            error: error.message
+        });
     }
 });
 
@@ -1269,8 +1472,8 @@ app.post('/api/leads', async (req, res) => {
         const duplicateQuery = `
             SELECT Id, FirstName, LastName, Company, Email
             FROM Lead
-            WHERE LastName = '${cleanLeadData.LastName.replace(/'/g, "\\'")}'
-            AND Company = '${cleanLeadData.Company.replace(/'/g, "\\'")}'
+            WHERE LastName = '${leadData.LastName.replace(/'/g, "\\'")}'
+            AND Company = '${leadData.Company.replace(/'/g, "\\'")}'
             LIMIT 1
         `;
 
@@ -1320,6 +1523,242 @@ app.post('/api/leads', async (req, res) => {
         console.error('❌ Failed to create lead:', error);
         res.status(500).json({
             message: 'Failed to create lead',
+            error: error.message
+        });
+    }
+});
+
+// Update existing lead
+app.put('/api/leads/:id', async (req, res) => {
+    try {
+        const orgId = getCurrentOrgId(req);
+        const conn = getConnection(orgId);
+
+        if (!conn) {
+            return res.status(401).json({ message: 'Not connected to Salesforce' });
+        }
+
+        const { id } = req.params;
+        const leadData = req.body;
+
+        // Validate required fields
+        if (!leadData.LastName || !leadData.Company) {
+            return res.status(400).json({
+                message: 'Last Name and Company are required fields'
+            });
+        }
+
+        // Validate state if provided
+        if (leadData.State) {
+            const validStates = validateStateCode([leadData.State]);
+            if (validStates.length === 0) {
+                leadData.Street = leadData.Street ?
+                    `${leadData.Street}, ${leadData.State}` :
+                    leadData.State;
+                delete leadData.State;
+            } else {
+                leadData.State = validStates[0].toUpperCase();
+            }
+        }
+
+        // Update lead
+        const result = await conn.sobject('Lead').update({
+            Id: id,
+            ...leadData
+        });
+
+        if (result.success) {
+            console.log(`✅ Lead updated successfully: ${id}`);
+            res.json({
+                success: true,
+                id: id,
+                message: 'Lead updated successfully'
+            });
+        } else {
+            throw new Error('Failed to update lead: ' + JSON.stringify(result.errors));
+        }
+
+    } catch (error) {
+        console.error('❌ Failed to update lead:', error);
+        res.status(500).json({
+            message: 'Failed to update lead',
+            error: error.message
+        });
+    }
+});
+
+// Delete lead
+app.delete('/api/leads/:id', async (req, res) => {
+    try {
+        const orgId = getCurrentOrgId(req);
+        const conn = getConnection(orgId);
+
+        if (!conn) {
+            return res.status(401).json({ message: 'Not connected to Salesforce' });
+        }
+
+        const { id } = req.params;
+
+        // Delete lead
+        const result = await conn.sobject('Lead').delete(id);
+
+        if (result.success) {
+            console.log(`✅ Lead deleted successfully: ${id}`);
+            res.json({
+                success: true,
+                id: id,
+                message: 'Lead deleted successfully'
+            });
+        } else {
+            throw new Error('Failed to delete lead: ' + JSON.stringify(result.errors));
+        }
+
+    } catch (error) {
+        console.error('❌ Failed to delete lead:', error);
+        res.status(500).json({
+            message: 'Failed to delete lead',
+            error: error.message
+        });
+    }
+});
+
+// Check which fields exist in Salesforce Lead object
+app.post('/api/salesforce/fields/check', async (req, res) => {
+    try {
+        const orgId = getCurrentOrgId(req);
+        const conn = getConnection(orgId);
+
+        if (!conn) {
+            return res.status(401).json({ message: 'Not connected to Salesforce' });
+        }
+
+        const { fieldNames } = req.body;
+
+        if (!fieldNames || !Array.isArray(fieldNames)) {
+            return res.status(400).json({ message: 'fieldNames array is required' });
+        }
+
+        console.log(`🔍 Checking ${fieldNames.length} fields in Salesforce Lead object`);
+
+        // Describe Lead object to get all fields
+        const leadMetadata = await conn.sobject('Lead').describe();
+        const existingFields = new Set(leadMetadata.fields.map(f => f.name));
+
+        // Check which fields exist and which don't
+        const results = {
+            existing: [],
+            missing: []
+        };
+
+        fieldNames.forEach(fieldName => {
+            if (existingFields.has(fieldName)) {
+                results.existing.push(fieldName);
+            } else {
+                results.missing.push(fieldName);
+            }
+        });
+
+        console.log(`✅ Found ${results.existing.length} existing fields, ${results.missing.length} missing fields`);
+
+        res.json({
+            success: true,
+            existing: results.existing,
+            missing: results.missing
+        });
+
+    } catch (error) {
+        console.error('❌ Failed to check fields:', error);
+        res.status(500).json({
+            message: 'Failed to check fields',
+            error: error.message
+        });
+    }
+});
+
+// Create custom fields in Salesforce using Tooling API
+app.post('/api/salesforce/fields/create', async (req, res) => {
+    try {
+        const orgId = getCurrentOrgId(req);
+        const conn = getConnection(orgId);
+
+        if (!conn) {
+            return res.status(401).json({ message: 'Not connected to Salesforce' });
+        }
+
+        const { fields } = req.body;
+
+        if (!fields || !Array.isArray(fields)) {
+            return res.status(400).json({ message: 'fields array is required' });
+        }
+
+        console.log(`🛠️  Creating ${fields.length} custom fields in Salesforce`);
+
+        const results = {
+            created: [],
+            failed: []
+        };
+
+        // Create each custom field using Metadata API
+        for (const field of fields) {
+            try {
+                const { apiName, label } = field;
+
+                // Create custom field metadata
+                const customField = {
+                    FullName: `Lead.${apiName}`,
+                    Metadata: {
+                        type: 'Text',
+                        label: label || apiName.replace(/__c$/, '').replace(/_/g, ' '),
+                        length: 255,
+                        required: false,
+                        externalId: false,
+                        unique: false
+                    }
+                };
+
+                console.log(`Creating field: ${apiName} (${customField.Metadata.label})`);
+
+                const result = await conn.metadata.create('CustomField', customField);
+
+                if (result.success) {
+                    results.created.push({
+                        apiName,
+                        label: customField.Metadata.label,
+                        success: true
+                    });
+                    console.log(`✅ Field created: ${apiName}`);
+                } else {
+                    results.failed.push({
+                        apiName,
+                        label: customField.Metadata.label,
+                        error: result.errors ? JSON.stringify(result.errors) : 'Unknown error'
+                    });
+                    console.error(`❌ Field creation failed: ${apiName}`, result.errors);
+                }
+
+            } catch (fieldError) {
+                results.failed.push({
+                    apiName: field.apiName,
+                    label: field.label,
+                    error: fieldError.message
+                });
+                console.error(`❌ Field creation error: ${field.apiName}`, fieldError);
+            }
+        }
+
+        console.log(`📊 Field creation results: ${results.created.length} created, ${results.failed.length} failed`);
+
+        res.json({
+            success: results.failed.length === 0,
+            created: results.created,
+            failed: results.failed,
+            message: `Created ${results.created.length} field(s), ${results.failed.length} failed`
+        });
+
+    } catch (error) {
+        console.error('❌ Failed to create custom fields:', error);
+        res.status(500).json({
+            message: 'Failed to create custom fields',
             error: error.message
         });
     }
