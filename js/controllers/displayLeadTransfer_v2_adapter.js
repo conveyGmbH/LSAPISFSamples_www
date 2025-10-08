@@ -1,0 +1,468 @@
+/**
+ * Display Lead Transfer V2 UI Adapter
+ * Adds CardView/ListView toggle and modern UI features
+ * Works alongside existing displayLeadTransferController.js
+ */
+
+// View state management
+let currentView = 'list'; // 'list' or 'card'
+
+/**
+ * Initialize V2 UI enhancements
+ */
+export function initializeV2UI() {
+    console.log('🎨 Initializing V2 UI enhancements...');
+
+    // Setup view toggle
+    setupViewToggle();
+
+    // Setup bulk actions
+    setupBulkActions();
+
+    // Setup user profile sidebar updates
+    setupUserProfileUpdates();
+
+    // Setup API status indicator
+    setupAPIStatusIndicator();
+
+    // Update filter summary text
+    updateFilterSummary();
+
+    console.log('✅ V2 UI initialized');
+}
+
+/**
+ * Setup view toggle (List/Card)
+ */
+function setupViewToggle() {
+    const listViewBtn = document.getElementById('listViewBtn');
+    const cardViewBtn = document.getElementById('cardViewBtn');
+    const listContainer = document.getElementById('list-view-container');
+    const cardContainer = document.getElementById('card-view-container');
+
+    if (!listViewBtn || !cardViewBtn) return;
+
+    listViewBtn.addEventListener('click', () => {
+        currentView = 'list';
+        listViewBtn.classList.add('active');
+        cardViewBtn.classList.remove('active');
+        listContainer.style.display = 'block';
+        cardContainer.style.display = 'none';
+        console.log('📋 Switched to ListView');
+    });
+
+    cardViewBtn.addEventListener('click', () => {
+        currentView = 'card';
+        cardViewBtn.classList.add('active');
+        listViewBtn.classList.remove('active');
+        listContainer.style.display = 'none';
+        cardContainer.style.display = 'grid';
+
+        // Generate card view from list view data
+        generateCardView();
+        console.log('🎴 Switched to CardView');
+    });
+}
+
+/**
+ * Generate CardView from existing lead data
+ */
+function generateCardView() {
+    const cardContainer = document.getElementById('card-view-container');
+    if (!cardContainer) return;
+
+    // Get all field elements from list view
+    const fieldElements = document.querySelectorAll('.lead-field, .field-row');
+    if (fieldElements.length === 0) {
+        cardContainer.innerHTML = '<div class="col-span-full text-center text-gray-500 py-8">No fields to display</div>';
+        return;
+    }
+
+    cardContainer.innerHTML = '';
+
+    fieldElements.forEach(fieldElement => {
+        const fieldName = fieldElement.dataset?.fieldName || fieldElement.dataset?.field;
+        if (!fieldName) return;
+
+        // Get field data
+        const fieldLabel = fieldElement.querySelector('.field-label, .field-name')?.textContent || fieldName;
+        const fieldInput = fieldElement.querySelector('.field-input, input:not([type="checkbox"]), select, textarea');
+        const fieldValue = fieldInput ? getFieldInputValue(fieldInput) : '';
+        const toggle = fieldElement.querySelector('input[type="checkbox"]');
+        const isActive = toggle ? toggle.checked : true;
+        const isRequired = fieldElement.querySelector('.required-marker') !== null || fieldLabel.includes('*');
+
+        // Create card
+        const card = createFieldCard(fieldName, fieldLabel, fieldValue, isActive, isRequired);
+        cardContainer.appendChild(card);
+    });
+
+    console.log(`🎴 Generated ${fieldElements.length} field cards`);
+}
+
+/**
+ * Create a field card element
+ */
+function createFieldCard(fieldName, fieldLabel, fieldValue, isActive, isRequired) {
+    const card = document.createElement('div');
+    card.className = `field-card bg-white rounded-lg p-4 ${isActive ? 'active-field' : 'inactive-field'}`;
+    card.dataset.fieldName = fieldName;
+
+    card.innerHTML = `
+        <div class="flex justify-between items-start mb-3">
+            <div class="flex-1">
+                <h3 class="text-sm font-semibold text-gray-800 mb-1">
+                    ${escapeHtml(fieldLabel)}
+                    ${isRequired ? '<span class="text-red-500 ml-1">*</span>' : ''}
+                </h3>
+                <p class="text-xs text-gray-500 font-mono">${escapeHtml(fieldName)}</p>
+            </div>
+            <label class="toggle-switch">
+                <input type="checkbox" ${isActive ? 'checked' : ''} data-field="${escapeHtml(fieldName)}">
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+        <div class="mb-3">
+            <p class="text-sm text-gray-700 break-words">${escapeHtml(fieldValue) || '<span class="text-gray-400">Empty</span>'}</p>
+        </div>
+        <div class="flex justify-end">
+            <button class="edit-field-btn text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center" data-field="${escapeHtml(fieldName)}">
+                <i class="fas fa-edit mr-1"></i> Edit
+            </button>
+        </div>
+    `;
+
+    // Add event listeners
+    const toggleInput = card.querySelector('input[type="checkbox"]');
+    const editBtn = card.querySelector('.edit-field-btn');
+
+    toggleInput.addEventListener('change', (e) => {
+        const isChecked = e.target.checked;
+        card.classList.toggle('active-field', isChecked);
+        card.classList.toggle('inactive-field', !isChecked);
+
+        // Sync with list view toggle
+        syncToggleWithListView(fieldName, isChecked);
+
+        // Update stats
+        updateFieldStatsV2();
+
+        // Update transfer button
+        if (typeof updateTransferButtonState === 'function') {
+            updateTransferButtonState();
+        }
+    });
+
+    editBtn.addEventListener('click', () => {
+        openEditModal(fieldName, fieldLabel, fieldValue);
+    });
+
+    return card;
+}
+
+/**
+ * Sync card view toggle with list view toggle
+ */
+function syncToggleWithListView(fieldName, isChecked) {
+    // Find corresponding toggle in list view
+    const listToggle = document.querySelector(`.lead-field[data-field-name="${fieldName}"] input[type="checkbox"], .field-row[data-field-name="${fieldName}"] input[type="checkbox"]`);
+    if (listToggle && listToggle.checked !== isChecked) {
+        listToggle.checked = isChecked;
+        listToggle.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+}
+
+/**
+ * Open edit modal
+ */
+function openEditModal(fieldName, fieldLabel, fieldValue) {
+    const modal = document.getElementById('edit-field-modal');
+    const fieldNameInput = document.getElementById('edit-field-name');
+    const fieldValueInput = document.getElementById('edit-field-value');
+    const activeToggle = document.getElementById('edit-field-active');
+
+    if (!modal) return;
+
+    fieldNameInput.value = fieldLabel;
+    fieldValueInput.value = fieldValue;
+
+    // Get current active state
+    const fieldCard = document.querySelector(`.field-card[data-field-name="${fieldName}"]`);
+    const toggle = fieldCard?.querySelector('input[type="checkbox"]');
+    activeToggle.checked = toggle ? toggle.checked : true;
+
+    // Store field name for save
+    modal.dataset.editingField = fieldName;
+
+    modal.classList.add('show');
+
+    // Setup close handlers
+    const closeBtn = document.getElementById('close-edit-modal');
+    const cancelBtn = document.getElementById('cancel-edit-btn');
+    const saveBtn = document.getElementById('save-edit-btn');
+
+    const closeModal = () => {
+        modal.classList.remove('show');
+    };
+
+    closeBtn.onclick = closeModal;
+    cancelBtn.onclick = closeModal;
+
+    saveBtn.onclick = () => {
+        saveFieldEdit(fieldName, fieldValueInput.value, activeToggle.checked);
+        closeModal();
+    };
+}
+
+/**
+ * Save field edit
+ */
+function saveFieldEdit(fieldName, newValue, isActive) {
+    // Update in list view
+    const listFieldElement = document.querySelector(`.lead-field[data-field-name="${fieldName}"], .field-row[data-field-name="${fieldName}"]`);
+    if (listFieldElement) {
+        const input = listFieldElement.querySelector('.field-input, input:not([type="checkbox"]), select, textarea');
+        if (input) {
+            input.value = newValue;
+        }
+        const toggle = listFieldElement.querySelector('input[type="checkbox"]');
+        if (toggle) {
+            toggle.checked = isActive;
+        }
+    }
+
+    // Update in card view if visible
+    if (currentView === 'card') {
+        generateCardView();
+    }
+
+    console.log(`✅ Field updated: ${fieldName}`);
+}
+
+/**
+ * Setup bulk actions
+ */
+function setupBulkActions() {
+    const activateAllBtn = document.getElementById('activate-all-btn');
+    const deactivateAllBtn = document.getElementById('deactivate-all-btn');
+
+    if (activateAllBtn) {
+        activateAllBtn.addEventListener('click', () => {
+            setAllFieldsActive(true);
+        });
+    }
+
+    if (deactivateAllBtn) {
+        deactivateAllBtn.addEventListener('click', () => {
+            setAllFieldsActive(false);
+        });
+    }
+}
+
+/**
+ * Set all fields active/inactive
+ */
+function setAllFieldsActive(active) {
+    // Update all toggles
+    const allToggles = document.querySelectorAll('.field-card input[type="checkbox"], .lead-field input[type="checkbox"], .field-row input[type="checkbox"]');
+    allToggles.forEach(toggle => {
+        toggle.checked = active;
+        toggle.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    // Regenerate card view if active
+    if (currentView === 'card') {
+        generateCardView();
+    }
+
+    updateFieldStatsV2();
+
+    if (typeof updateTransferButtonState === 'function') {
+        updateTransferButtonState();
+    }
+
+    console.log(`✅ All fields set to ${active ? 'active' : 'inactive'}`);
+}
+
+/**
+ * Update field statistics
+ */
+function updateFieldStatsV2() {
+    const allFields = document.querySelectorAll('.field-card, .lead-field, .field-row');
+    let activeCount = 0;
+    let inactiveCount = 0;
+
+    allFields.forEach(field => {
+        const toggle = field.querySelector('input[type="checkbox"]');
+        if (toggle) {
+            if (toggle.checked) {
+                activeCount++;
+            } else {
+                inactiveCount++;
+            }
+        }
+    });
+
+    const totalCount = activeCount + inactiveCount;
+
+    // Update stat cards
+    document.getElementById('active-field-count').textContent = activeCount;
+    document.getElementById('inactive-field-count').textContent = inactiveCount;
+    document.getElementById('total-field-count').textContent = totalCount;
+
+    console.log(`📊 Stats updated: ${activeCount} active, ${inactiveCount} inactive, ${totalCount} total`);
+}
+
+/**
+ * Setup user profile updates
+ */
+function setupUserProfileUpdates() {
+    // Listen for connection status changes
+    const observer = new MutationObserver(() => {
+        updateUserProfileSidebar();
+    });
+
+    const profileElement = document.getElementById('salesforceUserInfo');
+    if (profileElement) {
+        observer.observe(profileElement, { childList: true, subtree: true });
+    }
+}
+
+/**
+ * Update user profile in sidebar
+ */
+function updateUserProfileSidebar() {
+    const sidebarProfile = document.getElementById('user-profile-sidebar');
+    const userName = document.getElementById('user-name-sidebar');
+    const userEmail = document.getElementById('user-email-sidebar');
+    const userOrg = document.getElementById('user-org-sidebar');
+    const userAvatar = document.getElementById('user-avatar');
+
+    // Try to get user info from existing profile or localStorage
+    let userInfo = null;
+
+    try {
+        const persistedConnection = JSON.parse(localStorage.getItem('sf_connection_status'));
+        if (persistedConnection && persistedConnection.userInfo) {
+            userInfo = persistedConnection.userInfo;
+        }
+    } catch (e) {
+        console.warn('Failed to load user info from localStorage');
+    }
+
+    if (userInfo && sidebarProfile) {
+        sidebarProfile.style.display = 'block';
+        userName.textContent = userInfo.display_name || userInfo.username || 'User';
+        userEmail.textContent = userInfo.username || '-';
+        userOrg.textContent = userInfo.organization_name || 'Unknown Org';
+
+        // Create initials for avatar
+        const initials = (userInfo.display_name || userInfo.username || 'U')
+            .split(' ')
+            .map(word => word[0])
+            .join('')
+            .toUpperCase()
+            .substring(0, 2);
+        userAvatar.textContent = initials;
+    } else if (sidebarProfile) {
+        sidebarProfile.style.display = 'none';
+    }
+}
+
+/**
+ * Setup API status indicator
+ */
+function setupAPIStatusIndicator() {
+    // Check connection status periodically
+    updateAPIStatus();
+    setInterval(updateAPIStatus, 5000);
+}
+
+/**
+ * Update API status indicator
+ */
+function updateAPIStatus() {
+    const statusCard = document.getElementById('api-status-card');
+    if (!statusCard) return;
+
+    try {
+        const persistedConnection = JSON.parse(localStorage.getItem('sf_connection_status'));
+        const isConnected = persistedConnection &&
+                          persistedConnection.status === 'connected' &&
+                          persistedConnection.expiresAt > Date.now();
+
+        if (isConnected) {
+            const orgId = persistedConnection.orgId || 'default';
+            statusCard.className = 'bg-green-50 border border-green-200 rounded-lg p-3';
+            statusCard.innerHTML = `
+                <div class="flex items-center">
+                    <div class="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
+                    <span class="text-sm font-medium text-green-700">API Connected</span>
+                </div>
+                <p class="text-xs text-green-600 mt-1">${orgId}</p>
+            `;
+        } else {
+            statusCard.className = 'bg-gray-100 border border-gray-200 rounded-lg p-3';
+            statusCard.innerHTML = `
+                <div class="flex items-center">
+                    <div class="w-3 h-3 bg-gray-400 rounded-full mr-2"></div>
+                    <span class="text-sm font-medium text-gray-600">Disconnected</span>
+                </div>
+                <p class="text-xs text-gray-500 mt-1">Not connected</p>
+            `;
+        }
+    } catch (e) {
+        console.warn('Failed to update API status');
+    }
+}
+
+/**
+ * Update filter summary text
+ */
+function updateFilterSummary() {
+    const filterDropdown = document.getElementById('field-display-filter');
+    const summaryText = document.getElementById('fields-summary');
+
+    if (!filterDropdown || !summaryText) return;
+
+    filterDropdown.addEventListener('change', (e) => {
+        const value = e.target.value;
+        const texts = {
+            'all': 'Showing all fields',
+            'active': 'Showing active fields only',
+            'inactive': 'Showing inactive fields only'
+        };
+        summaryText.textContent = texts[value] || 'Showing all fields';
+    });
+}
+
+/**
+ * Helper: Get input value safely
+ */
+function getFieldInputValue(input) {
+    if (!input) return '';
+    if (input.tagName === 'SELECT') {
+        return input.options[input.selectedIndex]?.text || input.value;
+    }
+    return input.value || '';
+}
+
+/**
+ * Helper: Escape HTML
+ */
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Auto-initialize when DOM is loaded
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeV2UI);
+} else {
+    initializeV2UI();
+}
+
+// Export for use in other modules
+export { generateCardView, updateFieldStatsV2, updateUserProfileSidebar, updateAPIStatus };
