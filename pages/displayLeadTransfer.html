@@ -147,11 +147,66 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #555;
         }
+
+        /* Attachment items styling */
+        .attachment-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            background: white;
+            transition: all 0.2s ease;
+        }
+        .attachment-item:hover {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            border-color: #3b82f6;
+        }
+        .attachment-icon {
+            margin-right: 12px;
+            font-size: 24px;
+            color: #6b7280;
+        }
+        .attachment-details {
+            flex: 1;
+            min-width: 0;
+        }
+        .attachment-name {
+            font-weight: 500;
+            color: #1f2937;
+            margin-bottom: 4px;
+        }
+        .attachment-meta {
+            display: flex;
+            gap: 12px;
+            font-size: 12px;
+            color: #6b7280;
+        }
+        .view-attachment-btn {
+            padding: 8px 12px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .view-attachment-btn:hover {
+            background: #2563eb;
+            transform: scale(1.05);
+        }
+        .view-attachment-btn i {
+            font-size: 16px;
+        }
     </style>
 
     <link rel="icon" type="image/x-icon" href="/images/api-sf.ico">
 </head>
-<body class="bg-white text-gray-800 overflow-hidden">
+<body class="bg-gray-50 text-gray-800 overflow-hidden">
     <div class="flex h-screen">
         <!-- Sidebar -->
         <div class="sidebar w-64 bg-white border-r border-gray-200 flex flex-col">
@@ -264,7 +319,7 @@
                         <div class="flex justify-between items-center">
                             <div>
                                 <p class="text-sm font-medium text-gray-500">Active</p>
-                                <p id="active-field-count" class="text-3xl font-bold text-green-600">0</p>
+                                <p id="active-field-count" class="text-2xl font-bold text-green-600">0</p>
                             </div>
                             <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
                                 <i class="fas fa-check-circle text-green-500 text-xl"></i>
@@ -276,7 +331,7 @@
                         <div class="flex justify-between items-center">
                             <div>
                                 <p class="text-sm font-medium text-gray-500">Inactive</p>
-                                <p id="inactive-field-count" class="text-3xl font-bold text-red-600">0</p>
+                                <p id="inactive-field-count" class="text-2xl font-bold text-red-600">0</p>
                             </div>
                             <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
                                 <i class="fas fa-times-circle text-red-500 text-xl"></i>
@@ -288,7 +343,7 @@
                         <div class="flex justify-between items-center">
                             <div>
                                 <p class="text-sm font-medium text-gray-500">Total</p>
-                                <p id="total-field-count" class="text-3xl font-bold text-blue-600">0</p>
+                                <p id="total-field-count" class="text-2xl font-bold text-blue-600">0</p>
                             </div>
                             <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
                                 <i class="fas fa-chart-bar text-blue-500 text-xl"></i>
@@ -467,6 +522,19 @@
 
     <!-- Toast Container -->
     <div id="toast-container" class="fixed top-4 right-4 z-50 space-y-2"></div>
+
+    <!-- Attachment Preview Modal -->
+    <div id="attachment-preview-modal" class="modal">
+        <div class="modal-content" style="max-width: 90vw; max-height: 90vh;">
+            <div class="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-4 rounded-t-xl flex justify-between items-center">
+                <h3 id="attachment-modal-title" class="text-lg font-bold">Attachment Preview</h3>
+                <button id="close-attachment-modal" class="text-white hover:text-gray-200 text-2xl">&times;</button>
+            </div>
+            <div id="attachment-modal-body" class="p-6 overflow-auto" style="max-height: calc(90vh - 80px);">
+                <!-- Content will be loaded here -->
+            </div>
+        </div>
+    </div>
 
     <!-- Scripts -->
     <!-- Load global classes first (non-module scripts) -->

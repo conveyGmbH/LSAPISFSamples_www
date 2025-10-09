@@ -3826,7 +3826,14 @@ async function displayAttachmentsPreview() {
           <span class="attachment-size">${fileSize}</span>
         </div>
       </div>
+      <button class="view-attachment-btn" data-attachment-id="${attachment.Id}" title="View file">
+        <i class="fas fa-eye"></i>
+      </button>
     `;
+
+    // Add click handler for view button
+    const viewBtn = listItem.querySelector('.view-attachment-btn');
+    viewBtn.addEventListener('click', () => showAttachmentPreview(attachment));
 
     attachmentsList.appendChild(listItem);
   });
@@ -4064,7 +4071,83 @@ async function fetchAttachments(attachmentIdList) {
   return attachments;
 }
 
+/**
+ * Show attachment preview in modal
+ * @param {Object} attachment - Attachment data
+ */
+function showAttachmentPreview(attachment) {
+  const modal = document.getElementById('attachment-preview-modal');
+  const modalTitle = document.getElementById('attachment-modal-title');
+  const modalBody = document.getElementById('attachment-modal-body');
+  const closeBtn = document.getElementById('close-attachment-modal');
 
+  if (!modal || !modalTitle || !modalBody) {
+    console.error('Attachment preview modal not found');
+    return;
+  }
+
+  // Set title
+  modalTitle.textContent = attachment.Name;
+
+  // Clear previous content
+  modalBody.innerHTML = '<div class="text-center py-4"><i class="fas fa-spinner fa-spin text-2xl text-blue-500"></i><p class="mt-2 text-gray-600">Loading...</p></div>';
+
+  // Show modal
+  modal.classList.add('show');
+  modal.style.display = 'flex';
+
+  // Determine content type
+  const contentType = attachment.ContentType || '';
+  const fileName = attachment.Name || '';
+  const extension = fileName.split('.').pop().toLowerCase();
+
+  // Process and display based on type
+  if (contentType.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'svg', 'bmp'].includes(extension)) {
+    // Image preview
+    const imgSrc = attachment.Body ? `data:${contentType || 'image/jpeg'};base64,${attachment.Body}` : '';
+    modalBody.innerHTML = `
+      <div class="flex justify-center">
+        <img src="${imgSrc}" alt="${fileName}" class="max-w-full max-h-[70vh] rounded-lg shadow-lg">
+      </div>
+      <div class="mt-4 text-center text-sm text-gray-600">
+        <p>${fileName} (${formatFileSize(attachment.BodyLength)})</p>
+      </div>
+    `;
+  } else if (contentType === 'application/pdf' || extension === 'pdf') {
+    // PDF preview
+    const pdfSrc = attachment.Body ? `data:application/pdf;base64,${attachment.Body}` : '';
+    modalBody.innerHTML = `
+      <div class="flex flex-col items-center">
+        <iframe src="${pdfSrc}" class="w-full h-[70vh] border rounded-lg"></iframe>
+        <div class="mt-4 text-center text-sm text-gray-600">
+          <p>${fileName} (${formatFileSize(attachment.BodyLength)})</p>
+        </div>
+      </div>
+    `;
+  } else {
+    // Unsupported type - show download option
+    modalBody.innerHTML = `
+      <div class="text-center py-8">
+        <i class="fas fa-file text-6xl text-gray-300 mb-4"></i>
+        <p class="text-lg font-medium text-gray-700 mb-2">${fileName}</p>
+        <p class="text-sm text-gray-500 mb-4">Preview not available for this file type</p>
+        <p class="text-sm text-gray-600 mb-4">Type: ${contentType || 'Unknown'}</p>
+        <p class="text-sm text-gray-600">Size: ${formatFileSize(attachment.BodyLength)}</p>
+      </div>
+    `;
+  }
+
+  // Close modal handler
+  const closeModal = () => {
+    modal.classList.remove('show');
+    modal.style.display = 'none';
+  };
+
+  closeBtn.onclick = closeModal;
+  modal.onclick = (e) => {
+    if (e.target === modal) closeModal();
+  };
+}
 
 function updateConnectionStatus(status, message, userInfo = null) {
     console.log(`Connection status: ${status} - ${message}`, userInfo);
