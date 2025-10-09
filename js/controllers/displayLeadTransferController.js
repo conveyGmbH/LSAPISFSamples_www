@@ -1426,6 +1426,9 @@ function displayLeadData(data) {
     // Hide empty state when lead is loaded
     if (emptyState) emptyState.style.display = 'none';
 
+    // Update lead info header
+    updateLeadInfoHeader(data);
+
     // Traiter les données avec les labels personnalisés
     const processedData = window.fieldMappingService?.applyCustomLabels(data) ||
         Object.fromEntries(Object.entries(data).map(([key, value]) => [key, {
@@ -1477,6 +1480,35 @@ function isSystemField(fieldName) {
         'DeviceRecordId', 'EventId', 'RequestBarcode', 'StatusMessage'
     ];
     return systemFields.includes(fieldName);
+}
+
+/**
+ * Update lead information header
+ */
+function updateLeadInfoHeader(data) {
+    const header = document.getElementById('lead-info-header');
+    if (!header) return;
+
+    const source = 'Lead Report'; // You can make this dynamic if needed
+    const leadId = data.Id || data.EventId || 'Unknown';
+    const createdDate = data.CreatedDate ? formatDate(data.CreatedDate) : 'Unknown';
+    const isActive = true; // You can determine this from data if needed
+
+    header.innerHTML = `
+        <div class="flex items-center text-sm text-gray-600 mb-2">
+            <span class="mr-2">Source: ${source}</span>
+            <span class="mr-2">•</span>
+            <span>ID: ${leadId}</span>
+        </div>
+        <div class="flex items-center">
+            <span class="px-2 py-1 ${isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'} text-xs font-medium rounded mr-2">
+                ${isActive ? 'Active' : 'Inactive'}
+            </span>
+            <span class="text-sm text-gray-600">Created: ${createdDate}</span>
+        </div>
+    `;
+
+    header.style.display = 'block';
 }
 
 /**
@@ -3894,13 +3926,13 @@ async function displayAttachmentsPreview() {
  * @returns {string} HTML SVG icon
  */
 function getFileIcon(contentType, filename) {
-  let iconSvg = "";
-
   if (!contentType && filename) {
     // Determine type based on file extension
     const extension = filename.split(".").pop().toLowerCase();
-    if (["jpg", "jpeg", "png", "gif", "bmp", "svg"].includes(extension)) {
+    if (["jpg", "jpeg", "png", "gif", "bmp"].includes(extension)) {
       contentType = "image";
+    } else if (["svg"].includes(extension)) {
+      contentType = "image/svg+xml";
     } else if (["pdf"].includes(extension)) {
       contentType = "application/pdf";
     } else if (["doc", "docx"].includes(extension)) {
@@ -3910,17 +3942,24 @@ function getFileIcon(contentType, filename) {
     }
   }
 
+  // Return Font Awesome icon HTML with colored background
   if (contentType) {
     if (contentType.startsWith("image/") || contentType === "image") {
-      iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`;
+      return '<div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center text-green-500"><i class="fas fa-image"></i></div>';
+    } else if (contentType === "image/svg+xml") {
+      return '<div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center text-blue-500"><i class="fas fa-image"></i></div>';
     } else if (contentType === "application/pdf") {
-      iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2-2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>`;
+      return '<div class="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center text-red-500"><i class="fas fa-file-pdf"></i></div>';
+    } else if (contentType === "word") {
+      return '<div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center text-blue-500"><i class="fas fa-file-word"></i></div>';
+    } else if (contentType === "excel") {
+      return '<div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center text-green-500"><i class="fas fa-file-excel"></i></div>';
     } else {
-      iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2-2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>`;
+      return '<div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center text-gray-500"><i class="fas fa-file"></i></div>';
     }
   }
 
-  return iconSvg;
+  return '<div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center text-gray-500"><i class="fas fa-file"></i></div>';
 }
 
 /**
