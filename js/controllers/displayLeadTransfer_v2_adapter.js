@@ -31,6 +31,9 @@ export function initializeV2UI() {
     // Setup API status indicator
     setupAPIStatusIndicator();
 
+    // Setup stats cards click handlers
+    setupStatsCardsClickHandlers();
+
     console.log('✅ V2 UI initialized (Light Mode Only)');
 }
 
@@ -571,6 +574,119 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+/**
+ * Setup click handlers on stats cards to show field details
+ */
+function setupStatsCardsClickHandlers() {
+    const activeCard = document.getElementById('active-stats-card');
+    const inactiveCard = document.getElementById('inactive-stats-card');
+    const totalCard = document.getElementById('total-stats-card');
+
+    if (activeCard) {
+        activeCard.addEventListener('click', () => showFieldDetailsModal('active'));
+    }
+
+    if (inactiveCard) {
+        inactiveCard.addEventListener('click', () => showFieldDetailsModal('inactive'));
+    }
+
+    if (totalCard) {
+        totalCard.addEventListener('click', () => showFieldDetailsModal('all'));
+    }
+}
+
+/**
+ * Show field details modal
+ */
+function showFieldDetailsModal(filterType) {
+    const modal = document.getElementById('field-details-modal');
+    const modalTitle = document.getElementById('field-details-title');
+    const modalBody = document.getElementById('field-details-body');
+    const closeBtn = document.getElementById('close-field-details-modal');
+
+    if (!modal || !modalTitle || !modalBody) {
+        console.error('Field details modal not found');
+        return;
+    }
+
+    // Set title based on filter
+    const titles = {
+        'active': 'Active Fields',
+        'inactive': 'Inactive Fields',
+        'all': 'All Fields'
+    };
+    modalTitle.textContent = titles[filterType] || 'Field Details';
+
+    // Get all field elements
+    const allFields = document.querySelectorAll('.field-row, .field-container, .lead-field');
+    const filteredFields = [];
+
+    allFields.forEach(field => {
+        const fieldName = field.dataset.fieldName || field.dataset.field;
+        if (!fieldName) return;
+
+        const toggle = field.querySelector('input[type="checkbox"]');
+        const isActive = toggle ? toggle.checked : false;
+
+        // Filter based on type
+        if (filterType === 'active' && !isActive) return;
+        if (filterType === 'inactive' && isActive) return;
+
+        const fieldValue = field.querySelector('.field-value, .field-input, input:not([type="checkbox"]), select, textarea');
+        const value = fieldValue ? (fieldValue.textContent || fieldValue.value || 'N/A') : 'N/A';
+
+        filteredFields.push({
+            name: fieldName,
+            value: value.trim(),
+            active: isActive
+        });
+    });
+
+    // Generate modal content
+    if (filteredFields.length === 0) {
+        modalBody.innerHTML = `
+            <div class="text-center py-8">
+                <i class="fas fa-inbox text-gray-300 text-5xl mb-3"></i>
+                <p class="text-gray-600">No ${filterType === 'all' ? '' : filterType} fields found</p>
+            </div>
+        `;
+    } else {
+        modalBody.innerHTML = `
+            <div class="mb-3">
+                <p class="text-sm text-gray-600">Found <strong>${filteredFields.length}</strong> field(s)</p>
+            </div>
+            <div class="space-y-2">
+                ${filteredFields.map(field => `
+                    <div class="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
+                        <div class="flex-1">
+                            <p class="text-sm font-medium text-gray-800">${field.name}</p>
+                            <p class="text-xs text-gray-600 mt-1">${field.value}</p>
+                        </div>
+                        <span class="px-2 py-1 text-xs rounded-full ${field.active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">
+                            ${field.active ? 'Active' : 'Inactive'}
+                        </span>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    // Show modal
+    modal.classList.add('show');
+    modal.style.display = 'flex';
+
+    // Close handlers
+    const closeModal = () => {
+        modal.classList.remove('show');
+        modal.style.display = 'none';
+    };
+
+    closeBtn.onclick = closeModal;
+    modal.onclick = (e) => {
+        if (e.target === modal) closeModal();
+    };
 }
 
 // Auto-initialize when DOM is loaded
