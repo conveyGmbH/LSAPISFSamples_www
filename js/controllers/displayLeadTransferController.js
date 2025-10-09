@@ -1,5 +1,7 @@
 import { appConfig } from "../config/salesforceConfig.js";
 import ApiService from "../services/apiService.js";
+import SalesforceFieldMapper from "../services/mapping/SalesforceFieldMapper.js";
+import FieldRenderer from "../services/mapping/FieldRenderer.js";
 
 
 // Enhanced connection persistence manager
@@ -4968,9 +4970,10 @@ async function saveAndExportConfiguration() {
 window.openEditLabelModal = openEditLabelModal;
 window.closeEditLabelModal = closeEditLabelModal;
 window.saveCustomLabel = saveCustomLabel;
-window.showLogoutModal = showLogoutModal;
-window.closeLogoutModal = closeLogoutModal;
-window.confirmLogout = confirmLogout;
+// Logout modal functions (optional, can be implemented later)
+// window.showLogoutModal = showLogoutModal;
+// window.closeLogoutModal = closeLogoutModal;
+// window.confirmLogout = confirmLogout;
 
 
 
