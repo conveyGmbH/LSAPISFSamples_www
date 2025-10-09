@@ -235,6 +235,9 @@ function createFieldCard(fieldName, fieldLabel, fieldValue, isActive, isRequired
     card.className = `field-card bg-white rounded-lg p-4 ${isActive ? 'active-field' : 'inactive-field'}`;
     card.dataset.fieldName = fieldName;
 
+    // Get custom Salesforce field name if it exists
+    const customFieldName = window.fieldMappingService?.customLabels?.[fieldName] || '';
+
     card.innerHTML = `
         <div class="flex justify-between items-start mb-3">
             <div class="flex-1">
@@ -242,12 +245,20 @@ function createFieldCard(fieldName, fieldLabel, fieldValue, isActive, isRequired
                     ${escapeHtml(fieldLabel)}
                     ${isRequired ? '<span class="text-red-500 ml-1">*</span>' : ''}
                 </h3>
-                <p class="text-xs text-gray-500 font-mono">${escapeHtml(fieldName)}</p>
+                <div class="text-xs mt-1">
+                    <span class="text-gray-500 font-mono">API: ${escapeHtml(fieldName)}</span>
+                    ${customFieldName ? `<br><span class="text-green-600 font-mono font-semibold">SF: ${escapeHtml(customFieldName)}</span>` : ''}
+                </div>
             </div>
-            <label class="toggle-switch">
-                <input type="checkbox" ${isActive ? 'checked' : ''} data-field="${escapeHtml(fieldName)}">
-                <span class="toggle-slider"></span>
-            </label>
+            <div class="flex items-center space-x-2">
+                <button class="edit-label-btn text-gray-400 hover:text-green-600" title="Edit Salesforce field mapping">
+                    <i class="fas fa-tag text-sm"></i>
+                </button>
+                <label class="toggle-switch">
+                    <input type="checkbox" ${isActive ? 'checked' : ''} data-field="${escapeHtml(fieldName)}">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
         </div>
         <div class="mb-3">
             <p class="text-sm text-gray-700 break-words">${escapeHtml(fieldValue) || '<span class="text-gray-400 italic">No value</span>'}</p>
@@ -262,6 +273,17 @@ function createFieldCard(fieldName, fieldLabel, fieldValue, isActive, isRequired
     // Add event listeners
     const toggleInput = card.querySelector('input[type="checkbox"]');
     const editBtn = card.querySelector('.edit-field-btn');
+    const editLabelBtn = card.querySelector('.edit-label-btn');
+
+    // Edit label button - opens label editing modal
+    if (editLabelBtn) {
+        editLabelBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (typeof window.openEditLabelModal === 'function') {
+                window.openEditLabelModal(fieldName);
+            }
+        });
+    }
 
     toggleInput.addEventListener('change', (e) => {
         const isChecked = e.target.checked;

@@ -260,6 +260,21 @@ function initializeButtonListeners() {
     dashboardButton.style.display = 'none';
     dashboardButton.disabled = true;
   }
+
+  // Edit Label Modal buttons
+  const closeEditLabelBtn = document.getElementById('close-edit-label-modal');
+  const cancelEditLabelBtn = document.getElementById('cancel-edit-label-btn');
+  const saveEditLabelBtn = document.getElementById('save-edit-label-btn');
+
+  if (closeEditLabelBtn) {
+    closeEditLabelBtn.addEventListener('click', closeEditLabelModal);
+  }
+  if (cancelEditLabelBtn) {
+    cancelEditLabelBtn.addEventListener('click', closeEditLabelModal);
+  }
+  if (saveEditLabelBtn) {
+    saveEditLabelBtn.addEventListener('click', saveCustomLabel);
+  }
 }
 
 /* Collect current values from all input fields on the page
@@ -1524,11 +1539,25 @@ function createFieldTableRow(fieldName, fieldInfo) {
     const isRequired = salesforceConfig?.required || false;
     const displayValue = fieldInfo.value || '<span class="text-gray-400 italic">No value</span>';
 
+    // Get custom Salesforce field name if it exists
+    const customFieldName = window.fieldMappingService?.customLabels?.[fieldName] || '';
+
     row.innerHTML = `
         <td class="px-4 py-3 whitespace-nowrap">
-            <div class="flex items-center">
-                <span class="text-sm font-medium text-gray-900">${fieldInfo.label || fieldName}</span>
-                ${isRequired ? '<span class="ml-1 text-red-500">*</span>' : ''}
+            <div class="flex items-center justify-between">
+                <div class="flex-1">
+                    <div class="flex items-center">
+                        <span class="text-sm font-medium text-gray-900">${fieldInfo.label || fieldName}</span>
+                        ${isRequired ? '<span class="ml-1 text-red-500">*</span>' : ''}
+                    </div>
+                    <div class="flex items-center mt-1 text-xs">
+                        <span class="text-gray-500 font-mono">API: ${fieldName}</span>
+                        ${customFieldName ? `<span class="mx-2 text-gray-400">→</span><span class="text-green-600 font-mono font-semibold">SF: ${customFieldName}</span>` : ''}
+                    </div>
+                </div>
+                <button class="edit-label-btn text-gray-400 hover:text-green-600 ml-2" title="Edit Salesforce field mapping">
+                    <i class="fas fa-tag text-xs"></i>
+                </button>
             </div>
         </td>
         <td class="px-4 py-3">
@@ -1553,6 +1582,15 @@ function createFieldTableRow(fieldName, fieldInfo) {
     // Add event listeners
     const toggle = row.querySelector('input[type="checkbox"]');
     const editBtn = row.querySelector('.edit-field-btn');
+    const editLabelBtn = row.querySelector('.edit-label-btn');
+
+    // Edit label button - opens label editing modal
+    if (editLabelBtn) {
+        editLabelBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openEditLabelModal(fieldName);
+        });
+    }
 
     toggle.addEventListener('change', () => {
         fieldInfo.active = toggle.checked;
