@@ -1,7 +1,6 @@
 import { appConfig } from "../config/salesforceConfig.js";
 import ApiService from "../services/apiService.js";
-import SalesforceFieldMapper from "../services/mapping/SalesforceFieldMapper.js";
-import FieldRenderer from "../services/mapping/FieldRenderer.js";
+// Note: SalesforceFieldMapper and FieldRenderer are loaded as global classes via script tags
 
 
 // Enhanced connection persistence manager

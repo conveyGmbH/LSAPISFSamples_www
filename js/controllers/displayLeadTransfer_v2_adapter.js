@@ -13,8 +13,8 @@ let currentView = 'list'; // 'list' or 'card'
 export function initializeV2UI() {
     console.log('🎨 Initializing V2 UI enhancements...');
 
-    // Setup dark mode
-    setupDarkMode();
+    // Dark mode removed - using light mode only
+    // setupDarkMode();
 
     // Setup view toggle
     setupViewToggle();
@@ -31,7 +31,7 @@ export function initializeV2UI() {
     // Setup API status indicator
     setupAPIStatusIndicator();
 
-    console.log('✅ V2 UI initialized');
+    console.log('✅ V2 UI initialized (Light Mode Only)');
 }
 
 /**
@@ -41,11 +41,17 @@ function setupDarkMode() {
     const darkModeToggle = document.getElementById('darkModeToggle');
     if (!darkModeToggle) return;
 
-    // Check saved preference
+    // Check saved preference - DEFAULT TO LIGHT MODE
     const savedTheme = localStorage.getItem('theme') || 'light';
+
+    // Apply theme
     if (savedTheme === 'dark') {
         document.documentElement.classList.add('dark');
         updateDarkModeUI(true);
+    } else {
+        // Ensure light mode by default
+        document.documentElement.classList.remove('dark');
+        updateDarkModeUI(false);
     }
 
     darkModeToggle.addEventListener('click', () => {
