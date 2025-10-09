@@ -13,8 +13,14 @@ let currentView = 'list'; // 'list' or 'card'
 export function initializeV2UI() {
     console.log('🎨 Initializing V2 UI enhancements...');
 
+    // Setup dark mode
+    setupDarkMode();
+
     // Setup view toggle
     setupViewToggle();
+
+    // Setup filter buttons
+    setupFilterButtons();
 
     // Setup bulk actions
     setupBulkActions();
@@ -25,10 +31,114 @@ export function initializeV2UI() {
     // Setup API status indicator
     setupAPIStatusIndicator();
 
-    // Update filter summary text
-    updateFilterSummary();
-
     console.log('✅ V2 UI initialized');
+}
+
+/**
+ * Setup dark mode toggle
+ */
+function setupDarkMode() {
+    const darkModeToggle = document.getElementById('darkModeToggle');
+    if (!darkModeToggle) return;
+
+    // Check saved preference
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    if (savedTheme === 'dark') {
+        document.documentElement.classList.add('dark');
+        updateDarkModeUI(true);
+    }
+
+    darkModeToggle.addEventListener('click', () => {
+        const isDark = document.documentElement.classList.toggle('dark');
+        localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        updateDarkModeUI(isDark);
+        console.log(`🌓 Dark mode ${isDark ? 'enabled' : 'disabled'}`);
+    });
+}
+
+/**
+ * Update dark mode UI elements
+ */
+function updateDarkModeUI(isDark) {
+    const moonIcon = document.querySelector('.dark-mode-icon-moon');
+    const sunIcon = document.querySelector('.dark-mode-icon-sun');
+    const darkText = document.querySelector('.dark-mode-text-dark');
+    const lightText = document.querySelector('.dark-mode-text-light');
+
+    if (isDark) {
+        moonIcon.style.display = 'none';
+        sunIcon.style.display = 'inline';
+        darkText.style.display = 'none';
+        lightText.style.display = 'inline';
+    } else {
+        moonIcon.style.display = 'inline';
+        sunIcon.style.display = 'none';
+        darkText.style.display = 'inline';
+        lightText.style.display = 'none';
+    }
+}
+
+/**
+ * Setup filter buttons (All/Active/Inactive)
+ */
+function setupFilterButtons() {
+    const filterButtons = document.querySelectorAll('.filter-btn');
+    if (filterButtons.length === 0) return;
+
+    filterButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const filterValue = btn.dataset.filter;
+
+            // Update active state
+            filterButtons.forEach(b => b.classList.remove('active', 'bg-blue-100', 'text-blue-700', 'dark:bg-blue-900', 'dark:text-blue-300'));
+            filterButtons.forEach(b => b.classList.add('bg-gray-100', 'text-gray-700', 'dark:bg-gray-700', 'dark:text-gray-300'));
+
+            btn.classList.remove('bg-gray-100', 'text-gray-700', 'dark:bg-gray-700', 'dark:text-gray-300');
+            btn.classList.add('active', 'bg-blue-100', 'text-blue-700', 'dark:bg-blue-900', 'dark:text-blue-300');
+
+            // Create synthetic dropdown element for compatibility
+            const syntheticDropdown = document.createElement('select');
+            syntheticDropdown.id = 'field-display-filter';
+            syntheticDropdown.value = filterValue;
+
+            // Trigger existing filter logic
+            if (typeof window.handleFieldFilterChange === 'function') {
+                window.handleFieldFilterChange({ target: syntheticDropdown });
+            } else {
+                // Fallback: trigger display update
+                const event = new CustomEvent('filterChange', { detail: { filter: filterValue } });
+                document.dispatchEvent(event);
+
+                // Update summary text
+                const summaryText = document.getElementById('fields-summary');
+                if (summaryText) {
+                    const texts = {
+                        'all': 'Showing all fields',
+                        'active': 'Showing active fields only',
+                        'inactive': 'Showing inactive fields only'
+                    };
+                    summaryText.textContent = texts[filterValue] || 'Showing all fields';
+                }
+
+                // Reload lead data with new filter
+                if (window.selectedLeadData && typeof window.displayLeadData === 'function') {
+                    // Temporarily set dropdown value for compatibility
+                    let dropdown = document.getElementById('field-display-filter');
+                    if (!dropdown) {
+                        dropdown = document.createElement('select');
+                        dropdown.id = 'field-display-filter';
+                        dropdown.style.display = 'none';
+                        document.body.appendChild(dropdown);
+                    }
+                    dropdown.value = filterValue;
+
+                    window.displayLeadData(window.selectedLeadData);
+                }
+            }
+
+            console.log(`🔍 Filter changed to: ${filterValue}`);
+        });
+    });
 }
 
 /**

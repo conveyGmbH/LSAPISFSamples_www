@@ -1,1278 +1,485 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Lead Success - Transfer to Salesforce</title>
+    <title>LeadSuccess - Transfer to Salesforce</title>
     <meta charset="utf-8" />
     <meta http-equiv="Content-Security-Policy"
-    content="default-src 'self' data: gap: https://ssl.gstatic.com 'unsafe-eval' 'unsafe-inline' https://delightful-desert-016e2a610.4.azurestaticapps.net/ https://lsapisamplesbackend-bhesadgtbja4dmgq.germanywestcentral-01.azurewebsites.net/ https://lsapisfbackenddev-gnfbema5gcaxdahz.germanywestcentral-01.azurewebsites.net/; style-src 'self' 'unsafe-inline'; media-src 'self' data: https://*.convey.de http://*.convey.de; object-src 'self' blob: data:; frame-src 'self' blob: data:; connect-src 'self' blob: http://*.convey.de https://*.convey.de ws://127.0.0.1:5504 http://localhost:3000 http://localhost:5504 ws://localhost:5504 https://brave-bush-0041ef403.6.azurestaticapps.net/ https://lsapisamplesbackend-bhesadgtbja4dmgq.germanywestcentral-01.azurewebsites.net/ https://lsapisfbackenddev-gnfbema5gcaxdahz.germanywestcentral-01.azurewebsites.net/ https://lsapisfbackend-hdasa3g8c4cah7d2.westeurope-01.azurewebsites.net/ https://lsapisfbackend.convey.de/ https://*.salesforce.com https://*.force.com https://*.my.salesforce.com;" />
-    <meta name="viewport" 
+    content="default-src 'self' data: gap: https://ssl.gstatic.com 'unsafe-eval' 'unsafe-inline' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com https://delightful-desert-016e2a610.4.azurestaticapps.net/ https://lsapisamplesbackend-bhesadgtbja4dmgq.germanywestcentral-01.azurewebsites.net/ https://lsapisfbackenddev-gnfbema5gcaxdahz.germanywestcentral-01.azurewebsites.net/; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com; media-src 'self' data: https://*.convey.de http://*.convey.de; object-src 'self' blob: data:; frame-src 'self' blob: data:; connect-src 'self' blob: http://*.convey.de https://*.convey.de ws://127.0.0.1:5504 http://localhost:3000 http://localhost:5504 ws://localhost:5504 https://brave-bush-0041ef403.6.azurestaticapps.net/ https://lsapisamplesbackend-bhesadgtbja4dmgq.germanywestcentral-01.azurewebsites.net/ https://lsapisfbackenddev-gnfbema5gcaxdahz.germanywestcentral-01.azurewebsites.net/ https://lsapisfbackend-hdasa3g8c4cah7d2.westeurope-01.azurewebsites.net/ https://lsapisfbackend.convey.de/ https://*.salesforce.com https://*.force.com https://*.my.salesforce.com; font-src 'self' https://cdnjs.cloudflare.com;" />
+    <meta name="viewport"
         content="user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, width=device-width" />
-    <link href="/css/displayLeadTransfer.css" rel="stylesheet">
-    <link href="/css/enhanced-lead-transfer.css" rel="stylesheet">
-    <link href="/css/salesforce-fields.css" rel="stylesheet">
-    <link rel="icon" type="image/x-icon" href="/images/api-sf.ico">
-</head>
-<body>
-    <header class="main-header">
-        <div class="logo">
-            <img src="/images/leadsuccess_white.svg" alt="Lead Success Logo" />
-        </div>
-        <div class="header-right">
-            <button id="logoutButton" class="logout-button">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                    <polyline points="16 17 21 12 16 7"></polyline>
-                    <line x1="21" y1="12" x2="9" y2="12"></line>
-                </svg>
-                Logout
-            </button>
-        </div>
-    </header>
 
-    <div class="sub-header">
-        <h1 class="head-line">Salesforce API Manager</h1>
-        <h3>API documentation available
-            <a href="/docs/LeadSuccess_API_for SalesForce.pdf" download>here</a>
-            -
-            <button id="postmanButton" class="postman-button">
-                <img src="/images/postman-icon.svg" alt="Postman" width="16" height="16">
-                Test API in Postman
-            </button>
-        </h3>
-        <h2>Transfer Lead to Salesforce</h2>
-    </div>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
 
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-    <!-- MODIFICATION: Modern user profile design without blue background -->
-<div class="page-title">
-    <div class="button-group">
-        <button id="backButton" class="action-button">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="19" y1="12" x2="5" y2="12"></line>
-                <polyline points="12 19 5 12 12 5"></polyline>
-            </svg>
-            <span>Back</span>
-        </button>
-        <button id="dashboardButton" class="action-button dashboard-button" style="display: none;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="3" width="7" height="7"/>
-                <rect x="14" y="3" width="7" height="7"/>
-                <rect x="14" y="14" width="7" height="7"/>
-                <rect x="3" y="14" width="7" height="7"/>
-            </svg>
-            <span>Dashboard</span>
-        </button>
-    </div>
-
-    <h2>LS Lead - <span id="userNameDisplay"></span></h2>
-
-    <div id="sf-connection-card" class="sf-connection-card">
-        <button id="connectSalesforceBtn" class="sf-connect-btn">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
-                <polyline points="10 17 15 12 10 7"></polyline>
-                <line x1="15" y1="12" x2="3" y2="12"></line>
-            </svg>
-            Connect to Salesforce
-        </button>
-
-        <div id="sf-profile-section" class="sf-profile-section" style="display: none;">
-            <div class="profile-info">
-                <div class="profile-avatar">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                        <circle cx="12" cy="7" r="4"></circle>
-                    </svg>
-                </div>
-                <div class="profile-details">
-                    <div class="profile-name" id="profileName">Welcome</div>
-                    <div class="profile-email" id="profileEmail">Not connected</div>
-                    <div class="profile-org" id="profileOrg"></div>
-                </div>
-            </div>
-            <button id="disconnectSalesforceBtn" class="sf-disconnect-btn">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                    <polyline points="16 17 21 12 16 7"></polyline>
-                    <line x1="21" y1="12" x2="9" y2="12"></line>
-                </svg>
-                Disconnect
-            </button>
-        </div>
-    </div>
-
-</div>
-
-    <div class="container">
-        <!-- Authentication required notice -->
-        <div id="auth-required-notice" class="auth-required-notice" style="display: none;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="12" y1="8" x2="12" y2="12"></line>
-                <line x1="12" y1="16" x2="12.01" y2="16"></line>
-            </svg>
-            <div class="auth-required-notice-content">
-                <h4>Salesforce Authentication Required</h4>
-                <p>You need to authenticate with Salesforce before transferring leads.</p>
-            </div>
-        </div>
-
-        <div id="validation-summary" style="display: none;" class="status-warning">
-            <div class="status-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path
-                        d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-                    <line x1="12" y1="9" x2="12" y2="13" />
-                    <line x1="12" y1="17" x2="12.01" y2="17" />
-                </svg>
-            </div>
-            <div>
-                <strong>Validation Issues</strong>
-                <ul id="validation-issues"></ul>
-            </div>
-        </div>
-
-        <!-- Advanced Field Mapping Control Panel -->
-        <div id="field-mapping-panel" class="advanced-control-panel" style="display: none;">
-            <div class="control-panel-header">
-                <h3>Field Mapping & Configuration</h3>
-                <div class="control-actions">
-                    <select id="field-filter" class="field-filter-dropdown">
-                        <option value="all">All Fields</option>
-                        <option value="active">Active Only</option>
-                        <option value="inactive">Inactive Only</option>
-                    </select>
-                   
-                    <button id="export-config" class="control-btn export-btn">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                            <polyline points="7 10 12 15 17 10"></polyline>
-                            <line x1="12" y1="15" x2="12" y2="3"></line>
-                        </svg>
-                        Export Config
-                    </button>
-                </div>
-            </div>
-            <div class="field-stats">
-                <div class="stat-card">
-                    <span class="stat-value" id="total-field-count">0</span>
-                    <span class="stat-label">Total</span>
-                </div>
-                <div class="stat-card">
-                    <span class="stat-value" id="active-field-count">0</span>
-                    <span class="stat-label">Active</span>
-                </div>
-                <div class="stat-card">
-                    <span class="stat-value" id="inactive-field-count">0</span>
-                    <span class="stat-label">Inactive</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="lead-preview">
-            <div class="preview-header">
-                <h3>Lead Information</h3>
-                <div class="header-controls">
-                    <div class="source-info">
-                        <span>Source: </span>
-                        <span id="leadSource">-</span>
-                    </div>
-                </div>
-            </div>
-
-            <div id="leadData" class="lead-data">
-                <!-- Lead data will be displayed here -->
-                <div class="loading">Loading lead data...</div>
-            </div>
-
-            <div class="action-panel">
-                <button id="transferToSalesforceBtn" class="transfer-btn">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M12 5v14M19 12l-7 7-7-7" />
-                    </svg>
-                   Transfer to Salesforce
-                </button>
-            </div>
-        </div>
-
-        <div class="transfer-results" id="transferResults" style="display: none;">
-            <h3>Transfer Results</h3>
-            <div id="transferStatus" class="transfer-status">
-                <!-- Transfer status will be displayed here -->
-            </div>
-        </div>
-    </div>
-
-    <div id="errorMessage" class="error-message" style="display: none;"></div>
-
-    <!-- Confirmation Modal for Duplicate Detection -->
-    <div id="duplicateModal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Potential Duplicate Detected</h3>
-                <span class="close-modal">&times;</span>
-            </div>
-            <div class="modal-body">
-                <p>We found a similar lead in Salesforce with the following information:</p>
-                <div id="duplicateLeadInfo"></div>
-                <p>Do you want to create a new lead anyway?</p>
-            </div>
-            <div class="modal-footer">
-                <button id="cancelDuplicateBtn" class="btn-secondary">Cancel</button>
-                <button id="createDuplicateBtn" class="btn-primary">Create New Lead</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Logout Confirmation Modal -->
-    <div id="logoutModal" class="modern-modal" style="display: none;">
-        <div class="modern-modal-content">
-            <div class="modern-modal-header">
-                <div class="modal-icon logout-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                        <polyline points="16 17 21 12 16 7"></polyline>
-                        <line x1="21" y1="12" x2="9" y2="12"></line>
-                    </svg>
-                </div>
-                <h3>Disconnect from Salesforce</h3>
-                <button class="close-modal" onclick="closeLogoutModal()">&times;</button>
-            </div>
-            <div class="modern-modal-body">
-                <p>Are you sure you want to disconnect from Salesforce? You will need to authenticate again to transfer leads.</p>
-            </div>
-            <div class="modern-modal-footer">
-                <button class="btn-cancel" onclick="closeLogoutModal()">Cancel</button>
-                <button class="btn-confirm" onclick="confirmLogout()">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                        <polyline points="16 17 21 12 16 7"></polyline>
-                        <line x1="21" y1="12" x2="9" y2="12"></line>
-                    </svg>
-                    Disconnect
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Success Authentication Message -->
-    <div id="authSuccessMessage" class="success-auth-message" style="display: none;">
-        <div class="success-auth-content">
-            <div class="success-auth-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                </svg>
-            </div>
-            <div class="success-auth-text">
-                <h4>✅ Successfully Connected to Salesforce!</h4>
-                <p id="authSuccessDetails">Welcome back! You can now transfer leads to your Salesforce organization.</p>
-            </div>
-            <button class="close-success" onclick="closeSuccessMessage()">&times;</button>
-        </div>
-    </div>
-
+    <!-- Custom Styles -->
     <style>
-        .sf-connect-section {
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(30, 58, 138, 0.15);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            text-align: center;
+        /* Smooth transitions */
+        * {
+            transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
         }
 
-        .sf-connect-section h3 {
-            font-size: 20px;
-            font-weight: 600;
-            color: white;
-            margin-bottom: 8px;
+        /* Sidebar */
+        .sidebar {
+            transition: all 0.3s ease;
         }
 
-        .sf-connect-section p {
-            color: rgba(255, 255, 255, 0.9);
-            margin-bottom: 20px;
-            font-size: 14px;
+        /* Cards */
+        .card {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
         }
 
-    
-        .sf-status-banner {
-            background: linear-gradient(135deg, #1E3A8A 0%, #3B82F6 100%);
-            border-radius: 12px;
-            padding: 16px 20px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .sf-status-content {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 16px;
-            flex-wrap: wrap;
-        }
-
-        .sf-left-section {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            color: white;
-            flex: 1;
-        }
-
-        .sf-profile-img {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            background: white;
-            padding: 4px;
-        }
-
-        .sf-welcome-text {
-            font-size: 16px;
-            font-weight: 500;
-            color: rgba(255, 255, 255, 0.9);
-        }
-
-        .sf-status-indicator {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: white;
-        }
-
-        .status-dot {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            position: relative;
-        }
-
-        .status-dot.connecting {
-            background: #fbbf24;
-            animation: pulse 2s infinite;
-        }
-
-        .status-dot.connected {
-            background: #10b981;
-        }
-
-        .status-dot.not-connected {
-            background: #ef4444;
-        }
-
-        .status-message {
-            font-size: 14px;
-            font-weight: 500;
-            color: rgba(255, 255, 255, 0.9);
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-
-        .sf-logout-btn {
-            padding: 8px 16px;
-            border-radius: 8px;
-            border: none;
-            font-weight: 500;
-            font-size: 14px;
+        /* Field cards */
+        .field-card {
+            transition: all 0.2s ease;
             cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            background: rgba(239, 68, 68, 0.9);
-            color: white;
-            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .field-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .field-card.active-field {
+            border-left: 4px solid #10B981;
+        }
+        .field-card.inactive-field {
+            border-left: 4px solid #EF4444;
+            opacity: 0.7;
         }
 
-        .sf-logout-btn:hover {
-            background: #dc2626;
-            transform: translateY(-1px);
+        /* Toggle switch */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 24px;
+        }
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .toggle-slider {
+            background-color: #10B981;
+        }
+        input:checked + .toggle-slider:before {
+            transform: translateX(26px);
         }
 
-        .user-info-container {
-            background: rgba(16, 185, 129, 0.1);
-            border: 1px solid rgba(16, 185, 129, 0.2);
-            border-radius: 8px;
-            padding: 16px;
-            margin-top: 16px;
-        }
-
-        @media (max-width: 768px) {
-            .sf-status-content {
-                flex-direction: column;
-                align-items: stretch;
-                text-align: center;
-            }
-
-            .sf-left-section {
-                justify-content: center;
-            }
-
-            .sf-action-buttons {
-                justify-content: center;
-            }
-        }
-
-        /* Modern Modal Styles */
-        .modern-modal {
+        /* Modal */
+        .modal {
             display: none;
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(8px);
+            background-color: rgba(0, 0, 0, 0.5);
             z-index: 1000;
-            animation: fadeIn 0.3s ease-out;
-        }
-
-        .modern-modal-content {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
-            width: 90%;
-            max-width: 450px;
-            overflow: hidden;
-            animation: slideInModal 0.4s ease-out;
-        }
-
-        .modern-modal-header {
-            display: flex;
             align-items: center;
-            padding: 24px 24px 16px;
-            gap: 16px;
+            justify-content: center;
+        }
+        .modal.show {
+            display: flex;
+        }
+        .modal-content {
             position: relative;
-        }
-
-        .modal-icon {
-            width: 48px;
-            height: 48px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-        }
-
-        .logout-icon {
-            background: linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%);
-            color: #DC2626;
-        }
-
-        .modern-modal-header h3 {
-            margin: 0;
-            font-size: 20px;
-            font-weight: 600;
-            color: #1F2937;
-            flex: 1;
-        }
-
-        .close-modal {
-            position: absolute;
-            top: 16px;
-            right: 16px;
-            background: none;
-            border: none;
-            font-size: 24px;
-            color: #9CA3AF;
-            cursor: pointer;
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s ease;
-        }
-
-        .close-modal:hover {
-            background: #F3F4F6;
-            color: #6B7280;
-        }
-
-        .modern-modal-body {
-            padding: 0 24px 24px;
-        }
-
-        .modern-modal-body p {
-            margin: 0;
-            color: #6B7280;
-            line-height: 1.6;
-            font-size: 16px;
-        }
-
-        .modern-modal-footer {
-            display: flex;
-            gap: 12px;
-            padding: 16px 24px 24px;
-            justify-content: flex-end;
-        }
-
-        .btn-cancel, .btn-confirm {
-            padding: 12px 20px;
-            border-radius: 12px;
-            font-weight: 600;
-            font-size: 14px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            border: none;
-        }
-
-        .btn-cancel {
-            background: #F3F4F6;
-            color: #6B7280;
-        }
-
-        .btn-cancel:hover {
-            background: #E5E7EB;
-            color: #4B5563;
-        }
-
-        .btn-confirm {
-            background: linear-gradient(135deg, #DC2626 0%, #B91C1C 100%);
-            color: white;
-            box-shadow: 0 4px 12px rgba(220, 38, 38, 0.2);
-        }
-
-        .btn-confirm:hover {
-            background: linear-gradient(135deg, #B91C1C 0%, #991B1B 100%);
-            transform: translateY(-1px);
-            box-shadow: 0 6px 16px rgba(220, 38, 38, 0.3);
-        }
-
-        /* Success Authentication Message */
-        .success-auth-message {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: linear-gradient(135deg, #10B981 0%, #059669 100%);
-            color: white;
-            border-radius: 16px;
-            padding: 20px;
-            box-shadow: 0 10px 30px rgba(16, 185, 129, 0.3);
-            backdrop-filter: blur(10px);
-            z-index: 1001;
-            max-width: 400px;
-            animation: slideInRight 0.5s ease-out;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .success-auth-message::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
-            pointer-events: none;
-        }
-
-        .success-auth-content {
-            display: flex;
-            align-items: flex-start;
-            gap: 16px;
-            position: relative;
-            z-index: 1;
-        }
-
-        .success-auth-icon {
-            width: 48px;
-            height: 48px;
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-            animation: pulse 2s infinite;
-        }
-
-        .success-auth-text {
-            flex: 1;
-        }
-
-        .success-auth-text h4 {
-            margin: 0 0 8px 0;
-            font-size: 18px;
-            font-weight: 700;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        .success-auth-text p {
-            margin: 0;
-            opacity: 0.9;
-            font-size: 14px;
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-        }
-
-        .close-success {
-            position: absolute;
-            top: 12px;
-            right: 12px;
-            background: rgba(255, 255, 255, 0.2);
-            border: none;
-            color: white;
-            font-size: 18px;
-            cursor: pointer;
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s ease;
-        }
-
-        .close-success:hover {
-            background: rgba(255, 255, 255, 0.3);
-        }
-
-        /* Animations */
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        @keyframes slideInModal {
-            from {
-                opacity: 0;
-                transform: translate(-50%, -60%);
-            }
-            to {
-                opacity: 1;
-                transform: translate(-50%, -50%);
-            }
-        }
-
-        @keyframes slideInRight {
-            from {
-                opacity: 0;
-                transform: translateX(100%);
-            }
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
-        }
-
-        @keyframes pulse {
-            0%, 100% {
-                opacity: 1;
-                transform: scale(1);
-            }
-            50% {
-                opacity: 0.8;
-                transform: scale(1.05);
-            }
-        }
-
-        /* Mobile Responsive */
-        @media (max-width: 768px) {
-            .modern-modal-content {
-                width: 95%;
-                margin: 20px;
-            }
-
-            .success-auth-message {
-                top: 10px;
-                right: 10px;
-                left: 10px;
-                max-width: none;
-            }
-
-            .success-auth-content {
-                flex-direction: column;
-                text-align: center;
-            }
-
-            .success-auth-icon {
-                align-self: center;
-            }
-        }
-
-        /* Config Modal Styles */
-        .config-modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(4px);
-            z-index: 1000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .config-modal-content {
-            background: white;
-            border-radius: 16px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+            background-color: white;
+            padding: 0;
             width: 90%;
             max-width: 500px;
-            overflow: hidden;
-            animation: slideInModal 0.3s ease-out;
-        }
-
-        .config-modal-header {
-            padding: 20px 24px 16px;
-            border-bottom: 1px solid #f1f3f4;
-            position: relative;
-        }
-
-        .config-modal-header h3 {
-            margin: 0;
-            font-size: 18px;
-            font-weight: 600;
-            color: #1f2937;
-        }
-
-        .config-modal-close {
-            position: absolute;
-            top: 16px;
-            right: 16px;
-            background: none;
-            border: none;
-            font-size: 24px;
-            color: #9ca3af;
-            cursor: pointer;
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s ease;
-        }
-
-        .config-modal-close:hover {
-            background: #f3f4f6;
-            color: #6b7280;
-        }
-
-        .config-modal-body {
-            padding: 20px 24px;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 6px;
-            font-weight: 500;
-            color: #374151;
-            font-size: 14px;
-        }
-
-        .form-input {
-            width: 100%;
-            padding: 12px 16px;
-            border: 2px solid #e5e7eb;
-            border-radius: 8px;
-            font-size: 14px;
-            transition: all 0.2s ease;
-            box-sizing: border-box;
-        }
-
-        .form-input:focus {
-            outline: none;
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-        }
-
-        .form-input[readonly] {
-            background: #f9fafb;
-            color: #6b7280;
-        }
-
-        .config-modal-footer {
-            padding: 16px 24px 24px;
-            display: flex;
-            gap: 12px;
-            justify-content: flex-end;
-        }
-
-        .config-btn {
-            padding: 10px 20px;
-            border-radius: 8px;
-            font-weight: 500;
-            font-size: 14px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            border: none;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .config-btn.cancel-btn {
-            background: #f3f4f6;
-            color: #6b7280;
-        }
-
-        .config-btn.cancel-btn:hover {
-            background: #e5e7eb;
-            color: #4b5563;
-        }
-
-        .config-btn.export-btn {
-            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-            color: white;
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
-        }
-
-        .config-btn.export-btn:hover {
-            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-            transform: translateY(-1px);
-            box-shadow: 0 6px 16px rgba(59, 130, 246, 0.3);
-        }
-
-        .config-stats {
-            display: flex;
-            gap: 16px;
-            margin-top: 16px;
-            padding: 16px;
-            background: #f8fafc;
-            border-radius: 8px;
-        }
-
-        .stat-item {
-            flex: 1;
-            text-align: center;
-        }
-
-        .stat-value {
-            display: block;
-            font-size: 18px;
-            font-weight: 600;
-            color: #1f2937;
-        }
-
-        .stat-label {
-            display: block;
-            font-size: 12px;
-            color: #6b7280;
-            margin-top: 4px;
-        }
-
-        /* Advanced Control Panel Styles */
-        .advanced-control-panel {
-            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-            border: 1px solid #e2e8f0;
             border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 24px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            animation: modalSlideIn 0.3s ease-out;
+        }
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
-        .control-panel-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 16px;
-        }
-
-        .control-panel-header h3 {
-            margin: 0;
-            font-size: 16px;
-            font-weight: 600;
-            color: #1f2937;
-        }
-
-        .control-actions {
-            display: flex;
-            gap: 12px;
-            align-items: center;
-        }
-
-        .field-filter-dropdown {
-            padding: 8px 12px;
-            border: 1px solid #d1d5db;
-            border-radius: 6px;
-            font-size: 14px;
-            background: white;
-            cursor: pointer;
-        }
-
-        .control-btn {
-            padding: 8px 16px;
-            border-radius: 6px;
-            border: none;
-            font-weight: 500;
-            font-size: 14px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .control-btn.label-edit-btn {
-            background: #f59e0b;
+        /* View toggle buttons */
+        .view-toggle-btn.active {
+            background-color: #3B82F6;
             color: white;
         }
 
-        .control-btn.label-edit-btn:hover,
-        .control-btn.label-edit-btn.active {
-            background: #d97706;
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
         }
-
-        .control-btn.export-btn {
-            background: #10b981;
-            color: white;
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
         }
-
-        .control-btn.export-btn:hover {
-            background: #059669;
-        }
-
-        .field-stats {
-            display: flex;
-            gap: 20px;
-        }
-
-        .field-stats .stat-item {
-            font-size: 14px;
-            color: #6b7280;
-        }
-
-        /* Field Edit Styles */
-        .field-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 8px;
-        }
-
-        .field-label-container {
-            flex: 1;
-        }
-
-        .field-label {
-            font-weight: 600;
-            color: #1f2937;
-            font-size: 14px;
-        }
-
-        .field-api-name {
-            font-size: 12px;
-            color: #6b7280;
-            margin-top: 2px;
-        }
-
-        .edit-label-btn {
-            background: none;
-            border: none;
-            padding: 4px;
+        ::-webkit-scrollbar-thumb {
+            background: #888;
             border-radius: 4px;
-            cursor: pointer;
-            color: #6b7280;
-            opacity: 0;
-            transition: all 0.2s ease;
         }
-
-        .lead-field:hover .edit-label-btn {
-            opacity: 1;
-        }
-
-        .edit-label-btn:hover {
-            background: #f3f4f6;
-            color: #3b82f6;
-        }
-
-        .field-footer {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 12px;
-            padding-top: 8px;
-            border-top: 1px solid #e5e7eb;
-        }
-
-        .toggle-switch {
-            position: relative;
-            display: inline-block;
-            width: 44px;
-            height: 24px;
-            cursor: pointer;
-        }
-
-        .toggle-switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-
-        .slider {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: #cbd5e1;
-            transition: 0.3s;
-            border-radius: 24px;
-        }
-
-        .slider:before {
-            position: absolute;
-            content: "";
-            height: 18px;
-            width: 18px;
-            left: 3px;
-            bottom: 3px;
-            background-color: white;
-            transition: 0.3s;
-            border-radius: 50%;
-        }
-
-        input:checked + .slider {
-            background-color: #10b981;
-        }
-
-        input:checked + .slider:before {
-            transform: translateX(20px);
-        }
-
-        .field-status {
-            font-size: 12px;
-            color: #6b7280;
-            margin-left: 8px;
-        }
-
-        .field-inactive {
-            opacity: 0.6;
-        }
-
-        .field-inactive .field-label {
-            text-decoration: line-through;
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
         }
     </style>
 
-    <!-- Scripts -->
-    <script>
-        function showLogoutModal() {
-            document.getElementById('logoutModal').style.display = 'block';
-            document.body.style.overflow = 'hidden';
-        }
-
-        function closeLogoutModal() {
-            document.getElementById('logoutModal').style.display = 'none';
-            document.body.style.overflow = 'auto';
-        }
-
-        function confirmLogout() {
-            closeLogoutModal();
-            if (window.actualDisconnectFunction) {
-                window.actualDisconnectFunction();
-            }
-        }
-
-        function showSuccessMessage(title, details) {
-            const messageElement = document.getElementById('authSuccessMessage');
-            const titleElement = messageElement.querySelector('h4');
-            const detailsElement = document.getElementById('authSuccessDetails');
-
-            if (title) titleElement.textContent = title;
-            if (details) detailsElement.textContent = details;
-
-            messageElement.style.display = 'block';
-
-            // Auto hide after 5 seconds
-            setTimeout(() => {
-                closeSuccessMessage();
-            }, 5000);
-        }
-
-        function closeSuccessMessage() {
-            const messageElement = document.getElementById('authSuccessMessage');
-            messageElement.style.animation = 'slideOutRight 0.3s ease-in forwards';
-            setTimeout(() => {
-                messageElement.style.display = 'none';
-                messageElement.style.animation = 'slideInRight 0.5s ease-out';
-            }, 300);
-        }
-
-        // Close modal when clicking outside
-        document.addEventListener('click', function(event) {
-            const modal = document.getElementById('logoutModal');
-            if (event.target === modal) {
-                closeLogoutModal();
-            }
-        });
-
-        // Close modal with escape key
-        document.addEventListener('keydown', function(event) {
-            if (event.key === 'Escape') {
-                closeLogoutModal();
-                closeSuccessMessage();
-            }
-        });
-
-        // Add slide out animation
-        const style = document.createElement('style');
-        style.textContent = `
-            @keyframes slideOutRight {
-                from {
-                    opacity: 1;
-                    transform: translateX(0);
-                }
-                to {
-                    opacity: 0;
-                    transform: translateX(100%);
-                }
-            }
-        `;
-        document.head.appendChild(style);
-    </script>
-
-<!-- Edit Label Modal -->
-<div id="edit-label-modal" class="modern-modal" style="display: none;">
-    <div class="modern-modal-content">
-        <div class="modern-modal-header">
-            <div class="modal-icon edit-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                </svg>
+    <link rel="icon" type="image/x-icon" href="/images/api-sf.ico">
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200 overflow-hidden">
+    <div class="flex h-screen">
+        <!-- Sidebar -->
+        <div class="sidebar w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
+            <!-- Logo -->
+            <div class="p-4 border-b border-gray-200">
+                <div class="flex items-center">
+                    <img src="/images/leadsuccess_white.svg" alt="LS" class="w-8 h-8 bg-blue-600 rounded-lg p-1 mr-2">
+                    <div>
+                        <h1 class="text-lg font-bold text-blue-700">LeadSuccess</h1>
+                        <p class="text-xs text-gray-500">Salesforce API Manager</p>
+                    </div>
+                </div>
             </div>
-            <h3>Edit Field Label</h3>
-            <button class="close-modal" onclick="closeEditLabelModal()">&times;</button>
-        </div>
-        <div class="modern-modal-body">
-            <div class="form-group">
-                <label class="form-label">API Field Name</label>
-                <input type="text" id="edit-field-api-name" class="modern-input" readonly>
+
+            <!-- User Profile -->
+            <div id="user-profile-sidebar" class="p-4 border-b border-gray-200" style="display: none;">
+                <div class="flex items-center mb-2">
+                    <div id="user-avatar" class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold mr-3">
+                        ?
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p id="user-name-sidebar" class="font-medium text-sm truncate">Not connected</p>
+                        <p id="user-email-sidebar" class="text-xs text-gray-500 truncate">-</p>
+                    </div>
+                </div>
+                <div class="mt-2 text-xs text-gray-500">
+                    <p id="user-org-sidebar">-</p>
+                </div>
             </div>
-            <div class="form-group">
-                <label class="form-label">Custom Label</label>
-                <input type="text" id="edit-field-custom-label" class="modern-input" placeholder="Enter custom label">
+
+            <!-- Navigation -->
+            <div class="flex-1 p-4 overflow-y-auto">
+                <div class="mb-6">
+                    <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Navigation</h2>
+                    <ul class="space-y-1">
+                        <li>
+                            <a href="displayDashboard.html" class="flex items-center px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg">
+                                <i class="fas fa-home mr-3 w-4"></i> Dashboard
+                            </a>
+                        </li>
+                        <li>
+                            <a href="displayLeadTransfer.html" class="flex items-center px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg">
+                                <i class="fas fa-exchange-alt mr-3 w-4"></i> Transfer Lead
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" id="settingsLink" class="flex items-center px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg">
+                                <i class="fas fa-cog mr-3 w-4"></i> Settings
+                            </a>
+                        </li>
+                        <li>
+                            <a href="/docs/LeadSuccess_API_for SalesForce.pdf" download class="flex items-center px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg">
+                                <i class="fas fa-book mr-3 w-4"></i> Documentation
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- API Status -->
+                <div class="mb-6">
+                    <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">API Status</h2>
+                    <div id="api-status-card" class="bg-gray-100 border border-gray-200 rounded-lg p-3">
+                        <div class="flex items-center">
+                            <div class="w-3 h-3 bg-gray-400 rounded-full mr-2"></div>
+                            <span class="text-sm font-medium text-gray-600">Disconnected</span>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">Not connected</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dark Mode Toggle -->
+            <div class="p-4 border-t border-gray-200 dark:border-gray-700">
+                <button id="darkModeToggle" class="w-full flex items-center justify-center px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                    <i class="fas fa-moon mr-2 dark-mode-icon-moon"></i>
+                    <i class="fas fa-sun mr-2 dark-mode-icon-sun" style="display: none;"></i>
+                    <span class="dark-mode-text-dark">Dark Mode</span>
+                    <span class="dark-mode-text-light" style="display: none;">Light Mode</span>
+                </button>
+            </div>
+
+            <!-- Disconnect Button -->
+            <div class="p-4 border-t border-gray-200 dark:border-gray-700">
+                <button id="logoutButton" class="w-full flex items-center justify-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <i class="fas fa-sign-out-alt mr-2"></i> Disconnect
+                </button>
             </div>
         </div>
-        <div class="modern-modal-footer">
-            <button class="btn-cancel" onclick="closeEditLabelModal()">Cancel</button>
-            <button class="btn-confirm" onclick="saveCustomLabel()">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-                    <polyline points="17 21 17 13 7 13 7 21"/>
-                    <polyline points="7 3 7 8 15 8"/>
-                </svg>
-                Save Label
-            </button>
+
+        <!-- Main Content -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <!-- Header -->
+            <header class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 py-4 px-6 flex justify-between items-center">
+                <div>
+                    <h1 class="text-xl font-bold text-gray-800">Transfer Lead to Salesforce</h1>
+                    <p class="text-sm text-gray-500">
+                        API documentation available
+                        <a href="/docs/LeadSuccess_API_for SalesForce.pdf" download class="text-blue-600 hover:underline">here</a>
+                        -
+                        <button id="postmanButton" class="text-blue-600 hover:underline inline-flex items-center">
+                            <img src="/images/postman-icon.svg" alt="Postman" class="w-4 h-4 mr-1"> Test API in Postman
+                        </button>
+                    </p>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button id="connectButton" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium flex items-center text-sm">
+                        <i class="fas fa-plug mr-2"></i> Connect to Salesforce
+                    </button>
+                    <button id="transferToSalesforceBtn" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium flex items-center text-sm disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                        <i class="fas fa-sync-alt mr-2"></i> Transfer Lead
+                    </button>
+                </div>
+            </header>
+
+            <!-- Content -->
+            <main class="flex-1 overflow-y-auto p-6">
+                <!-- Stats Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                    <div class="card bg-white rounded-xl p-5">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <p class="text-sm font-medium text-gray-500">Active</p>
+                                <p id="active-field-count" class="text-3xl font-bold text-green-600">0</p>
+                            </div>
+                            <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                                <i class="fas fa-check-circle text-green-500 text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card bg-white rounded-xl p-5">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <p class="text-sm font-medium text-gray-500">Inactive</p>
+                                <p id="inactive-field-count" class="text-3xl font-bold text-red-600">0</p>
+                            </div>
+                            <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                                <i class="fas fa-times-circle text-red-500 text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card bg-white rounded-xl p-5">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <p class="text-sm font-medium text-gray-500">Total</p>
+                                <p id="total-field-count" class="text-3xl font-bold text-blue-600">0</p>
+                            </div>
+                            <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                                <i class="fas fa-chart-bar text-blue-500 text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Field Management Controls -->
+                <div class="card bg-white dark:bg-gray-800 rounded-xl p-6 mb-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-bold text-gray-800 dark:text-white">Field Management Controls</h2>
+                        <div class="flex items-center space-x-3">
+                            <!-- View Toggle -->
+                            <div class="flex items-center space-x-2 mr-4">
+                                <button id="listViewBtn" class="view-toggle-btn active px-3 py-1 bg-gray-200 hover:bg-gray-300 text-gray-700 dark:bg-gray-700 dark:text-gray-300 rounded text-sm flex items-center">
+                                    <i class="fas fa-list mr-1"></i> List
+                                </button>
+                                <button id="cardViewBtn" class="view-toggle-btn px-3 py-1 bg-gray-200 hover:bg-gray-300 text-gray-700 dark:bg-gray-700 dark:text-gray-300 rounded text-sm flex items-center">
+                                    <i class="fas fa-th mr-1"></i> Cards
+                                </button>
+                            </div>
+                            <!-- Filter Buttons -->
+                            <div class="flex items-center space-x-2">
+                                <button data-filter="all" class="filter-btn active px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 dark:bg-blue-900 dark:text-blue-300 rounded-lg text-sm font-medium">
+                                    All Fields
+                                </button>
+                                <button data-filter="active" class="filter-btn px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium">
+                                    Active Only
+                                </button>
+                                <button data-filter="inactive" class="filter-btn px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium">
+                                    Inactive Only
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between">
+                        <div class="text-sm text-gray-600">
+                            <span id="fields-summary">Showing all fields</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-sm text-gray-600">Bulk Actions:</span>
+                            <button id="activate-all-btn" class="px-3 py-1 bg-green-100 hover:bg-green-200 text-green-700 rounded text-sm font-medium">
+                                <i class="fas fa-check mr-1"></i> Activate All
+                            </button>
+                            <button id="deactivate-all-btn" class="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-700 rounded text-sm font-medium">
+                                <i class="fas fa-times mr-1"></i> Deactivate All
+                            </button>
+                            <button id="export-config-btn" class="px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded text-sm font-medium">
+                                <i class="fas fa-download mr-1"></i> Export Config
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Lead Information -->
+                <div id="lead-data-container" class="card bg-white rounded-xl p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-lg font-bold text-gray-800">Lead Information</h2>
+                        <button id="backButton" class="text-gray-600 hover:text-gray-800 text-sm flex items-center">
+                            <i class="fas fa-arrow-left mr-2"></i> Back to Lead Selection
+                        </button>
+                    </div>
+
+                    <div id="lead-info-header" class="mb-4" style="display: none;">
+                        <div class="flex items-center text-sm text-gray-500 mb-2">
+                            <span id="lead-source" class="mr-2">Source: -</span>
+                            <span class="mr-2">•</span>
+                            <span id="lead-id">ID: -</span>
+                        </div>
+                        <div class="flex items-center">
+                            <span id="lead-status-badge" class="px-2 py-1 bg-gray-100 text-gray-800 text-xs font-medium rounded mr-2">-</span>
+                            <span id="lead-created" class="text-sm text-gray-500">Created: -</span>
+                        </div>
+                    </div>
+
+                    <!-- ListView Container -->
+                    <div id="list-view-container">
+                        <!-- Original lead-preview content will go here -->
+                        <div id="leadData" class="lead-preview"></div>
+                    </div>
+
+                    <!-- CardView Container -->
+                    <div id="card-view-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" style="display: none;">
+                        <!-- Field cards will be generated dynamically here -->
+                    </div>
+
+                    <!-- Empty State -->
+                    <div id="empty-state" class="text-center py-12">
+                        <i class="fas fa-inbox text-gray-300 text-6xl mb-4"></i>
+                        <p class="text-gray-500 text-lg">No lead loaded</p>
+                        <p class="text-gray-400 text-sm">Select a lead to view and transfer to Salesforce</p>
+                    </div>
+                </div>
+
+                <!-- Attachments Section (keep existing) -->
+                <div id="attachments-section" class="card bg-white rounded-xl p-6 mt-6" style="display: none;">
+                    <!-- Will be populated by existing code -->
+                </div>
+            </main>
         </div>
     </div>
-</div>
 
-<!-- Export Configuration Modal -->
-<div id="export-config-modal" class="config-modal-overlay" style="display: none;">
-    <div class="config-modal-content">
-        <div class="config-modal-header">
-            <h3>Export Field Configuration</h3>
-            <button class="config-modal-close">&times;</button>
-        </div>
-        <div class="config-modal-body">
-            <p>Download your field mapping and custom labels configuration for backup or sharing.</p>
-            <div class="config-stats">
-                <div class="stat-item">
-                    <span class="stat-value" id="export-field-count">0</span>
-                    <span class="stat-label">Fields</span>
+    <!-- Edit Field Modal -->
+    <div id="edit-field-modal" class="modal">
+        <div class="modal-content">
+            <div class="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-4 rounded-t-xl flex justify-between items-center">
+                <h3 class="text-lg font-bold">Edit Field</h3>
+                <button id="close-edit-modal" class="text-white hover:text-gray-200 text-2xl">&times;</button>
+            </div>
+            <div class="p-6">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Field Name</label>
+                    <input type="text" id="edit-field-name" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" readonly>
                 </div>
-                <div class="stat-item">
-                    <span class="stat-value" id="export-active-count">0</span>
-                    <span class="stat-label">Active</span>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Field Value</label>
+                    <textarea id="edit-field-value" rows="4" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
                 </div>
-                <div class="stat-item">
-                    <span class="stat-value" id="export-labels-count">0</span>
-                    <span class="stat-label">Labels</span>
+                <div class="mb-6 flex items-center">
+                    <label class="toggle-switch mr-3">
+                        <input type="checkbox" id="edit-field-active">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <span class="text-sm font-medium text-gray-700">Active Field</span>
+                </div>
+                <div class="flex justify-end space-x-3">
+                    <button id="cancel-edit-btn" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium">
+                        Cancel
+                    </button>
+                    <button id="save-edit-btn" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">
+                        Save Changes
+                    </button>
                 </div>
             </div>
-        </div>
-        <div class="config-modal-footer">
-            <button class="config-btn cancel-btn">Cancel</button>
-            <button class="config-btn export-btn" id="confirm-export">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                    <polyline points="7 10 12 15 17 10"></polyline>
-                    <line x1="12" y1="15" x2="12" y2="3"></line>
-                </svg>
-                Download Configuration
-            </button>
         </div>
     </div>
-</div>
 
-<!-- Missing Custom Fields Modal -->
-<div id="missing-fields-modal" class="modern-modal" style="display: none;">
-    <div class="modern-modal-content">
-        <div class="modern-modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); position: relative;">
-            <h3 style="margin: 0; color: white; font-size: 1.25rem; font-weight: 600;">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 8px;">
-                    <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                </svg>
-                Custom Fields Missing in Salesforce
-            </h3>
-            <button id="close-missing-fields-modal" style="position: absolute; top: 16px; right: 16px; background: rgba(255,255,255,0.2); border: none; color: white; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 20px; line-height: 1; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
-                ×
-            </button>
-        </div>
-        <div class="modern-modal-body" style="padding: 24px;">
-            <p style="margin: 0 0 16px 0; color: #4B5563; line-height: 1.6;">
-                The following custom fields don't exist in your Salesforce org. Would you like to create them automatically?
-            </p>
-            <div id="missing-fields-list" style="background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 8px; padding: 16px; max-height: 300px; overflow-y: auto;">
-                <!-- Fields will be listed here -->
+    <!-- Missing Fields Modal (keep existing functionality) -->
+    <div id="missing-fields-modal" class="modal">
+        <div class="modal-content">
+            <div class="bg-gradient-to-r from-purple-500 to-purple-600 text-white p-4 rounded-t-xl flex justify-between items-center">
+                <h3 class="text-lg font-bold flex items-center">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>
+                    Custom Fields Missing in Salesforce
+                </h3>
+                <button id="close-missing-fields-modal" class="text-white hover:text-gray-200 text-2xl">&times;</button>
             </div>
-            <div style="margin-top: 16px; padding: 12px; background: #EFF6FF; border-left: 4px solid #3B82F6; border-radius: 4px;">
-                <p style="margin: 0; font-size: 14px; color: #1E40AF;">
-                    <strong>Note:</strong> Fields will be created as Text fields with length 255. You can modify them later in Salesforce Setup.
+            <div class="p-6">
+                <p class="text-gray-600 mb-4">
+                    The following custom fields don't exist in your Salesforce org. Would you like to create them automatically?
                 </p>
+                <div id="missing-fields-list" class="bg-gray-50 border border-gray-200 rounded-lg p-4 max-h-64 overflow-y-auto mb-4">
+                    <!-- Fields will be listed here -->
+                </div>
+                <div class="bg-blue-50 border-l-4 border-blue-500 p-3 rounded mb-4">
+                    <p class="text-sm text-blue-700">
+                        <strong>Note:</strong> Fields will be created as Text fields with length 255. You can modify them later in Salesforce Setup.
+                    </p>
+                </div>
+                <div class="flex justify-end space-x-3">
+                    <button id="skip-field-creation-btn" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium flex items-center">
+                        <i class="fas fa-times mr-2"></i> Skip & Continue
+                    </button>
+                    <button id="create-fields-btn" class="px-4 py-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg hover:from-purple-600 hover:to-purple-700 font-medium flex items-center">
+                        <i class="fas fa-check mr-2"></i> Create Fields
+                    </button>
+                </div>
             </div>
         </div>
-        <div class="modern-modal-footer" style="padding: 16px 24px; background: #F9FAFB; border-top: 1px solid #E5E7EB; display: flex; justify-content: flex-end; gap: 12px;">
-            <button id="skip-field-creation-btn" style="padding: 10px 20px; background: #F3F4F6; color: #374151; border: 1px solid #D1D5DB; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px;" onmouseover="this.style.background='#E5E7EB'" onmouseout="this.style.background='#F3F4F6'">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                </svg>
-                Skip & Continue
-            </button>
-            <button id="create-fields-btn" style="padding: 10px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 4px rgba(102, 126, 234, 0.4);" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 8px rgba(102, 126, 234, 0.5)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px rgba(102, 126, 234, 0.4)'">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="20 6 9 17 4 12"></polyline>
-                </svg>
-                Create Fields
-            </button>
-        </div>
     </div>
-</div>
 
-</div>
-    <script src="../js/services/mapping/FieldMappingService.js" defer></script>
-    <script src="../js/services/mapping/SalesforceFieldMapper.js" defer></script>
-    <script src="../js/services/mapping/FieldRenderer.js" defer></script>
-    <script src="../js/config/salesforceConfig.js" type="module" defer></script>
-    <script src="../js/controllers/postman-integration.js" type="module" defer></script>
-    <script src="../js/controllers/headerController.js" type="module" defer></script>
-    <script src="../js/controllers/displayLeadTransferController.js" type="module" defer></script>
+    <!-- Auth Required Notice (existing) -->
+    <div id="auth-required-notice" style="display: none;"></div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed top-4 right-4 z-50 space-y-2"></div>
+
+    <!-- Scripts -->
+    <script type="module" src="/js/controllers/displayLeadTransferController.js"></script>
+    <script type="module" src="/js/controllers/displayLeadTransfer_v2_adapter.js"></script>
 </body>
 </html>

@@ -151,10 +151,10 @@
 
     <link rel="icon" type="image/x-icon" href="/images/api-sf.ico">
 </head>
-<body class="bg-gray-50 text-gray-800 overflow-hidden">
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200 overflow-hidden">
     <div class="flex h-screen">
         <!-- Sidebar -->
-        <div class="sidebar w-64 bg-white border-r border-gray-200 flex flex-col">
+        <div class="sidebar w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
             <!-- Logo -->
             <div class="p-4 border-b border-gray-200">
                 <div class="flex items-center">
@@ -223,9 +223,19 @@
                 </div>
             </div>
 
+            <!-- Dark Mode Toggle -->
+            <div class="p-4 border-t border-gray-200 dark:border-gray-700">
+                <button id="darkModeToggle" class="w-full flex items-center justify-center px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                    <i class="fas fa-moon mr-2 dark-mode-icon-moon"></i>
+                    <i class="fas fa-sun mr-2 dark-mode-icon-sun" style="display: none;"></i>
+                    <span class="dark-mode-text-dark">Dark Mode</span>
+                    <span class="dark-mode-text-light" style="display: none;">Light Mode</span>
+                </button>
+            </div>
+
             <!-- Disconnect Button -->
-            <div class="p-4 border-t border-gray-200">
-                <button id="logoutButton" class="w-full flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
+            <div class="p-4 border-t border-gray-200 dark:border-gray-700">
+                <button id="logoutButton" class="w-full flex items-center justify-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
                     <i class="fas fa-sign-out-alt mr-2"></i> Disconnect
                 </button>
             </div>
@@ -234,7 +244,7 @@
         <!-- Main Content -->
         <div class="flex-1 flex flex-col overflow-hidden">
             <!-- Header -->
-            <header class="bg-white border-b border-gray-200 py-4 px-6 flex justify-between items-center">
+            <header class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 py-4 px-6 flex justify-between items-center">
                 <div>
                     <h1 class="text-xl font-bold text-gray-800">Transfer Lead to Salesforce</h1>
                     <p class="text-sm text-gray-500">
@@ -298,25 +308,31 @@
                 </div>
 
                 <!-- Field Management Controls -->
-                <div class="card bg-white rounded-xl p-6 mb-6">
+                <div class="card bg-white dark:bg-gray-800 rounded-xl p-6 mb-6">
                     <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-lg font-bold text-gray-800">Field Management Controls</h2>
+                        <h2 class="text-lg font-bold text-gray-800 dark:text-white">Field Management Controls</h2>
                         <div class="flex items-center space-x-3">
                             <!-- View Toggle -->
                             <div class="flex items-center space-x-2 mr-4">
-                                <button id="listViewBtn" class="view-toggle-btn active px-3 py-1 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded text-sm flex items-center">
+                                <button id="listViewBtn" class="view-toggle-btn active px-3 py-1 bg-gray-200 hover:bg-gray-300 text-gray-700 dark:bg-gray-700 dark:text-gray-300 rounded text-sm flex items-center">
                                     <i class="fas fa-list mr-1"></i> List
                                 </button>
-                                <button id="cardViewBtn" class="view-toggle-btn px-3 py-1 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded text-sm flex items-center">
+                                <button id="cardViewBtn" class="view-toggle-btn px-3 py-1 bg-gray-200 hover:bg-gray-300 text-gray-700 dark:bg-gray-700 dark:text-gray-300 rounded text-sm flex items-center">
                                     <i class="fas fa-th mr-1"></i> Cards
                                 </button>
                             </div>
-                            <!-- Filter Dropdown -->
-                            <select id="field-display-filter" class="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <option value="all">All Fields</option>
-                                <option value="active">Active Fields Only</option>
-                                <option value="inactive">Inactive Fields Only</option>
-                            </select>
+                            <!-- Filter Buttons -->
+                            <div class="flex items-center space-x-2">
+                                <button data-filter="all" class="filter-btn active px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 dark:bg-blue-900 dark:text-blue-300 rounded-lg text-sm font-medium">
+                                    All Fields
+                                </button>
+                                <button data-filter="active" class="filter-btn px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium">
+                                    Active Only
+                                </button>
+                                <button data-filter="inactive" class="filter-btn px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium">
+                                    Inactive Only
+                                </button>
+                            </div>
                         </div>
                     </div>
 
