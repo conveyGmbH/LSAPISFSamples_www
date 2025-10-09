@@ -34,6 +34,9 @@ export function initializeV2UI() {
     // Setup stats cards click handlers
     setupStatsCardsClickHandlers();
 
+    // Setup disconnect button
+    setupDisconnectButton();
+
     console.log('✅ V2 UI initialized (Light Mode Only)');
 }
 
@@ -142,6 +145,11 @@ function setupFilterButtons() {
                     dropdown.value = filterValue;
 
                     window.displayLeadData(window.selectedLeadData);
+
+                    // Regenerate card view if currently visible
+                    if (currentView === 'card') {
+                        generateCardView();
+                    }
                 }
             }
 
@@ -242,7 +250,7 @@ function createFieldCard(fieldName, fieldLabel, fieldValue, isActive, isRequired
             </label>
         </div>
         <div class="mb-3">
-            <p class="text-sm text-gray-700 break-words">${escapeHtml(fieldValue) || '<span class="text-gray-400">Empty</span>'}</p>
+            <p class="text-sm text-gray-700 break-words">${escapeHtml(fieldValue) || '<span class="text-gray-400 italic">No value</span>'}</p>
         </div>
         <div class="flex justify-end">
             <button class="edit-field-btn text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center" data-field="${escapeHtml(fieldName)}">
@@ -272,7 +280,18 @@ function createFieldCard(fieldName, fieldLabel, fieldValue, isActive, isRequired
         }
     });
 
-    editBtn.addEventListener('click', () => {
+    // Click on edit button opens modal
+    editBtn.addEventListener('click', (e) => {
+        e.stopPropagation(); // Prevent card click
+        openEditModal(fieldName, fieldLabel, fieldValue);
+    });
+
+    // Click on card (except toggle) also opens modal
+    card.addEventListener('click', (e) => {
+        // Don't open modal if clicking on toggle or edit button
+        if (e.target.closest('.toggle-switch') || e.target.closest('.edit-field-btn')) {
+            return;
+        }
         openEditModal(fieldName, fieldLabel, fieldValue);
     });
 
@@ -689,6 +708,63 @@ function showFieldDetailsModal(filterType) {
     };
 }
 
+/**
+ * Setup disconnect button
+ */
+function setupDisconnectButton() {
+    const disconnectBtn = document.getElementById('disconnect-sf-btn');
+    if (!disconnectBtn) return;
+
+    disconnectBtn.addEventListener('click', async () => {
+        // Confirm disconnect
+        const confirmed = confirm('Are you sure you want to disconnect from Salesforce? This will clear all cached data and connection information.');
+        if (!confirmed) return;
+
+        try {
+            // Clear localStorage
+            localStorage.removeItem('sf_connection_status');
+            localStorage.removeItem('sf_user_info');
+            localStorage.removeItem('sf_connected_at');
+            localStorage.removeItem('orgId');
+            localStorage.removeItem('selectedEventId');
+
+            // Clear sessionStorage
+            sessionStorage.clear();
+
+            // Clear any lead edit data
+            const keys = Object.keys(localStorage);
+            keys.forEach(key => {
+                if (key.startsWith('lead_edits_')) {
+                    localStorage.removeItem(key);
+                }
+            });
+
+            console.log('🚪 Disconnected from Salesforce, localStorage cleared');
+
+            // Update UI
+            const userProfileSidebar = document.getElementById('user-profile-sidebar');
+            if (userProfileSidebar) {
+                userProfileSidebar.style.display = 'none';
+            }
+
+            // Reset API status
+            updateAPIStatus();
+
+            // Show success message
+            alert('Successfully disconnected from Salesforce. Please refresh the page to reconnect.');
+
+            // Optionally reload the page
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+
+        } catch (error) {
+            console.error('Error during disconnect:', error);
+            alert('Error disconnecting. Please try again or clear your browser cache manually.');
+        }
+    });
+}
+
 // Auto-initialize when DOM is loaded
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initializeV2UI);
@@ -696,5 +772,8 @@ if (document.readyState === 'loading') {
     initializeV2UI();
 }
 
+// Expose openEditModal globally for ListView integration
+window.openEditModal = openEditModal;
+
 // Export for use in other modules
-export { generateCardView, updateFieldStatsV2, updateUserProfileSidebar, updateAPIStatus };
+export { generateCardView, updateFieldStatsV2, updateUserProfileSidebar, updateAPIStatus, openEditModal };

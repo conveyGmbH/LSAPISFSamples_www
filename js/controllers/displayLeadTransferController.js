@@ -1552,6 +1552,8 @@ function createFieldTableRow(fieldName, fieldInfo) {
 
     // Add event listeners
     const toggle = row.querySelector('input[type="checkbox"]');
+    const editBtn = row.querySelector('.edit-field-btn');
+
     toggle.addEventListener('change', () => {
         fieldInfo.active = toggle.checked;
         updateFieldStats();
@@ -1568,6 +1570,51 @@ function createFieldTableRow(fieldName, fieldInfo) {
         const statusBadge = row.querySelector('.px-2');
         statusBadge.className = `px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${fieldInfo.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`;
         statusBadge.textContent = fieldInfo.active ? 'Active' : 'Inactive';
+    });
+
+    // Add edit button listener - Opens inline editing or modal
+    editBtn.addEventListener('click', () => {
+        // Option 1: Use the V2 modal (if available)
+        if (typeof window.openEditModal === 'function') {
+            window.openEditModal(fieldName, fieldInfo.label || fieldName, fieldInfo.value);
+        } else {
+            // Option 2: Make the value cell editable inline
+            const valueCell = row.querySelector('.field-value');
+            const currentValue = fieldInfo.value || '';
+
+            // Create input
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = currentValue;
+            input.className = 'w-full px-2 py-1 border border-blue-500 rounded focus:outline-none focus:ring-2 focus:ring-blue-500';
+
+            // Replace text with input
+            valueCell.innerHTML = '';
+            valueCell.appendChild(input);
+            input.focus();
+            input.select();
+
+            // Save on blur or enter
+            const saveEdit = () => {
+                const newValue = input.value;
+                fieldInfo.value = newValue;
+                valueCell.innerHTML = `<span class="text-sm text-gray-900">${newValue || '<span class="text-gray-400 italic">No value</span>'}</span>`;
+
+                // Trigger field save logic if available
+                if (typeof window.saveFieldValue === 'function') {
+                    window.saveFieldValue(fieldName, newValue);
+                }
+            };
+
+            input.addEventListener('blur', saveEdit);
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    saveEdit();
+                } else if (e.key === 'Escape') {
+                    valueCell.innerHTML = `<span class="text-sm text-gray-900">${currentValue || '<span class="text-gray-400 italic">No value</span>'}</span>`;
+                }
+            });
+        }
     });
 
     return row;
@@ -4985,30 +5032,38 @@ function createAdvancedControlPanel() {
 
 
 function updateFieldStats() {
-    // Compter UNIQUEMENT les champs visibles sur cette page
-    const visibleFields = document.querySelectorAll('.lead-field');
-    const activeFields = document.querySelectorAll('.lead-field:not(.field-inactive)');
-    const inactiveFields = document.querySelectorAll('.lead-field.field-inactive');
+    // Count fields in both ListView (table rows) and CardView (field cards)
+    const visibleFields = document.querySelectorAll('.field-row, .field-card');
 
-    const total = visibleFields.length;
-    const active = activeFields.length;
-    const inactive = inactiveFields.length;
+    let activeCount = 0;
+    let inactiveCount = 0;
 
-    console.log('Field statistics (VISIBLE FIELDS ONLY):', {
-        total,
-        active,
-        inactive,
-        source: 'DOM visible fields'
+    visibleFields.forEach(field => {
+        const toggle = field.querySelector('input[type="checkbox"]');
+        if (toggle) {
+            if (toggle.checked) {
+                activeCount++;
+            } else {
+                inactiveCount++;
+            }
+        }
     });
 
-  
+    const total = visibleFields.length;
 
-    // 3) Mets a jour les compteurs (tous les duplicats)
+    console.log('Field statistics:', {
+        total,
+        active: activeCount,
+        inactive: inactiveCount,
+        source: 'DOM field count'
+    });
+
+    // Update stat counters
     updateStatCounter('total-field-count', total);
-    updateStatCounter('active-field-count', active);
-    updateStatCounter('inactive-field-count', inactive);
+    updateStatCounter('active-field-count', activeCount);
+    updateStatCounter('inactive-field-count', inactiveCount);
 
-    return { total, active, inactive };
+    return { total, active: activeCount, inactive: inactiveCount };
 }
 
 // Update stat counters (all elements with same ID)
