@@ -151,10 +151,10 @@
 
     <link rel="icon" type="image/x-icon" href="/images/api-sf.ico">
 </head>
-<body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200 overflow-hidden">
+<body class="bg-white text-gray-800 overflow-hidden">
     <div class="flex h-screen">
         <!-- Sidebar -->
-        <div class="sidebar w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
+        <div class="sidebar w-64 bg-white border-r border-gray-200 flex flex-col">
             <!-- Logo -->
             <div class="p-4 border-b border-gray-200">
                 <div class="flex items-center">
@@ -234,7 +234,7 @@
         <!-- Main Content -->
         <div class="flex-1 flex flex-col overflow-hidden">
             <!-- Header -->
-            <header class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 py-4 px-6 flex justify-between items-center">
+            <header class="bg-white border-b border-gray-200 py-4 px-6 flex justify-between items-center">
                 <div>
                     <h1 class="text-xl font-bold text-gray-800">Transfer Lead to Salesforce</h1>
                     <p class="text-sm text-gray-500">
@@ -298,28 +298,28 @@
                 </div>
 
                 <!-- Field Management Controls -->
-                <div class="card bg-white dark:bg-gray-800 rounded-xl p-6 mb-6">
+                <div class="card bg-white rounded-xl p-6 mb-6">
                     <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-lg font-bold text-gray-800 dark:text-white">Field Management Controls</h2>
+                        <h2 class="text-lg font-bold text-gray-800">Field Management Controls</h2>
                         <div class="flex items-center space-x-3">
                             <!-- View Toggle -->
                             <div class="flex items-center space-x-2 mr-4">
-                                <button id="listViewBtn" class="view-toggle-btn active px-3 py-1 bg-gray-200 hover:bg-gray-300 text-gray-700 dark:bg-gray-700 dark:text-gray-300 rounded text-sm flex items-center">
+                                <button id="listViewBtn" class="view-toggle-btn active px-3 py-1 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded text-sm flex items-center">
                                     <i class="fas fa-list mr-1"></i> List
                                 </button>
-                                <button id="cardViewBtn" class="view-toggle-btn px-3 py-1 bg-gray-200 hover:bg-gray-300 text-gray-700 dark:bg-gray-700 dark:text-gray-300 rounded text-sm flex items-center">
+                                <button id="cardViewBtn" class="view-toggle-btn px-3 py-1 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded text-sm flex items-center">
                                     <i class="fas fa-th mr-1"></i> Cards
                                 </button>
                             </div>
                             <!-- Filter Buttons -->
                             <div class="flex items-center space-x-2">
-                                <button data-filter="all" class="filter-btn active px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 dark:bg-blue-900 dark:text-blue-300 rounded-lg text-sm font-medium">
+                                <button data-filter="all" class="filter-btn active px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg text-sm font-medium">
                                     All Fields
                                 </button>
-                                <button data-filter="active" class="filter-btn px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium">
+                                <button data-filter="active" class="filter-btn px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium">
                                     Active Only
                                 </button>
-                                <button data-filter="inactive" class="filter-btn px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium">
+                                <button data-filter="inactive" class="filter-btn px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium">
                                     Inactive Only
                                 </button>
                             </div>
