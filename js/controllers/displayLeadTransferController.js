@@ -1427,20 +1427,16 @@ function displayLeadData(data) {
     if (emptyState) emptyState.style.display = 'none';
 
     // Traiter les données avec les labels personnalisés
-    const processedData = window.fieldMappingService?.applyCustomLabels(data) || 
-        Object.fromEntries(Object.entries(data).map(([key, value]) => [key, { 
-            value, 
-            label: formatFieldLabel(key), 
-            active: true 
+    const processedData = window.fieldMappingService?.applyCustomLabels(data) ||
+        Object.fromEntries(Object.entries(data).map(([key, value]) => [key, {
+            value,
+            label: formatFieldLabel(key),
+            active: true
         }]));
-
-    // Créer la grille d'informations
-    const infoGrid = document.createElement("div");
-    infoGrid.className = "lead-info-grid";
 
     // Filtrer et afficher les champs selon leur statut
     const filterValue = document.getElementById('field-display-filter')?.value || 'all';
-    
+
     Object.keys(processedData).forEach((fieldName) => {
         const fieldInfo = processedData[fieldName];
 
@@ -1453,11 +1449,9 @@ function displayLeadData(data) {
         // Exclure uniquement les métadonnées techniques inutiles
         if (fieldName === '__metadata' || fieldName === 'KontaktViewId') return;
 
-        const fieldElement = createFieldElement(fieldName, fieldInfo);
-        infoGrid.appendChild(fieldElement);
+        const fieldRow = createFieldTableRow(fieldName, fieldInfo);
+        leadDataContainer.appendChild(fieldRow);
     });
-
-    leadDataContainer.appendChild(infoGrid);
 
     // Mettre à jour les statistiques
     setTimeout(() => updateFieldStats(), 100);
@@ -1478,16 +1472,75 @@ function displayLeadData(data) {
 
 function isSystemField(fieldName) {
     const systemFields = [
-        '__metadata', 'KontaktViewId', 'Id', 'CreatedDate', 'LastModifiedDate', 
-        'CreatedById', 'LastModifiedById', 'SystemModstamp', 'DeviceId', 
+        '__metadata', 'KontaktViewId', 'Id', 'CreatedDate', 'LastModifiedDate',
+        'CreatedById', 'LastModifiedById', 'SystemModstamp', 'DeviceId',
         'DeviceRecordId', 'EventId', 'RequestBarcode', 'StatusMessage'
     ];
     return systemFields.includes(fieldName);
 }
 
+/**
+ * Create a table row for a field (ListView)
+ */
+function createFieldTableRow(fieldName, fieldInfo) {
+    const row = document.createElement('tr');
+    row.className = `table-row hover:bg-gray-50 field-row ${!fieldInfo.active ? 'opacity-50 bg-gray-100' : ''}`;
+    row.dataset.fieldName = fieldName;
 
+    const salesforceConfig = getSalesforceFieldConfig(fieldName);
+    const isRequired = salesforceConfig?.required || false;
+    const displayValue = fieldInfo.value || '<span class="text-gray-400 italic">No value</span>';
 
-// 3.  fonction principale pour créer un élément de champ
+    row.innerHTML = `
+        <td class="px-4 py-3 whitespace-nowrap">
+            <div class="flex items-center">
+                <span class="text-sm font-medium text-gray-900">${fieldInfo.label || fieldName}</span>
+                ${isRequired ? '<span class="ml-1 text-red-500">*</span>' : ''}
+            </div>
+        </td>
+        <td class="px-4 py-3">
+            <span class="text-sm text-gray-900 field-value">${displayValue}</span>
+        </td>
+        <td class="px-4 py-3 whitespace-nowrap">
+            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${fieldInfo.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                ${fieldInfo.active ? 'Active' : 'Inactive'}
+            </span>
+        </td>
+        <td class="px-4 py-3 whitespace-nowrap text-sm font-medium">
+            <button class="edit-field-btn text-blue-600 hover:text-blue-900 mr-3">
+                <i class="fas fa-edit mr-1"></i> Edit
+            </button>
+            <label class="toggle-switch inline-block align-middle">
+                <input type="checkbox" ${fieldInfo.active ? 'checked' : ''}>
+                <span class="toggle-slider"></span>
+            </label>
+        </td>
+    `;
+
+    // Add event listeners
+    const toggle = row.querySelector('input[type="checkbox"]');
+    toggle.addEventListener('change', () => {
+        fieldInfo.active = toggle.checked;
+        updateFieldStats();
+        updateTransferButtonState();
+
+        // Update row styling
+        if (fieldInfo.active) {
+            row.classList.remove('opacity-50', 'bg-gray-100');
+        } else {
+            row.classList.add('opacity-50', 'bg-gray-100');
+        }
+
+        // Re-render to update status badge
+        const statusBadge = row.querySelector('.px-2');
+        statusBadge.className = `px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${fieldInfo.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`;
+        statusBadge.textContent = fieldInfo.active ? 'Active' : 'Inactive';
+    });
+
+    return row;
+}
+
+// 3.  fonction principale pour créer un élément de champ (kept for CardView)
 function createFieldElement(fieldName, fieldInfo) {
     const fieldElement = document.createElement("div");
     fieldElement.className = `lead-field ${fieldInfo.active ? '' : 'field-inactive'}`;
@@ -3824,16 +3877,14 @@ async function displayAttachmentsPreview() {
     attachmentsList.appendChild(listItem);
   });
 
-  // Add summary
-  const existingSummary = attachmentsPreviewContainer.querySelector(
-    ".attachments-summary"
-  );
-  if (!existingSummary) {
-    const summary = document.createElement("div");
-    summary.className = "attachments-summary";
-    summary.textContent = `${validAttachments.length} file(s) will be transferred with this lead`;
-    attachmentsPreviewContainer.appendChild(summary);
+  // Update summary count
+  const summarySpan = attachmentsPreviewContainer.querySelector('.attachments-summary .font-medium');
+  if (summarySpan) {
+    summarySpan.textContent = `${validAttachments.length} file(s)`;
   }
+
+  // Show attachments container
+  attachmentsPreviewContainer.style.display = 'block';
 }
 
 /**
