@@ -227,6 +227,7 @@ document.addEventListener("DOMContentLoaded", async () => {
  */
 function initializeButtonListeners() {
   // Connect/Disconnect buttons
+  document.getElementById('connectButton')?.addEventListener('click', handleConnectClick);
   document.getElementById('connectSalesforceBtn')?.addEventListener('click', handleConnectClick);
   document.getElementById('disconnectSalesforceBtn')?.addEventListener('click', handleDisconnectClick);
 
@@ -4801,22 +4802,30 @@ async function saveCustomLabel() {
 
     try {
         // Show loading in modal
-        const saveBtn = document.getElementById('save-custom-label-btn') || 
+        const saveBtn = document.getElementById('save-edit-label-btn') ||
+                       document.getElementById('save-custom-label-btn') ||
                        document.querySelector('.btn-confirm[onclick*="saveCustomLabel"]');
-        const originalText = saveBtn.innerHTML;
-        
-        saveBtn.disabled = true;
-        saveBtn.innerHTML = `
-            <div style="display: flex; align-items: center; gap: 8px;">
-                <svg class="spinner" width="16" height="16" viewBox="0 0 24 24" style="animation: spin 1s linear infinite;">
-                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none" stroke-dasharray="31.416" stroke-dashoffset="31.416">
-                        <animate attributeName="stroke-dasharray" dur="2s" values="0 31.416;15.708 15.708;0 31.416" repeatCount="indefinite"/>
-                        <animate attributeName="stroke-dashoffset" dur="2s" values="0;-15.708;-31.416" repeatCount="indefinite"/>
-                    </circle>
-                </svg>
-                <span>Validating & Saving...</span>
-            </div>
-        `;
+
+        if (!saveBtn) {
+            console.error('Save button not found');
+        }
+
+        const originalText = saveBtn ? saveBtn.innerHTML : '';
+
+        if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <svg class="spinner" width="16" height="16" viewBox="0 0 24 24" style="animation: spin 1s linear infinite;">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none" stroke-dasharray="31.416" stroke-dashoffset="31.416">
+                            <animate attributeName="stroke-dasharray" dur="2s" values="0 31.416;15.708 15.708;0 31.416" repeatCount="indefinite"/>
+                            <animate attributeName="stroke-dashoffset" dur="2s" values="0;-15.708;-31.416" repeatCount="indefinite"/>
+                        </circle>
+                    </svg>
+                    <span>Validating & Saving...</span>
+                </div>
+            `;
+        }
 
         // Save with API sync
         await window.fieldMappingService.setCustomLabel(fieldName, customLabel);
@@ -4842,18 +4851,23 @@ async function saveCustomLabel() {
         }
 
         // Restore button
-        saveBtn.disabled = false;
-        saveBtn.innerHTML = originalText;
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalText;
+        }
 
     } catch (error) {
         console.error('Error saving custom label:', error);
         showError('Failed to save custom label: ' + error.message);
-        
+
         // Restore button
-        const saveBtn = document.getElementById('save-custom-label-btn') || 
+        const saveBtn = document.getElementById('save-edit-label-btn') ||
+                       document.getElementById('save-custom-label-btn') ||
                        document.querySelector('.btn-confirm[onclick*="saveCustomLabel"]');
-        saveBtn.disabled = false;
-        saveBtn.innerHTML = originalText;
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalText;
+        }
     }
 }
 
