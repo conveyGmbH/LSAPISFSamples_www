@@ -28,7 +28,11 @@
 
         /* Cards */
         .card {
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            background-color: #f3f4f6;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        }
+        .card:hover {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
         }
 
         /* Field cards */
@@ -315,11 +319,11 @@
             <main class="flex-1 overflow-y-auto p-4">
                 <!-- Stats Cards -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                    <div id="active-stats-card" class="card bg-gray-50 rounded-xl p-4 cursor-pointer hover:shadow-lg transition-shadow" data-filter="active">
+                    <div id="active-stats-card" class="card rounded-xl p-4 cursor-pointer transition-shadow" data-filter="active">
                         <div class="flex justify-between items-center">
                             <div>
                                 <p class="text-sm font-medium text-gray-500">Active</p>
-                                <p id="active-field-count" class="text-1xl font-bold text-green-600">0</p>
+                                <p id="active-field-count" class="text-2xl font-bold text-green-600">0</p>
                             </div>
                             <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
                                 <i class="fas fa-check-circle text-green-500 text-xl"></i>
@@ -327,7 +331,7 @@
                         </div>
                     </div>
 
-                    <div id="inactive-stats-card" class="card bg-gray-50 rounded-xl p-4 cursor-pointer hover:shadow-lg transition-shadow" data-filter="inactive">
+                    <div id="inactive-stats-card" class="card rounded-xl p-4 cursor-pointer transition-shadow" data-filter="inactive">
                         <div class="flex justify-between items-center">
                             <div>
                                 <p class="text-sm font-medium text-gray-500">Inactive</p>
@@ -339,7 +343,7 @@
                         </div>
                     </div>
 
-                    <div id="total-stats-card" class="card bg-gray-50 rounded-xl p-4 cursor-pointer hover:shadow-lg transition-shadow" data-filter="all">
+                    <div id="total-stats-card" class="card rounded-xl p-4 cursor-pointer transition-shadow" data-filter="all">
                         <div class="flex justify-between items-center">
                             <div>
                                 <p class="text-sm font-medium text-gray-500">Total</p>
@@ -353,7 +357,7 @@
                 </div>
 
                 <!-- Field Management Controls -->
-                <div class="card bg-white rounded-xl p-4 mb-4">
+                <div class="card rounded-xl p-4 mb-4">
                     <div class="flex justify-between items-center mb-4">
                         <h2 class="text-lg font-bold text-gray-800">Field Management Controls</h2>
                         <div class="flex items-center space-x-3">
@@ -401,7 +405,7 @@
                 </div>
 
                 <!-- Lead Information -->
-                <div id="lead-data-container" class="card bg-white rounded-xl p-4">
+                <div id="lead-data-container" class="card rounded-xl p-4">
                     <div class="flex justify-between items-center mb-4">
                         <h2 class="text-lg font-bold text-gray-800">Lead Information</h2>
                         <button id="backButton" class="text-gray-600 hover:text-gray-800 text-sm flex items-center">
@@ -454,7 +458,7 @@
                 </div>
 
                 <!-- Attachments Section -->
-                <div id="attachmentsPreview" class="card bg-white rounded-xl p-4 mt-4" style="display: none;">
+                <div id="attachmentsPreview" class="card rounded-xl p-4 mt-4" style="display: none;">
                     <h3 class="text-md font-bold text-gray-800 mb-3 flex items-center">
                         <i class="fas fa-paperclip mr-2 text-blue-600"></i>
                         Attachments to Transfer
