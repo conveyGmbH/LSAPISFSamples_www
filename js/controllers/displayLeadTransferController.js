@@ -1,5 +1,6 @@
 import { appConfig } from "../config/salesforceConfig.js";
 import ApiService from "../services/apiService.js";
+import { formatDate } from "../utils/helper.js";
 // Note: SalesforceFieldMapper and FieldRenderer are loaded as global classes via script tags
 
 
