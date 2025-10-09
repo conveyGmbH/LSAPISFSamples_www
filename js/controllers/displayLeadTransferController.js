@@ -4106,11 +4106,12 @@ function showAttachmentPreview(attachment) {
     // Image preview
     const imgSrc = attachment.Body ? `data:${contentType || 'image/jpeg'};base64,${attachment.Body}` : '';
     modalBody.innerHTML = `
-      <div class="flex justify-center">
-        <img src="${imgSrc}" alt="${fileName}" class="max-w-full max-h-[70vh] rounded-lg shadow-lg">
-      </div>
-      <div class="mt-4 text-center text-sm text-gray-600">
-        <p>${fileName} (${formatFileSize(attachment.BodyLength)})</p>
+      <div class="flex flex-col items-center">
+        <img src="${imgSrc}" alt="${fileName}" style="max-width: 500px; max-height: 400px; object-fit: contain;" class="rounded-lg shadow-lg">
+        <div class="mt-3 text-center">
+          <p class="text-xs text-gray-600">${fileName}</p>
+          <p class="text-xs text-gray-500">${formatFileSize(attachment.BodyLength)}</p>
+        </div>
       </div>
     `;
   } else if (contentType === 'application/pdf' || extension === 'pdf') {
@@ -4118,21 +4119,22 @@ function showAttachmentPreview(attachment) {
     const pdfSrc = attachment.Body ? `data:application/pdf;base64,${attachment.Body}` : '';
     modalBody.innerHTML = `
       <div class="flex flex-col items-center">
-        <iframe src="${pdfSrc}" class="w-full h-[70vh] border rounded-lg"></iframe>
-        <div class="mt-4 text-center text-sm text-gray-600">
-          <p>${fileName} (${formatFileSize(attachment.BodyLength)})</p>
+        <iframe src="${pdfSrc}" style="width: 600px; height: 500px;" class="border rounded-lg"></iframe>
+        <div class="mt-3 text-center">
+          <p class="text-xs text-gray-600">${fileName}</p>
+          <p class="text-xs text-gray-500">${formatFileSize(attachment.BodyLength)}</p>
         </div>
       </div>
     `;
   } else {
     // Unsupported type - show download option
     modalBody.innerHTML = `
-      <div class="text-center py-8">
-        <i class="fas fa-file text-6xl text-gray-300 mb-4"></i>
-        <p class="text-lg font-medium text-gray-700 mb-2">${fileName}</p>
-        <p class="text-sm text-gray-500 mb-4">Preview not available for this file type</p>
-        <p class="text-sm text-gray-600 mb-4">Type: ${contentType || 'Unknown'}</p>
-        <p class="text-sm text-gray-600">Size: ${formatFileSize(attachment.BodyLength)}</p>
+      <div class="text-center py-6">
+        <i class="fas fa-file text-4xl text-gray-300 mb-3"></i>
+        <p class="text-sm font-medium text-gray-700 mb-2">${fileName}</p>
+        <p class="text-xs text-gray-500 mb-2">Preview not available for this file type</p>
+        <p class="text-xs text-gray-600 mb-1">Type: ${contentType || 'Unknown'}</p>
+        <p class="text-xs text-gray-600">Size: ${formatFileSize(attachment.BodyLength)}</p>
       </div>
     `;
   }
