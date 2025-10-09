@@ -899,72 +899,52 @@ async function handleTransferButtonClick() {
     console.log(`✅ Existing fields: ${fieldCheck.existing.length}`);
     console.log(`❌ Missing fields: ${fieldCheck.missing.length}`);
 
-    // ========== PHASE 4: Handle Missing Custom Fields ==========
+    // ========== PHASE 4: Handle Missing Custom Fields (Auto-create without confirmation) ==========
     if (fieldCheck.missing.length > 0) {
-      console.log(`⚠️ Found ${fieldCheck.missing.length} missing custom fields`);
+      console.log(`⚠️ Found ${fieldCheck.missing.length} missing custom fields - creating automatically...`);
 
-      const userWantsToCreate = await showMissingFieldsModal(
+      // Auto-create the fields without modal confirmation
+      console.log('🛠️  Creating custom fields automatically...');
+      showModernToast(`Creating ${fieldCheck.missing.length} custom field(s)...`, 'info');
+
+      const createResult = await createCustomFields(
         fieldCheck.missing,
         labels
       );
 
-      if (userWantsToCreate) {
-        // Create the fields
-        console.log('🛠️  Creating custom fields...');
-        showModernToast(`Creating ${fieldCheck.missing.length} custom field(s)...`, 'info');
-
-        const createResult = await createCustomFields(
-          fieldCheck.missing,
-          labels
+      if (createResult.failed.length > 0) {
+        showModernToast(
+          `Failed to create ${createResult.failed.length} field(s). Check console for details.`,
+          'error',
+          6000
         );
+        console.error('❌ Failed to create fields:', createResult.failed);
+      }
 
-        if (createResult.failed.length > 0) {
-          showModernToast(
-            `Failed to create ${createResult.failed.length} field(s). Check console for details.`,
-            'error',
-            6000
-          );
-          console.error('❌ Failed to create fields:', createResult.failed);
-        }
+      if (createResult.created.length > 0) {
+        showModernToast(
+          `✅ Created ${createResult.created.length} custom field(s) successfully!`,
+          'success',
+          5000
+        );
+        console.log('✅ Created fields:', createResult.created);
+      }
 
-        if (createResult.created.length > 0) {
-          showModernToast(
-            `✅ Created ${createResult.created.length} custom field(s) successfully!`,
-            'success',
-            5000
-          );
-          console.log('✅ Created fields:', createResult.created);
-        }
-
-        // Wait a moment for Salesforce to process the field creation
-        if (createResult.created.length > 0) {
-          showModernToast('Waiting for Salesforce to process new fields...', 'info', 3000);
-          await new Promise(resolve => setTimeout(resolve, 3000));
-        }
-
-      } else {
-        // User chose to skip - remove missing fields from leadData
-        console.log('⏭️  User chose to skip field creation');
-        fieldCheck.missing.forEach(fieldName => {
-          delete leadData[fieldName];
-        });
-        showModernToast(`Proceeding without ${fieldCheck.missing.length} missing field(s)...`, 'info', 3000);
+      // Wait a moment for Salesforce to process the field creation
+      if (createResult.created.length > 0) {
+        showModernToast('Waiting for Salesforce to process new fields...', 'info', 3000);
+        await new Promise(resolve => setTimeout(resolve, 3000));
       }
     }
 
-    // ========== PHASE 5: Check for Duplicates ==========
+    // ========== PHASE 5: Check for Duplicates (Auto-proceed without confirmation) ==========
     console.log('📋 Phase 5: Checking for duplicate leads...');
     showModernToast('Checking for duplicates...', 'info', 2000);
 
     const duplicateCheck = await checkForDuplicates(leadData);
     if (duplicateCheck.hasDuplicates) {
-      console.log(`⚠️ Found ${duplicateCheck.duplicates.length} potential duplicate(s)`);
-      const proceed = await showDuplicateModal(duplicateCheck.duplicates);
-      if (!proceed) {
-        showModernToast('Transfer cancelled by user', 'info');
-        console.log('❌ Transfer cancelled due to duplicates');
-        return;
-      }
+      console.log(`⚠️ Found ${duplicateCheck.duplicates.length} potential duplicate(s) - proceeding anyway...`);
+      showModernToast(`Found ${duplicateCheck.duplicates.length} duplicate(s) - creating anyway...`, 'warning', 3000);
     }
 
     // ========== PHASE 6: Transfer Lead to Salesforce ==========
@@ -1426,8 +1406,10 @@ async function checkSalesforceConnection() {
  * Afficher les données de lead avec système d'édition inline
  */
 function displayLeadData(data) {
-    
+
     const leadDataContainer = document.getElementById("leadData");
+    const emptyState = document.getElementById("empty-state");
+
     if (!leadDataContainer) {
         console.error('Lead data container not found');
         return;
@@ -1437,8 +1419,12 @@ function displayLeadData(data) {
 
     if (!data || Object.keys(data).length === 0) {
         leadDataContainer.innerHTML = '<div class="no-data">No lead data available</div>';
+        if (emptyState) emptyState.style.display = 'block';
         return;
     }
+
+    // Hide empty state when lead is loaded
+    if (emptyState) emptyState.style.display = 'none';
 
     // Traiter les données avec les labels personnalisés
     const processedData = window.fieldMappingService?.applyCustomLabels(data) || 
