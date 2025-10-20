@@ -584,7 +584,12 @@ function collectActiveFieldsOnly() {
         }
 
         // Get Salesforce field name (custom label if exists, otherwise API name)
-        const sfFieldName = window.fieldMappingService?.customLabels?.[apiFieldName] || apiFieldName;
+        let sfFieldName = window.fieldMappingService?.customLabels?.[apiFieldName] || apiFieldName;
+
+        // Add __c suffix for custom fields if not present and not a standard field
+        if (!sfFieldName.endsWith('__c') && !isStandardSalesforceField(sfFieldName)) {
+            sfFieldName = `${sfFieldName}__c`;
+        }
 
         // Get display label
         const displayLabel = typeof fieldInfo === 'object' ? fieldInfo.label : formatFieldLabel(apiFieldName);
@@ -710,11 +715,29 @@ function showMissingFieldsModal(missingFields, labels) {
  * @param {Object} labels - Map of fieldName to label
  * @returns {Promise<Object>} Creation results
  */
+/**
+ * Create custom fields in Salesforce
+ * Automatically adds __c suffix to field API names if not present
+ * @param {Array<string>} missingFields - Array of field names that need to be created
+ * @param {Object} labels - Map of field names to their display labels
+ * @returns {Promise<Object>} Result with created and failed fields
+ */
 async function createCustomFields(missingFields, labels) {
-    const fields = missingFields.map(apiName => ({
-        apiName,
-        label: labels[apiName] || apiName.replace(/__c$/, '').replace(/_/g, ' ')
-    }));
+    const fields = missingFields.map(fieldName => {
+        // Ensure field API name has __c suffix for custom fields
+        let apiName = fieldName;
+
+        // Add __c suffix if not present and not a standard field
+        if (!apiName.endsWith('__c') && !isStandardSalesforceField(apiName)) {
+            apiName = `${fieldName}__c`;
+            console.log(`🔧 Auto-correcting field name: "${fieldName}" → "${apiName}"`);
+        }
+
+        return {
+            apiName,
+            label: labels[fieldName] || fieldName.replace(/__c$/, '').replace(/_/g, ' ')
+        };
+    });
 
     try {
         const response = await fetch('http://localhost:3000/api/salesforce/fields/create', {
@@ -737,6 +760,22 @@ async function createCustomFields(missingFields, labels) {
         console.error('❌ Error creating fields:', error);
         throw error;
     }
+}
+
+/**
+ * Check if a field name is a standard Salesforce field
+ * @param {string} fieldName - Field name to check
+ * @returns {boolean} True if standard field
+ */
+function isStandardSalesforceField(fieldName) {
+    const standardFields = [
+        'FirstName', 'LastName', 'Company', 'Email', 'Phone', 'Title', 'Salutation',
+        'Street', 'City', 'State', 'PostalCode', 'Country', 'Description', 'Status',
+        'Industry', 'Rating', 'AnnualRevenue', 'NumberOfEmployees', 'Website',
+        'LeadSource', 'OwnerId', 'IsConverted', 'ConvertedDate', 'ConvertedAccountId',
+        'ConvertedContactId', 'ConvertedOpportunityId'
+    ];
+    return standardFields.includes(fieldName);
 }
 
 /**
