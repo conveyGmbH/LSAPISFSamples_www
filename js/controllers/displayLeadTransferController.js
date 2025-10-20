@@ -6093,14 +6093,35 @@ async function setAllFieldsActive(active) {
         }
     }
 
-    // Regenerate current view with current filter
+    // Auto-switch filter to show the affected fields
+    // If activated all -> show "Active Only"
+    // If deactivated all -> show "Inactive Only"
+    const newFilter = active ? 'active' : 'inactive';
+    console.log(`🔄 Auto-switching to filter: ${newFilter}`);
+
+    // Update filter in localStorage
+    localStorage.setItem('field-display-filter', newFilter);
+
+    // Update filter button UI
+    const filterButtons = document.querySelectorAll('.filter-btn');
+    filterButtons.forEach(btn => {
+        btn.classList.remove('active', 'text-blue-600', 'border-blue-600');
+        btn.classList.add('text-gray-600', 'border-transparent');
+
+        if (btn.dataset.filter === newFilter) {
+            btn.classList.remove('text-gray-600', 'border-transparent');
+            btn.classList.add('active', 'text-blue-600', 'border-blue-600');
+        }
+    });
+
+    // Regenerate current view with new filter
     if (currentView === 'list') {
-        console.log('🔄 Regenerating ListView after bulk action');
+        console.log('🔄 Regenerating ListView after bulk action with new filter');
         if (window.selectedLeadData && typeof displayLeadData === 'function') {
             displayLeadData(window.selectedLeadData);
         }
     } else {
-        console.log('🔄 Regenerating CardView after bulk action');
+        console.log('🔄 Regenerating CardView after bulk action with new filter');
         generateCardView();
     }
 
