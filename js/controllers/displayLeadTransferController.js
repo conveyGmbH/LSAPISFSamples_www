@@ -1,3 +1,4 @@
+// Standard imports
 import { appConfig } from "../config/salesforceConfig.js";
 import ApiService from "../services/apiService.js";
 import { formatDate } from "../utils/helper.js";
@@ -437,8 +438,14 @@ function updateTransferButtonState() {
         return;
     }
 
-    // Get current filter mode
-    const filterValue = document.getElementById('field-display-filter')?.value || 'all';
+    // Count active fields from window.selectedLeadData (single source of truth)
+    if (!window.selectedLeadData) {
+        transferBtn.disabled = true;
+        transferBtn.title = 'No lead data loaded';
+        transferBtn.style.opacity = '0.5';
+        transferBtn.style.cursor = 'not-allowed';
+        return;
+    }
 
     // System/metadata fields to exclude
     const excludedFields = new Set([
@@ -447,40 +454,32 @@ function updateTransferButtonState() {
         'apiEndpoint', 'credentials', 'serverName', 'apiName', '__metadata', 'KontaktViewId'
     ]);
 
+    // Process data with labels
+    const processedData = window.fieldMappingService?.applyCustomLabels(window.selectedLeadData) ||
+        Object.fromEntries(Object.entries(window.selectedLeadData).map(([key, value]) => [key, {
+            value,
+            label: formatFieldLabel(key),
+            active: true
+        }]));
+
     let activeFieldCount = 0;
 
-    // Count fields from VISIBLE DOM elements (source of truth for UI state)
-    const visibleFieldElements = document.querySelectorAll('.lead-field:not([style*="display: none"]), .field-row:not([style*="display: none"])');
+    // Count ONLY active fields with values
+    Object.keys(processedData).forEach(fieldName => {
+        // Skip excluded fields
+        if (excludedFields.has(fieldName)) return;
 
-    visibleFieldElements.forEach(fieldElement => {
-        const fieldName = fieldElement.dataset?.fieldName || fieldElement.dataset?.field;
+        const fieldInfo = processedData[fieldName];
 
-        // Skip if no field name or excluded field
-        if (!fieldName || excludedFields.has(fieldName)) return;
+        // Skip if no value
+        const value = typeof fieldInfo === 'object' ? fieldInfo.value : fieldInfo;
+        if (!value || value.trim() === '' || value === 'N/A') return;
 
-        // Get field value from input
-        const fieldInput = fieldElement.querySelector('.field-input, input:not([type="checkbox"]), select, textarea');
-        const fieldValue = fieldInput ? getInputValue(fieldInput) : null;
+        // Check if field is active
+        const isActive = typeof fieldInfo === 'object' ? (fieldInfo.active !== false) : true;
 
-        // Skip empty values
-        if (!fieldValue || fieldValue.trim() === '' || fieldValue === 'N/A') return;
-
-        // Get toggle state from checkbox
-        const toggle = fieldElement.querySelector('input[type="checkbox"]');
-        const isActive = toggle ? toggle.checked : true;
-
-        // Count based on filter mode
-        if (filterValue === 'all') {
-            if (isActive) {
-                activeFieldCount++;
-            }
-        } else if (filterValue === 'active') {
-            if (isActive) {
-                activeFieldCount++;
-            }
-        } else if (filterValue === 'inactive') {
-            // In "Inactive fields Only" mode: button should be disabled
-            // (don't count anything)
+        if (isActive) {
+            activeFieldCount++;
         }
     });
 
@@ -488,30 +487,18 @@ function updateTransferButtonState() {
     if (activeFieldCount === 0) {
         transferBtn.disabled = true;
         transferBtn.classList.add('no-active-fields');
-
-        if (filterValue === 'inactive') {
-            transferBtn.title = 'Cannot transfer inactive fields. Switch to "All Fields" or "Active Fields Only".';
-        } else {
-            transferBtn.title = 'No fields to transfer. Please load a lead first.';
-        }
-
+        transferBtn.title = 'No active fields to transfer. Please activate some fields first.';
         transferBtn.style.opacity = '0.5';
         transferBtn.style.cursor = 'not-allowed';
     } else {
         transferBtn.disabled = false;
         transferBtn.classList.remove('no-active-fields');
-
-        if (filterValue === 'active') {
-            transferBtn.title = `Transfer ${activeFieldCount} active field${activeFieldCount > 1 ? 's' : ''} to Salesforce`;
-        } else {
-            transferBtn.title = `Transfer ${activeFieldCount} field${activeFieldCount > 1 ? 's' : ''} to Salesforce`;
-        }
-
+        transferBtn.title = `Transfer ${activeFieldCount} active field${activeFieldCount > 1 ? 's' : ''} to Salesforce`;
         transferBtn.style.opacity = '1';
         transferBtn.style.cursor = 'pointer';
     }
 
-    console.log(`🔄 Transfer button updated: ${activeFieldCount} fields (mode: ${filterValue}, visible: ${visibleFieldElements.length})`);
+    console.log(`🔄 Transfer button updated: ${activeFieldCount} active fields with values`);
 }
 
 // Initialize toggle change listeners
@@ -4404,6 +4391,7 @@ function updateConnectionStatus(status, message, userInfo = null) {
     const transferBtn = document.getElementById('transferToSalesforceBtn');
     const dashboardButton = document.getElementById('dashboardButton');
     const authNotice = document.getElementById('auth-required-notice');
+    const connectButton = document.getElementById('connectButton');
 
     if (status === 'connected' && userInfo) {
         // Save connection with persistence
@@ -4418,6 +4406,11 @@ function updateConnectionStatus(status, message, userInfo = null) {
         // Update API status indicator (V2 UI)
         if (typeof window.updateAPIStatus === 'function') {
             window.updateAPIStatus();
+        }
+
+        // Hide Connect button when connected
+        if (connectButton) {
+            connectButton.style.display = 'none';
         }
 
         // Enable transfer button ONLY if there are active fields
@@ -4449,6 +4442,11 @@ function updateConnectionStatus(status, message, userInfo = null) {
         // Update API status indicator (V2 UI)
         if (typeof window.updateAPIStatus === 'function') {
             window.updateAPIStatus();
+        }
+
+        // Show Connect button when not connected
+        if (connectButton) {
+            connectButton.style.display = 'flex';
         }
 
         if (transferBtn) {
