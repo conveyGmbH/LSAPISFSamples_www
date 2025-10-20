@@ -230,26 +230,6 @@
                 </div>
             </div>
 
-            <!-- User Profile -->
-            <div id="user-profile-sidebar" class="p-4 border-b border-gray-200" style="display: none;">
-                <div class="flex items-center mb-2">
-                    <div id="user-avatar" class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold mr-3">
-                        ?
-                    </div>
-                    <div class="flex-1 min-w-0">
-                        <p id="user-name-sidebar" class="font-medium text-sm truncate">Not connected</p>
-                        <p id="user-email-sidebar" class="text-xs text-gray-500 truncate">-</p>
-                    </div>
-                </div>
-                <div class="mt-2 text-xs text-gray-500">
-                    <p id="user-org-sidebar">-</p>
-                </div>
-                <button id="disconnect-sf-btn" class="mt-3 w-full px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 text-sm font-medium rounded-lg transition-colors flex items-center justify-center">
-                    <i class="fas fa-sign-out-alt mr-2"></i>
-                    Disconnect
-                </button>
-            </div>
-
             <!-- Navigation -->
             <div class="flex-1 p-4 overflow-y-auto">
                 <div class="mb-6">
@@ -291,10 +271,23 @@
                 </div>
             </div>
 
-            <!-- Disconnect Button -->
-            <div class="p-4 border-t border-gray-200">
-                <button id="logoutButton" class="w-full flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
-                    <i class="fas fa-sign-out-alt mr-2"></i> Disconnect
+            <!-- User Profile (Bottom of Sidebar) -->
+            <div id="user-profile-sidebar" class="p-4 border-t border-gray-200 bg-gray-50" style="display: none;">
+                <div class="flex items-center mb-2">
+                    <div id="user-avatar" class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold mr-3">
+                        ?
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p id="user-name-sidebar" class="font-medium text-sm truncate">Not connected</p>
+                        <p id="user-email-sidebar" class="text-xs text-gray-500 truncate">-</p>
+                    </div>
+                </div>
+                <div class="mt-2 text-xs text-gray-500">
+                    <p id="user-org-sidebar">-</p>
+                </div>
+                <button id="disconnect-sf-btn" class="mt-3 w-full px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 text-sm font-medium rounded-lg transition-colors flex items-center justify-center">
+                    <i class="fas fa-sign-out-alt mr-2"></i>
+                    Disconnect
                 </button>
             </div>
         </div>
@@ -332,7 +325,7 @@
                         <div class="flex justify-between items-center">
                             <div>
                                 <p class="text-sm font-medium text-gray-500">Active</p>
-                                <p id="active-field-count" class="text-xl font-bold text-green-600">0</p>
+                                <p id="active-field-count" class="text-lg font-bold text-green-600">0</p>
                             </div>
                             <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
                                 <i class="fas fa-check-circle text-green-500 text-xl"></i>
@@ -344,7 +337,7 @@
                         <div class="flex justify-between items-center">
                             <div>
                                 <p class="text-sm font-medium text-gray-500">Inactive</p>
-                                <p id="inactive-field-count" class="text-xl font-bold text-red-600">0</p>
+                                <p id="inactive-field-count" class="text-lg font-bold text-red-600">0</p>
                             </div>
                             <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
                                 <i class="fas fa-times-circle text-red-500 text-xl"></i>
@@ -356,7 +349,7 @@
                         <div class="flex justify-between items-center">
                             <div>
                                 <p class="text-sm font-medium text-gray-500">Total</p>
-                                <p id="total-field-count" class="text-xl font-bold text-blue-600">0</p>
+                                <p id="total-field-count" class="text-lg font-bold text-blue-600">0</p>
                             </div>
                             <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
                                 <i class="fas fa-chart-bar text-blue-500 text-xl"></i>
@@ -381,13 +374,13 @@
                             </div>
                             <!-- Filter Buttons -->
                             <div class="flex items-center space-x-2">
-                                <button data-filter="all" class="filter-btn active px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg text-sm font-medium">
+                                <button data-filter="all" class="filter-btn active px-3 py-1.5 text-blue-600 border-b-2 border-blue-600 text-sm font-medium hover:bg-blue-50">
                                     All Fields
                                 </button>
-                                <button data-filter="active" class="filter-btn px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium">
+                                <button data-filter="active" class="filter-btn px-3 py-1.5 text-gray-600 border-b-2 border-transparent text-sm font-medium hover:bg-gray-50">
                                     Active Only
                                 </button>
-                                <button data-filter="inactive" class="filter-btn px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium">
+                                <button data-filter="inactive" class="filter-btn px-3 py-1.5 text-gray-600 border-b-2 border-transparent text-sm font-medium hover:bg-gray-50">
                                     Inactive Only
                                 </button>
                             </div>
@@ -623,14 +616,81 @@
         </div>
     </div>
 
+    <!-- Disconnect Confirmation Modal -->
+    <div id="disconnect-modal" class="modal">
+        <div class="modal-content" style="max-width: 450px;">
+            <div class="bg-gradient-to-r from-red-500 to-red-600 text-white p-4 rounded-t-xl flex justify-between items-center">
+                <div class="flex items-center">
+                    <i class="fas fa-sign-out-alt mr-2"></i>
+                    <h3 class="text-lg font-bold">Disconnect from Salesforce</h3>
+                </div>
+                <button id="close-disconnect-modal" class="text-white hover:text-gray-200 text-2xl font-bold">&times;</button>
+            </div>
+            <div class="p-6">
+                <p class="text-gray-700 text-base mb-6">Are you sure you want to disconnect from Salesforce? You will need to authenticate again to transfer leads.</p>
+                <div class="flex justify-end space-x-3">
+                    <button id="cancel-disconnect-btn" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-medium transition-colors">
+                        Cancel
+                    </button>
+                    <button id="confirm-disconnect-btn" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors flex items-center">
+                        <i class="fas fa-sign-out-alt mr-2"></i>
+                        Disconnect
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed top-4 right-4 z-[10000] flex flex-col gap-2"></div>
+
+    <!-- Missing SF Fields Modal -->
+    <div id="missing-fields-modal" class="modal">
+        <div class="modal-content" style="max-width: 700px; max-height: 80vh;">
+            <div class="bg-gradient-to-r from-orange-500 to-orange-600 text-white p-4 rounded-t-xl flex justify-between items-center">
+                <div class="flex items-center">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>
+                    <h3 class="text-lg font-bold">Missing Salesforce Fields</h3>
+                </div>
+                <button id="close-missing-fields-modal" class="text-white hover:text-gray-200 text-2xl font-bold">&times;</button>
+            </div>
+            <div class="p-6 overflow-auto" style="max-height: calc(80vh - 150px);">
+                <p class="text-gray-700 text-sm mb-4">The following fields do not exist in your Salesforce Lead object. Would you like to create them?</p>
+
+                <!-- Missing fields list -->
+                <div id="missing-fields-list" class="space-y-2 mb-4">
+                    <!-- Will be populated dynamically -->
+                </div>
+
+                <div class="border-t pt-4 mt-4">
+                    <div class="flex items-start space-x-2 text-sm text-gray-600 mb-4">
+                        <i class="fas fa-info-circle mt-1"></i>
+                        <p>Fields will be created as custom fields in Salesforce. You can modify their properties later in Salesforce Setup.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-gray-50 p-4 rounded-b-xl flex justify-end space-x-3 border-t">
+                <button id="cancel-missing-fields-btn" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-medium transition-colors">
+                    Cancel Transfer
+                </button>
+                <button id="skip-missing-fields-btn" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center">
+                    <i class="fas fa-forward mr-2"></i>
+                    Transfer Without These Fields
+                </button>
+                <button id="create-missing-fields-btn" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors flex items-center">
+                    <i class="fas fa-plus-circle mr-2"></i>
+                    Create & Transfer
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
-    <!-- Load global classes first (non-module scripts) -->
     <script src="/js/services/mapping/SalesforceFieldMapper.js"></script>
     <script src="/js/services/mapping/FieldRenderer.js"></script>
     <script src="/js/services/mapping/FieldMappingService.js"></script>
 
-    <!-- Load controllers as modules -->
+    <!-- Load unified controller with all functionality -->
     <script type="module" src="/js/controllers/displayLeadTransferController.js"></script>
-    <script type="module" src="/js/controllers/displayLeadTransfer_v2_adapter.js"></script>
 </body>
 </html>

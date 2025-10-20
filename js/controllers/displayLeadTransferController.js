@@ -1,7 +1,6 @@
 import { appConfig } from "../config/salesforceConfig.js";
 import ApiService from "../services/apiService.js";
 import { formatDate } from "../utils/helper.js";
-// Note: SalesforceFieldMapper and FieldRenderer are loaded as global classes via script tags
 
 
 // Enhanced connection persistence manager
@@ -113,7 +112,8 @@ class ConnectionPersistenceManager {
 
 
 // Global variables
-let selectedLeadData = null;
+// Global variable for lead data - accessible from all functions
+window.selectedLeadData = null;
 let leadSource = null;
 let isTransferInProgress = false;
 let isLabelEditMode = false;
@@ -122,7 +122,7 @@ let fieldMappingConfig = {};
 
 function cleanupOldLeadData() {
   try {
-    const prefix = 'selectedLeadData_';
+    const prefix = 'window.selectedLeadData_';
     const leadDataKeys = [];
 
     // Find all EventId-specific lead data keys
@@ -310,7 +310,7 @@ function collectCurrentLeadData() {
   console.log('🔄 Collected current lead data from inputs:', currentData);
 
   // Start with original data and override with current values
-  const mergedData = { ...selectedLeadData };
+  const mergedData = { ...window.selectedLeadData };
 
   // Override only the fields that have current values
   Object.keys(currentData).forEach(fieldName => {
@@ -319,9 +319,6 @@ function collectCurrentLeadData() {
 
   console.log('📋 Final merged data:', mergedData);
 
-  // MODIFICATION CLIENT: Ne pas appliquer le mapping ici
-  // Le mapping sera appliqué dans transferLeadDirectlyToSalesforce()
-  // Retourner les données brutes avec les noms originaux des champs
   return mergedData;
 }
 
@@ -423,10 +420,6 @@ async function checkForDuplicates(leadData) {
 }
 
 // Handle transfer button click
-// ============================================================================
-// ENHANCED TRANSFER SYSTEM - Active Fields Only with Custom Field Creation
-// ============================================================================
-
 /**
  * Update Transfer button state based on active fields
  */
@@ -472,16 +465,16 @@ function updateTransferButtonState() {
         // Skip empty values
         if (!fieldValue || fieldValue.trim() === '' || fieldValue === 'N/A') return;
 
+        // Get toggle state from checkbox
+        const toggle = fieldElement.querySelector('input[type="checkbox"]');
+        const isActive = toggle ? toggle.checked : true;
+
         // Count based on filter mode
         if (filterValue === 'all') {
-            // In "All fields" mode: count all visible fields with values
-            activeFieldCount++;
+            if (isActive) {
+                activeFieldCount++;
+            }
         } else if (filterValue === 'active') {
-            // In "Active fields Only" mode: count only active fields
-            // Check if field has active toggle or is in active class
-            const isActive = fieldElement.classList.contains('field-active') ||
-                           !fieldElement.classList.contains('field-inactive');
-
             if (isActive) {
                 activeFieldCount++;
             }
@@ -521,9 +514,8 @@ function updateTransferButtonState() {
     console.log(`🔄 Transfer button updated: ${activeFieldCount} fields (mode: ${filterValue}, visible: ${visibleFieldElements.length})`);
 }
 
-/**
- * Initialize toggle change listeners
- */
+// Initialize toggle change listeners
+ 
 function initializeToggleListeners() {
     // Listen for all checkbox changes
     document.addEventListener('change', (e) => {
@@ -535,10 +527,7 @@ function initializeToggleListeners() {
     console.log('✅ Toggle listeners initialized');
 }
 
-/**
- * Collect only ACTIVE fields (toggle enabled) from the UI
- * @returns {Object} { leadData, fieldsList, labels }
- */
+
 function collectActiveFieldsOnly() {
     const leadData = {};
     const fieldsList = [];
@@ -567,7 +556,6 @@ function collectActiveFieldsOnly() {
 
         // Skip excluded/system fields
         if (excludedFields.has(fieldName)) {
-            console.log(`⏭️  Skipping system field: ${fieldName}`);
             return;
         }
 
@@ -877,7 +865,7 @@ function showDuplicateModal(duplicates) {
 }
 
 // ============================================================================
-// TRANSFER BUTTON HANDLER - ENHANCED VERSION
+// TRANSFER BUTTON HANDLER 
 // ============================================================================
 
 async function handleTransferButtonClick() {
@@ -989,7 +977,7 @@ async function handleTransferButtonClick() {
     `;
 
     // Prepare attachments if present
-    const attachmentIds = leadData.AttachmentIdList || selectedLeadData?.AttachmentIdList;
+    const attachmentIds = leadData.AttachmentIdList || window.selectedLeadData?.AttachmentIdList;
     const attachments = await fetchAttachments(attachmentIds);
 
     // IMPORTANT: Transfer ONLY active fields (leadData), NOT merged data
@@ -1039,9 +1027,8 @@ async function handleTransferButtonClick() {
   }
 }
 
-// ============================================================================
+
 // DISCONNECT & CONNECT HANDLERS
-// ============================================================================
 
 /* Handle disconnect button click */
 async function handleDisconnectClick() {
@@ -1054,15 +1041,50 @@ async function handleDisconnectClick() {
       };
       showLogoutModal();
     } else {
-
-      if (confirm("Are you sure you want to disconnect from Salesforce?")) {
+      // Show modern disconnect modal
+      showDisconnectModal(() => {
         performDisconnect();
-      }
+      });
     }
   } catch (error) {
     console.error("Error during disconnect process:", error);
     showError("Failed to disconnect from Salesforce");
   }
+}
+
+/**
+ * Show disconnect confirmation modal
+ */
+function showDisconnectModal(onConfirm) {
+  const modal = document.getElementById('disconnect-modal');
+  if (!modal) {
+    console.error('Disconnect modal not found');
+    return;
+  }
+
+  modal.classList.add('show');
+
+  const closeBtn = document.getElementById('close-disconnect-modal');
+  const cancelBtn = document.getElementById('cancel-disconnect-btn');
+  const confirmBtn = document.getElementById('confirm-disconnect-btn');
+
+  const closeModal = () => {
+    modal.classList.remove('show');
+  };
+
+  if (closeBtn) closeBtn.onclick = closeModal;
+  if (cancelBtn) cancelBtn.onclick = closeModal;
+  if (confirmBtn) {
+    confirmBtn.onclick = () => {
+      closeModal();
+      if (onConfirm) onConfirm();
+    };
+  }
+
+  // Close on outside click
+  modal.onclick = (e) => {
+    if (e.target === modal) closeModal();
+  };
 }
 
 // Perform the actual disconnect logic
@@ -1454,27 +1476,37 @@ function displayLeadData(data) {
             active: true
         }]));
 
-    // Filtrer et afficher les champs selon leur statut
-    const filterValue = document.getElementById('field-display-filter')?.value || 'all';
+    // Filtrer et afficher les champs selon leur statut - IMPORTANT: lire depuis localStorage
+    const filterValue = localStorage.getItem('field-display-filter') || 'all';
+    console.log(`📋 displayLeadData() applying filter: ${filterValue}`);
 
     Object.keys(processedData).forEach((fieldName) => {
         const fieldInfo = processedData[fieldName];
 
-        // Appliquer le filtre
-        if (filterValue === 'active' && !fieldInfo.active) return;
-        if (filterValue === 'inactive' && fieldInfo.active) return;
+        // Exclure les champs système de l'affichage (ne peuvent pas être transférés à SF)
+        if (isSystemField(fieldName)) return;
 
-        // MODIFICATION CLIENT: Ne plus exclure les champs système de l'affichage
-        // Afficher TOUS les champs (même __metadata sera exclu par le filtre plus bas)
-        // Exclure uniquement les métadonnées techniques inutiles
+        // Exclure les métadonnées techniques
         if (fieldName === '__metadata' || fieldName === 'KontaktViewId') return;
+
+        // Appliquer le filtre - utilise la même logique que generateCardView
+        const isActive = fieldInfo.active !== false;
+        if (filterValue === 'active' && !isActive) return;  // Affiche seulement les actifs
+        if (filterValue === 'inactive' && isActive) return;  // Affiche seulement les inactifs
 
         const fieldRow = createFieldTableRow(fieldName, fieldInfo);
         leadDataContainer.appendChild(fieldRow);
     });
 
-    // Mettre à jour les statistiques
-    setTimeout(() => updateFieldStats(), 100);
+    // Mettre à jour les statistiques (use V2 if available)
+    // Increased delay to ensure DOM is fully rendered
+    setTimeout(() => {
+        if (typeof window.updateFieldStats === 'function') {
+            window.updateFieldStats();
+        } else {
+            updateFieldStats();
+        }
+    }, 300);
 
     // Clean N/A values from all inputs after data is displayed
     setTimeout(() => cleanNAValuesFromInputs(), 200);
@@ -1533,7 +1565,8 @@ function updateLeadInfoHeader(data) {
  */
 function createFieldTableRow(fieldName, fieldInfo) {
     const row = document.createElement('tr');
-    row.className = `table-row hover:bg-gray-50 field-row ${!fieldInfo.active ? 'opacity-50 bg-gray-100' : ''}`;
+    const activeClass = fieldInfo.active ? 'active' : 'inactive';
+    row.className = `table-row hover:bg-gray-50 field-row ${activeClass} ${!fieldInfo.active ? 'opacity-50 bg-gray-100' : ''}`;
     row.dataset.fieldName = fieldName;
 
     const salesforceConfig = getSalesforceFieldConfig(fieldName);
@@ -1574,7 +1607,7 @@ function createFieldTableRow(fieldName, fieldInfo) {
                 <i class="fas fa-edit mr-1"></i> Edit
             </button>
             <label class="toggle-switch inline-block align-middle">
-                <input type="checkbox" ${fieldInfo.active ? 'checked' : ''}>
+                <input id="${fieldName}-toggle" type="checkbox" ${fieldInfo.active ? 'checked' : ''}>
                 <span class="toggle-slider"></span>
             </label>
         </td>
@@ -1593,22 +1626,58 @@ function createFieldTableRow(fieldName, fieldInfo) {
         });
     }
 
-    toggle.addEventListener('change', () => {
-        fieldInfo.active = toggle.checked;
-        updateFieldStats();
-        updateTransferButtonState();
+    toggle.addEventListener('change', async () => {
+        const isChecked = toggle.checked;
 
-        // Update row styling
-        if (fieldInfo.active) {
-            row.classList.remove('opacity-50', 'bg-gray-100');
+        // Safety: Prevent saving system fields
+        if (isSystemField(fieldName)) {
+            console.warn(`⚠️ Cannot modify system field: ${fieldName}`);
+            toggle.checked = !isChecked; // Revert
+            return;
+        }
+
+        fieldInfo.active = isChecked;
+
+        // Update in-memory data
+        if (window.selectedLeadData && window.selectedLeadData[fieldName]) {
+            if (typeof window.selectedLeadData[fieldName] === 'object') {
+                window.selectedLeadData[fieldName].active = isChecked;
+            }
+        }
+
+        // Save to FieldMappingService (only for non-system fields)
+        if (window.fieldMappingService) {
+            try {
+                await window.fieldMappingService.setFieldConfig(fieldName, { active: isChecked });
+            } catch (error) {
+                console.error(`Failed to save ${fieldName}:`, error);
+                // Revert on error
+                toggle.checked = !isChecked;
+                fieldInfo.active = !isChecked;
+                return;
+            }
+        }
+
+        // Update row styling and classes
+        if (isChecked) {
+            row.classList.remove('opacity-50', 'bg-gray-100', 'inactive');
+            row.classList.add('active');
         } else {
-            row.classList.add('opacity-50', 'bg-gray-100');
+            row.classList.add('opacity-50', 'bg-gray-100', 'inactive');
+            row.classList.remove('active');
         }
 
         // Re-render to update status badge
         const statusBadge = row.querySelector('.px-2');
-        statusBadge.className = `px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${fieldInfo.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`;
-        statusBadge.textContent = fieldInfo.active ? 'Active' : 'Inactive';
+        statusBadge.className = `px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${isChecked ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`;
+        statusBadge.textContent = isChecked ? 'Active' : 'Inactive';
+
+        // Sync with CardView if exists
+        syncToggleWithCardView(fieldName, isChecked);
+
+        // Update stats and transfer button
+        updateFieldStats();
+        updateTransferButtonState();
     });
 
     // Add edit button listener - Opens inline editing or modal
@@ -2413,10 +2482,10 @@ async function loadLeadData() {
         }
 
         // Parse lead data
-        selectedLeadData = JSON.parse(leadDataStr);
+        window.selectedLeadData = JSON.parse(leadDataStr);
 
         // Transform null values to appropriate defaults
-        selectedLeadData = transformNullValues(selectedLeadData);
+        window.selectedLeadData = transformNullValues(window.selectedLeadData);
 
         // Load and merge field updates from LS_FieldMappings database
         let dataWasUpdated = false;
@@ -2438,14 +2507,14 @@ async function loadLeadData() {
                         console.log('Â Saved field values:', savedFieldValues);
 
                         // Merge saved field values with original data
-                        Object.assign(selectedLeadData, savedFieldValues);
+                        Object.assign(window.selectedLeadData, savedFieldValues);
 
                         console.log('ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Data merged with saved field values from LS_FieldMappings');
                         console.log('ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Final data sample:', {
-                            Title: selectedLeadData.Title,
-                            FirstName: selectedLeadData.FirstName,
-                            LastName: selectedLeadData.LastName,
-                            Email: selectedLeadData.Email
+                            Title: window.selectedLeadData.Title,
+                            FirstName: window.selectedLeadData.FirstName,
+                            LastName: window.selectedLeadData.LastName,
+                            Email: window.selectedLeadData.Email
                         });
 
                         // Mark that data was updated from DB
@@ -2460,7 +2529,7 @@ async function loadLeadData() {
                 console.warn(' Error loading field values from LS_FieldMappings, trying localStorage fallback:', error.message);
 
                 try {
-                    const storageKey = `selectedLeadData_${eventId}`;
+                    const storageKey = `window.selectedLeadData_${eventId}`;
                     const savedData = localStorage.getItem(storageKey);
                     if (savedData) {
                         const parsedData = JSON.parse(savedData);
@@ -2468,8 +2537,8 @@ async function loadLeadData() {
 
                         // Merge only the updated fields, keep original structure
                         Object.keys(parsedData).forEach(key => {
-                            if (parsedData[key] !== selectedLeadData[key]) {
-                                selectedLeadData[key] = parsedData[key];
+                            if (parsedData[key] !== window.selectedLeadData[key]) {
+                                window.selectedLeadData[key] = parsedData[key];
                             }
                         });
 
@@ -2491,7 +2560,7 @@ async function loadLeadData() {
         console.log(' Available data:', {
             hasFieldMappingService: !!window.fieldMappingService,
             eventId: eventId,
-            leadDataKeys: Object.keys(selectedLeadData).slice(0, 10)
+            leadDataKeys: Object.keys(window.selectedLeadData).slice(0, 10)
         });
 
 
@@ -2517,7 +2586,7 @@ async function loadLeadData() {
                 console.log('DEBUG RELOAD: Initializing field mapping service with API...');
 
                 // Add timeout to prevent infinite loading
-                const initPromise = window.fieldMappingService.initializeFields(selectedLeadData, eventId);
+                const initPromise = window.fieldMappingService.initializeFields(window.selectedLeadData, eventId);
 
                 if (initPromise && typeof initPromise.then === 'function') {
                     // It's a Promise, wait for it with timeout
@@ -2540,7 +2609,7 @@ async function loadLeadData() {
                 // Ensure basic field mapping is available
                 if (window.fieldMappingService.initializeFields) {
                     try {
-                        window.fieldMappingService.initializeFields(selectedLeadData);
+                        window.fieldMappingService.initializeFields(window.selectedLeadData);
                     } catch (fallbackError) {
                         console.error('Even fallback initialization failed:', fallbackError);
                     }
@@ -2557,7 +2626,7 @@ async function loadLeadData() {
         } else {
             console.log('Displaying lead data with original API data...');
         }
-        displayLeadData(selectedLeadData);
+        displayLeadData(window.selectedLeadData);
 
         // Load any previously saved local changes (priority over API/database data)
         loadSavedChanges();
@@ -2572,9 +2641,9 @@ async function loadLeadData() {
         showError("Error loading lead data: " + error.message);
         
         // Fallback: try to display what we can
-        if (selectedLeadData) {
+        if (window.selectedLeadData) {
             try {
-                displayLeadData(selectedLeadData);
+                displayLeadData(window.selectedLeadData);
                 // Stats will be updated after displayLeadData completes
             } catch (displayError) {
                 console.error("Failed to display lead data:", displayError);
@@ -3298,7 +3367,7 @@ function toggleFieldEdit(fieldName) {
     if (editIcon) editIcon.style.display = 'none';
 
     // Set current value and focus
-    inputElement.value = selectedLeadData[fieldName] || '';
+    inputElement.value = window.selectedLeadData[fieldName] || '';
     setTimeout(() => inputElement.focus(), 100); // Delay focus to ensure visibility
 
     // Add event listener to save on blur/enter
@@ -3322,7 +3391,7 @@ function toggleFieldEdit(fieldName) {
       }
       if (e.key === 'Escape') {
         e.preventDefault();
-        inputElement.value = selectedLeadData[fieldName] || '';
+        inputElement.value = window.selectedLeadData[fieldName] || '';
         exitEditMode();
       }
     }, { once: true });
@@ -3447,7 +3516,7 @@ function saveFieldValue(fieldName, value) {
     clearFieldError(fieldName);
 
     // Mettre à jour les données globales
-    selectedLeadData[fieldName] = value;
+    window.selectedLeadData[fieldName] = value;
     
     // Sauvegarder dans localStorage pour persistence
     try {
@@ -3462,7 +3531,7 @@ function saveFieldValue(fieldName, value) {
         
         if (!savedData.changes) savedData.changes = {};
         savedData.changes[fieldName] = value;
-        savedData.leadData = selectedLeadData;
+        savedData.leadData = window.selectedLeadData;
         savedData.timestamp = new Date().toISOString();
         savedData.eventId = eventId;
         
@@ -3536,8 +3605,8 @@ function loadSavedChanges() {
     if (savedData && savedData.leadData) {
       console.log('📄 Loading saved lead data:', savedData.changes);
 
-      // Merge saved data with current selectedLeadData
-      Object.assign(selectedLeadData, savedData.leadData);
+      // Merge saved data with current window.selectedLeadData
+      Object.assign(window.selectedLeadData, savedData.leadData);
 
       // Show notification about loaded data
       if (savedData.changes && Object.keys(savedData.changes).length > 0) {
@@ -3550,7 +3619,7 @@ function loadSavedChanges() {
 
       // Re-render the lead fields with saved data
       if (typeof renderLeadFields === 'function') {
-        renderLeadFields(selectedLeadData);
+        renderLeadFields(window.selectedLeadData);
       }
 
       return true;
@@ -3818,12 +3887,12 @@ function validateBusinessLogic() {
   let isValid = true;
 
   // Ensure basic lead data integrity
-  if (!selectedLeadData.LastName || !selectedLeadData.LastName.trim()) {
+  if (!window.selectedLeadData.LastName || !window.selectedLeadData.LastName.trim()) {
     errors.push('Last Name is required for lead creation');
     isValid = false;
   }
 
-  if (!selectedLeadData.Company || !selectedLeadData.Company.trim()) {
+  if (!window.selectedLeadData.Company || !window.selectedLeadData.Company.trim()) {
     errors.push('Company Name is required for lead creation');
     isValid = false;
   }
@@ -3836,9 +3905,9 @@ function validateBusinessLogic() {
   };
 
   // Validate email if provided and not placeholder
-  if (hasValidContent(selectedLeadData.Email)) {
+  if (hasValidContent(window.selectedLeadData.Email)) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(selectedLeadData.Email.trim())) {
+    if (!emailRegex.test(window.selectedLeadData.Email.trim())) {
       errors.push('Email address format is invalid');
       isValid = false;
     }
@@ -3847,7 +3916,7 @@ function validateBusinessLogic() {
   // Phone number validation removed per user request
 
   // Validate country code consistency (only if both have meaningful content)
-  if (hasValidContent(selectedLeadData.CountryCode) && hasValidContent(selectedLeadData.Country)) {
+  if (hasValidContent(window.selectedLeadData.CountryCode) && hasValidContent(window.selectedLeadData.Country)) {
     const countryMappings = {
       'US': ['United States', 'USA', 'America'],
       'DE': ['Germany', 'Deutschland'],
@@ -3856,13 +3925,13 @@ function validateBusinessLogic() {
       'CA': ['Canada']
     };
 
-    const countryCode = selectedLeadData.CountryCode.toUpperCase();
-    const country = selectedLeadData.Country.toLowerCase();
+    const countryCode = window.selectedLeadData.CountryCode.toUpperCase();
+    const country = window.selectedLeadData.Country.toLowerCase();
 
     if (countryMappings[countryCode]) {
       const validCountries = countryMappings[countryCode].map(c => c.toLowerCase());
       if (!validCountries.some(validCountry => country.includes(validCountry))) {
-        console.warn(`ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡ ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â Country code ${countryCode} may not match country ${selectedLeadData.Country}`);
+        console.warn(`ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡ ÃƒÆ’Ã‚Â¯Ãƒâ€šÃ‚Â¸Ãƒâ€šÃ‚Â Country code ${countryCode} may not match country ${window.selectedLeadData.Country}`);
       }
     }
   }
@@ -3878,11 +3947,11 @@ function validateBusinessLogic() {
  */
 async function displayAttachmentsPreview() {
   // Check if lead has attachments
-  if (!selectedLeadData || !selectedLeadData.AttachmentIdList) {
+  if (!window.selectedLeadData || !window.selectedLeadData.AttachmentIdList) {
     return;
   }
 
-  const attachmentIds = selectedLeadData.AttachmentIdList.split(",").filter(
+  const attachmentIds = window.selectedLeadData.AttachmentIdList.split(",").filter(
     (id) => id.trim() !== ""
   );
   
@@ -4326,6 +4395,16 @@ function updateConnectionStatus(status, message, userInfo = null) {
         ConnectionPersistenceManager.saveConnection(userInfo);
         updateUserProfile(userInfo);
 
+        // Update sidebar profile (V2 UI)
+        if (typeof window.updateUserProfileSidebar === 'function') {
+            window.updateUserProfileSidebar();
+        }
+
+        // Update API status indicator (V2 UI)
+        if (typeof window.updateAPIStatus === 'function') {
+            window.updateAPIStatus();
+        }
+
         // Enable transfer button ONLY if there are active fields
         if (transferBtn) {
             transferBtn.classList.remove('disabled');
@@ -4346,6 +4425,16 @@ function updateConnectionStatus(status, message, userInfo = null) {
         // Clear persistent connection when disconnected
         ConnectionPersistenceManager.clearConnection();
         clearUserProfile();
+
+        // Update sidebar profile (V2 UI)
+        if (typeof window.updateUserProfileSidebar === 'function') {
+            window.updateUserProfileSidebar();
+        }
+
+        // Update API status indicator (V2 UI)
+        if (typeof window.updateAPIStatus === 'function') {
+            window.updateAPIStatus();
+        }
 
         if (transferBtn) {
             transferBtn.disabled = true;
@@ -4504,8 +4593,12 @@ async function toggleFieldActive(fieldName, isActive) {
             }
         }
 
-        // Update statistics
-        updateFieldStats();
+        // Update statistics (use V2 if available)
+        if (typeof window.updateFieldStats === 'function') {
+            window.updateFieldStats();
+        } else {
+            updateFieldStats();
+        }
 
         // Show success message
         const fieldLabel = window.fieldMappingService.formatFieldLabel(fieldName);
@@ -4524,12 +4617,16 @@ function handleFieldFilterChange(event) {
     const filterValue = event.target.value;
     console.log(`Field filter changed to: ${filterValue}`);
 
-    if (selectedLeadData) {
-        displayLeadData(selectedLeadData);
+    if (window.selectedLeadData) {
+        displayLeadData(window.selectedLeadData);
     }
 
-    // Update statistics after filtering
-    updateFieldStats();
+    // Update statistics after filtering (use V2 if available)
+    if (typeof window.updateFieldStats === 'function') {
+        window.updateFieldStats();
+    } else {
+        updateFieldStats();
+    }
 
     // Update transfer button state based on visible active fields
     setTimeout(() => updateTransferButtonState(), 100);
@@ -4647,8 +4744,12 @@ async function initializeEnhancedSystem() {
         document.getElementById('save-custom-label')?.addEventListener('click', saveCustomLabel);
         document.getElementById('confirm-export')?.addEventListener('click', downloadConfiguration);
 
-         // Update statistics
-        updateFieldStats();
+         // Update statistics (use V2 if available)
+        if (typeof window.updateFieldStats === 'function') {
+            window.updateFieldStats();
+        } else {
+            updateFieldStats();
+        }
 
     } catch (error) {
         console.error('Failed to initialize enhanced system:', error);
@@ -4846,8 +4947,8 @@ async function saveCustomLabel() {
         showSuccess(`Label updated and saved to server for ${fieldName}`);
 
         // Refresh display
-        if (selectedLeadData) {
-            displayLeadData(selectedLeadData);
+        if (window.selectedLeadData) {
+            displayLeadData(window.selectedLeadData);
         }
 
         // Restore button
@@ -5083,70 +5184,9 @@ function createAdvancedControlPanel() {
 
 
 
-function updateFieldStats() {
-    // Count fields in both ListView (table rows) and CardView (field cards)
-    const visibleFields = document.querySelectorAll('.field-row, .field-card');
-
-    let activeCount = 0;
-    let inactiveCount = 0;
-
-    visibleFields.forEach(field => {
-        const toggle = field.querySelector('input[type="checkbox"]');
-        if (toggle) {
-            if (toggle.checked) {
-                activeCount++;
-            } else {
-                inactiveCount++;
-            }
-        }
-    });
-
-    const total = visibleFields.length;
-
-    console.log('Field statistics:', {
-        total,
-        active: activeCount,
-        inactive: inactiveCount,
-        source: 'DOM field count'
-    });
-
-    // Update stat counters
-    updateStatCounter('total-field-count', total);
-    updateStatCounter('active-field-count', activeCount);
-    updateStatCounter('inactive-field-count', inactiveCount);
-
-    return { total, active: activeCount, inactive: inactiveCount };
-}
-
-// Update stat counters (all elements with same ID)
-function updateStatCounter(elementId, newValue) {
-    // Find ALL elements with this ID (fixes collision issue)
-    const elements = document.querySelectorAll(`[id="${elementId}"]`);
-
-    if (elements.length === 0) {
-        console.warn(`No elements found with ID: ${elementId}`);
-        return;
-    }
-
-    console.log(`Updating ${elements.length} element(s) with ID ${elementId}:   ${newValue}`);
-
-    // Update all elements with this ID (no animations)
-    elements.forEach(element => {
-        // Determine if we need prefix format based on element structure
-        const parent = element.parentElement;
-        const hasStatLabel = parent && parent.querySelector('.stat-label');
-
-        if (hasStatLabel) {
-            element.textContent = newValue;
-        } else {
-            // Legacy structure: format with prefix
-            const prefix = elementId.includes('total') ? 'Total' :
-                          elementId.includes('active') ? 'Active' :
-                          elementId.includes('inactive') ? 'Inactive' : '';
-            element.textContent = prefix ? `${prefix}: ${newValue}` : newValue;
-        }
-    });
-}
+// ===== ANCIENNE FONCTION updateFieldStats() SUPPRIMÉE =====
+// Remplacée par updateFieldStats() dans la section V2 UI ENHANCEMENTS
+// (anciennement lignes 5158-5239)
 
 async function saveAndExportConfiguration() {
     const exportBtn = document.getElementById('export-config-btn');
@@ -5201,7 +5241,12 @@ async function saveAndExportConfiguration() {
         }
 
         // Show success message with detailed info
-        updateFieldStats(); // Refresh stats
+        // Refresh stats (use V2 if available)
+        if (typeof window.updateFieldStats === 'function') {
+            window.updateFieldStats();
+        } else {
+            updateFieldStats();
+        }
         const configuredFields = window.fieldMappingService.fieldConfig.config.fields?.length || 0;
         const activeFields = window.fieldMappingService.fieldConfig.config.fields?.filter(f => f.active !== false).length || 0;
         const customLabelsCount = Object.keys(window.fieldMappingService.customLabels || {}).length;
@@ -5390,6 +5435,830 @@ function showErrorNotification(message) {
         }
     }, 5000);
 }
+
+
+// ========================================
+// V2 UI ENHANCEMENTS
+// ========================================
+
+// View state management
+let currentView = 'list'; // 'list' or 'card'
+
+/**
+ * Initialize V2 UI enhancements
+ */
+function initializeV2UI() {
+    console.log('🎨 Initializing V2 UI enhancements...');
+
+    // Initialize filter dropdown with saved value
+    initializeFilterDropdown();
+
+    setupViewToggle();
+    setupFilterButtons();
+    setupBulkActions();
+    setupUserProfileUpdates();
+    setupAPIStatusIndicator();
+    setupStatsCardsClickHandlers();
+    setupDisconnectButton();
+    setupFieldRowsObserver();
+}
+
+/**
+ * Initialize hidden filter dropdown with saved value
+ */
+function initializeFilterDropdown() {
+    const savedFilter = localStorage.getItem('field-display-filter') || 'all';
+    let dropdown = document.getElementById('field-display-filter');
+    if (!dropdown) {
+        dropdown = document.createElement('select');
+        dropdown.id = 'field-display-filter';
+        dropdown.style.display = 'none';
+        document.body.appendChild(dropdown);
+    }
+    dropdown.value = savedFilter;
+    console.log(`🔍 Filter initialized to: ${savedFilter}`);
+}
+
+// Apply filter to both List and Card views 
+function applyFilterToAllViews(filterValue) {
+    console.log(`🔄 Applying filter "${filterValue}" to all views`);
+
+    // Save filter
+    localStorage.setItem('field-display-filter', filterValue);
+
+    // Update filter buttons UI
+    const filterButtons = document.querySelectorAll('.filter-btn');
+    filterButtons.forEach(btn => {
+        btn.classList.remove('active', 'text-blue-600', 'border-blue-600');
+        btn.classList.add('text-gray-600', 'border-transparent');
+
+        if (btn.dataset.filter === filterValue) {
+            btn.classList.remove('text-gray-600', 'border-transparent');
+            btn.classList.add('active', 'text-blue-600', 'border-blue-600');
+        }
+    });
+
+    // Update hidden dropdown
+    let dropdown = document.getElementById('field-display-filter');
+    if (!dropdown) {
+        dropdown = document.createElement('select');
+        dropdown.id = 'field-display-filter';
+        dropdown.style.display = 'none';
+        document.body.appendChild(dropdown);
+    }
+    dropdown.value = filterValue;
+
+    // Apply filter based on current view
+    if (currentView === 'list') {
+        // Re-render list view with filter
+        if (window.selectedLeadData && typeof displayLeadData === 'function') {
+            displayLeadData(window.selectedLeadData);
+        }
+    } else {
+        // Regenerate card view with filter
+        generateCardView();
+    }
+
+    // Update summary text
+    updateFieldsSummary(filterValue);
+
+    // Update stats and transfer button
+    setTimeout(() => {
+        updateFieldStats();
+        if (typeof updateTransferButtonState === 'function') updateTransferButtonState();
+    }, 200);
+}
+
+/**
+ * Update fields summary text
+ */
+function updateFieldsSummary(filterValue) {
+    const summaryElement = document.getElementById('fields-summary');
+    if (!summaryElement) return;
+
+    const summaries = {
+        'all': 'Showing all fields',
+        'active': 'Showing active fields only',
+        'inactive': 'Showing inactive fields only'
+    };
+
+    summaryElement.textContent = summaries[filterValue] || 'Showing all fields';
+}
+
+/**
+ * Setup filter buttons (All/Active/Inactive)
+ */
+function setupFilterButtons() {
+    const filterButtons = document.querySelectorAll('.filter-btn');
+    if (filterButtons.length === 0) return;
+
+    // Restore last filter from localStorage and apply it
+    const savedFilter = localStorage.getItem('field-display-filter') || 'all';
+    setTimeout(() => applyFilterToAllViews(savedFilter), 100);
+
+    // Add click listeners to all filter buttons
+    filterButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const filterValue = btn.dataset.filter;
+            applyFilterToAllViews(filterValue);
+        });
+    });
+}
+
+/**
+ * Setup view toggle (List/Card)
+ */
+function setupViewToggle() {
+    const listViewBtn = document.getElementById('listViewBtn');
+    const cardViewBtn = document.getElementById('cardViewBtn');
+    const listContainer = document.getElementById('list-view-container');
+    const cardContainer = document.getElementById('card-view-container');
+
+    if (!listViewBtn || !cardViewBtn) return;
+
+    listViewBtn.addEventListener('click', () => {
+        currentView = 'list';
+        listViewBtn.classList.add('active');
+        cardViewBtn.classList.remove('active');
+        listContainer.style.display = 'block';
+        cardContainer.style.display = 'none';
+
+        // Apply current filter to list view
+        const currentFilter = localStorage.getItem('field-display-filter') || 'all';
+        if (window.selectedLeadData && typeof displayLeadData === 'function') {
+            displayLeadData(window.selectedLeadData);
+        }
+        console.log('📋 Switched to ListView with filter:', currentFilter);
+    });
+
+    cardViewBtn.addEventListener('click', () => {
+        currentView = 'card';
+        cardViewBtn.classList.add('active');
+        listViewBtn.classList.remove('active');
+        listContainer.style.display = 'none';
+        cardContainer.style.display = 'grid';
+
+        // Apply current filter to card view
+        generateCardView();
+        console.log('🎴 Switched to CardView with filter:', localStorage.getItem('field-display-filter') || 'all');
+    });
+}
+
+/**
+ * Generate Card View from lead data with filter applied
+ */
+function generateCardView() {
+    const cardContainer = document.getElementById('card-view-container');
+    if (!cardContainer || !window.selectedLeadData) {
+        console.warn('⚠️ CardView: container ou data manquant');
+        return;
+    }
+
+    // Get current filter
+    const filterValue = localStorage.getItem('field-display-filter') || 'all';
+    console.log(`🎴 Generating CardView with filter: "${filterValue}"`);
+
+    cardContainer.innerHTML = '';
+
+    // Process data with labels
+    const processedData = window.fieldMappingService?.applyCustomLabels(window.selectedLeadData) ||
+        Object.fromEntries(Object.entries(window.selectedLeadData).map(([key, value]) => [key, {
+            value,
+            label: formatFieldLabel(key),
+            active: true
+        }]));
+
+    let cardsGenerated = 0;
+
+    Object.keys(processedData).forEach((fieldName) => {
+        const fieldInfo = processedData[fieldName];
+
+        // Skip system fields
+        if (isSystemField(fieldName)) return;
+        if (fieldName === '__metadata' || fieldName === 'KontaktViewId') return;
+
+        // Apply filter
+        const isActive = fieldInfo.active !== false;
+        if (filterValue === 'active' && !isActive) return;
+        if (filterValue === 'inactive' && isActive) return;
+
+        // Get Salesforce config for required fields
+        const salesforceConfig = getSalesforceFieldConfig(fieldName);
+        const isRequired = salesforceConfig?.required || false;
+
+        const card = createFieldCard(fieldName, fieldInfo.label || fieldName, fieldInfo.value || '', isActive, isRequired);
+        cardContainer.appendChild(card);
+        cardsGenerated++;
+    });
+
+    // Show message if no cards match filter
+    if (cardsGenerated === 0) {
+        const noResultsMsg = filterValue === 'active'
+            ? 'No active fields to display'
+            : filterValue === 'inactive'
+            ? 'No inactive fields to display'
+            : 'No fields to display';
+        cardContainer.innerHTML = `<div class="col-span-full text-center text-gray-500 py-8">${noResultsMsg}</div>`;
+    }
+
+    console.log(`✅ Generated ${cardsGenerated} cards with filter: ${filterValue}`);
+
+    // Update stats
+    setTimeout(() => {
+        updateFieldStats();
+        if (typeof updateTransferButtonState === 'function') updateTransferButtonState();
+    }, 100);
+}
+
+/**
+ * Create a field card element
+ */
+function createFieldCard(fieldName, fieldLabel, fieldValue, isActive, isRequired) {
+    const card = document.createElement('div');
+    card.className = `field-card bg-white rounded-lg p-4 ${isActive ? 'active-field' : 'inactive-field'}`;
+    card.dataset.fieldName = fieldName;
+
+    const customFieldName = window.fieldMappingService?.customLabels?.[fieldName] || '';
+    const escapeHtml = (text) => {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    };
+
+    card.innerHTML = `
+        <div class="flex justify-between items-start mb-3">
+            <div class="flex-1">
+                <h3 class="text-sm font-semibold text-gray-800 mb-1">
+                    ${escapeHtml(fieldLabel)}
+                    ${isRequired ? '<span class="text-red-500 ml-1">*</span>' : ''}
+                </h3>
+                <div class="text-xs mt-1">
+                    <span class="text-gray-500 font-mono">API: ${escapeHtml(fieldName)}</span>
+                    ${customFieldName ? `<br><span class="text-green-600 font-mono font-semibold">SF: ${escapeHtml(customFieldName)}</span>` : ''}
+                </div>
+            </div>
+            <div class="flex items-center space-x-2">
+                <button class="edit-label-btn text-gray-400 hover:text-green-600" title="Edit Salesforce field mapping">
+                    <i class="fas fa-tag text-sm"></i>
+                </button>
+                <label class="toggle-switch">
+                    <input id="${escapeHtml(fieldName)}-toggle" type="checkbox" ${isActive ? 'checked' : ''} data-field="${escapeHtml(fieldName)}">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+        </div>
+        <div class="mb-3">
+            <p class="text-sm text-gray-700 break-words">${escapeHtml(fieldValue) || '<span class="text-gray-400 italic">No value</span>'}</p>
+        </div>
+        <div class="flex justify-end">
+            <button class="edit-field-btn text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center">
+                <i class="fas fa-edit mr-1"></i> Edit
+            </button>
+        </div>
+    `;
+
+    // Event listeners
+    const toggleInput = card.querySelector('input[type="checkbox"]');
+    const editLabelBtn = card.querySelector('.edit-label-btn');
+
+    if (editLabelBtn) {
+        editLabelBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (typeof openEditLabelModal === 'function') openEditLabelModal(fieldName);
+        });
+    }
+
+    toggleInput.addEventListener('change', async (e) => {
+        const isChecked = e.target.checked;
+
+        // Safety: Prevent saving system fields
+        if (isSystemField(fieldName)) {
+            console.warn(`⚠️ Cannot modify system field: ${fieldName}`);
+            toggleInput.checked = !isChecked; // Revert
+            return;
+        }
+
+        // Update card classes
+        card.classList.toggle('active-field', isChecked);
+        card.classList.toggle('inactive-field', !isChecked);
+
+        // Update in-memory data
+        if (window.selectedLeadData && window.selectedLeadData[fieldName]) {
+            if (typeof window.selectedLeadData[fieldName] === 'object') {
+                window.selectedLeadData[fieldName].active = isChecked;
+            }
+        }
+
+        // Save to FieldMappingService
+        if (window.fieldMappingService) {
+            try {
+                await window.fieldMappingService.setFieldConfig(fieldName, { active: isChecked });
+            } catch (error) {
+                console.error(`Failed to save ${fieldName}:`, error);
+                // Revert on error
+                toggleInput.checked = !isChecked;
+                card.classList.toggle('active-field', !isChecked);
+                card.classList.toggle('inactive-field', isChecked);
+                return;
+            }
+        }
+
+        // Sync with ListView
+        syncToggleWithListView(fieldName, isChecked);
+
+        // Update stats and transfer button
+        updateFieldStats();
+        if (typeof updateTransferButtonState === 'function') updateTransferButtonState();
+    });
+
+    // Edit button click
+    const editBtn = card.querySelector('.edit-field-btn');
+    if (editBtn) {
+        editBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openEditModal(fieldName, fieldLabel, fieldValue);
+        });
+    }
+
+    // Card click (except toggle)
+    card.addEventListener('click', (e) => {
+        if (e.target.closest('.toggle-switch') || e.target.closest('.edit-field-btn') || e.target.closest('.edit-label-btn')) {
+            return;
+        }
+        openEditModal(fieldName, fieldLabel, fieldValue);
+    });
+
+    return card;
+}
+
+/**
+ * Sync card toggle with list toggle
+ */
+function syncToggleWithListView(fieldName, isChecked) {
+    const listToggle = document.querySelector(`.lead-field[data-field-name="${fieldName}"] input[type="checkbox"], .field-row[data-field-name="${fieldName}"] input[type="checkbox"]`);
+    if (listToggle && listToggle.checked !== isChecked) {
+        listToggle.checked = isChecked;
+
+        // Update list row classes
+        const listRow = listToggle.closest('.lead-field, .field-row');
+        if (listRow) {
+            if (isChecked) {
+                listRow.classList.remove('opacity-50', 'bg-gray-100', 'inactive');
+                listRow.classList.add('active');
+            } else {
+                listRow.classList.add('opacity-50', 'bg-gray-100', 'inactive');
+                listRow.classList.remove('active');
+            }
+
+            // Update status badge
+            const statusBadge = listRow.querySelector('.px-2.inline-flex');
+            if (statusBadge) {
+                statusBadge.className = `px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${isChecked ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`;
+                statusBadge.textContent = isChecked ? 'Active' : 'Inactive';
+            }
+        }
+    }
+}
+
+/**
+ * Sync list toggle with card toggle
+ */
+function syncToggleWithCardView(fieldName, isChecked) {
+    const cardToggle = document.querySelector(`.field-card[data-field-name="${fieldName}"] input[type="checkbox"]`);
+    if (cardToggle && cardToggle.checked !== isChecked) {
+        cardToggle.checked = isChecked;
+
+        // Update card classes
+        const card = cardToggle.closest('.field-card');
+        if (card) {
+            if (isChecked) {
+                card.classList.remove('inactive-field');
+                card.classList.add('active-field');
+            } else {
+                card.classList.remove('active-field');
+                card.classList.add('inactive-field');
+            }
+        }
+    }
+}
+
+/**
+ * Open edit modal for field editing
+ */
+function openEditModal(fieldName, fieldLabel, fieldValue) {
+    const modal = document.getElementById('edit-field-modal');
+    const fieldNameInput = document.getElementById('edit-field-name');
+    const fieldValueInput = document.getElementById('edit-field-value');
+    const activeToggle = document.getElementById('edit-field-active');
+
+    if (!modal) {
+        console.error('Edit modal not found');
+        return;
+    }
+
+    fieldNameInput.value = fieldLabel;
+    fieldValueInput.value = fieldValue;
+
+    // Get current active state from either card or list view
+    const fieldCard = document.querySelector(`.field-card[data-field-name="${fieldName}"]`);
+    const fieldRow = document.querySelector(`.lead-field[data-field-name="${fieldName}"], .field-row[data-field-name="${fieldName}"]`);
+    const toggle = (fieldCard || fieldRow)?.querySelector('input[type="checkbox"]');
+    activeToggle.checked = toggle ? toggle.checked : true;
+
+    // Store field name for save
+    modal.dataset.editingField = fieldName;
+
+    modal.classList.add('show');
+
+    // Setup close handlers
+    const closeBtn = document.getElementById('close-edit-modal');
+    const cancelBtn = document.getElementById('cancel-edit-btn');
+    const saveBtn = document.getElementById('save-edit-btn');
+
+    const closeModal = () => {
+        modal.classList.remove('show');
+    };
+
+    if (closeBtn) closeBtn.onclick = closeModal;
+    if (cancelBtn) cancelBtn.onclick = closeModal;
+
+    if (saveBtn) {
+        saveBtn.onclick = () => {
+            saveFieldEdit(fieldName, fieldValueInput.value, activeToggle.checked);
+            closeModal();
+        };
+    }
+}
+
+/**
+ * Save field edit from modal
+ */
+function saveFieldEdit(fieldName, newValue, isActive) {
+    // 1. Update in-memory data (IMPORTANT for Salesforce transfer)
+    if (window.selectedLeadData) {
+        // If field exists as object
+        if (window.selectedLeadData[fieldName] && typeof window.selectedLeadData[fieldName] === 'object') {
+            window.selectedLeadData[fieldName].value = newValue;
+            window.selectedLeadData[fieldName].active = isActive;
+        }
+        // If field exists as primitive value
+        else if (window.selectedLeadData[fieldName] !== undefined) {
+            window.selectedLeadData[fieldName] = newValue;
+        }
+        console.log(`💾 Memory updated: ${fieldName} = "${newValue}", active: ${isActive}`);
+    }
+
+    // 2. Update in FieldMappingService if exists
+    if (window.fieldMappingService) {
+        window.fieldMappingService.setFieldConfig(fieldName, {
+            active: isActive,
+            value: newValue
+        });
+    }
+
+    // 3. Re-render the entire display with current filter
+    // This ensures the edited value appears correctly in all views
+    if (window.selectedLeadData && typeof displayLeadData === 'function') {
+        const currentFilter = localStorage.getItem('field-display-filter') || 'all';
+        displayLeadData(window.selectedLeadData);
+        // Restore filter after re-render
+        localStorage.setItem('field-display-filter', currentFilter);
+
+        // Regenerate CardView if in card mode
+        setTimeout(() => {
+            if (currentView === 'card') {
+                generateCardView();
+            }
+            updateFieldStats();
+        }, 100);
+    } else {
+        // Fallback: Update DOM directly if displayLeadData not available
+        const listFieldElement = document.querySelector(`.lead-field[data-field-name="${fieldName}"], .field-row[data-field-name="${fieldName}"]`);
+        if (listFieldElement) {
+            const valueSpan = listFieldElement.querySelector('.field-value');
+            if (valueSpan) valueSpan.textContent = newValue;
+
+            const toggle = listFieldElement.querySelector('input[type="checkbox"]');
+            if (toggle && toggle.checked !== isActive) {
+                toggle.checked = isActive;
+                toggle.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        }
+
+        if (currentView === 'card') {
+            generateCardView();
+        }
+        updateFieldStats();
+    }
+
+    // 4. Update transfer button state
+    if (typeof updateTransferButtonState === 'function') {
+        updateTransferButtonState();
+    }
+
+    console.log(`✅ Field updated: ${fieldName} = "${newValue}", active: ${isActive}`);
+}
+
+/**
+ * Setup bulk actions
+ */
+function setupBulkActions() {
+    const activateAllBtn = document.getElementById('activate-all-btn');
+    const deactivateAllBtn = document.getElementById('deactivate-all-btn');
+
+    if (activateAllBtn) {
+        activateAllBtn.addEventListener('click', () => setAllFieldsActive(true));
+    }
+    if (deactivateAllBtn) {
+        deactivateAllBtn.addEventListener('click', () => setAllFieldsActive(false));
+    }
+}
+
+/**
+ * Set ALL fields active/inactive (regardless of current filter)
+ */
+async function setAllFieldsActive(active) {
+    if (!window.selectedLeadData) {
+        console.warn('⚠️ No lead data loaded');
+        alert('No lead data loaded');
+        return;
+    }
+
+    console.log(`🔄 Setting ALL fields to ${active ? 'active' : 'inactive'}`);
+
+    // Process data with labels
+    const processedData = window.fieldMappingService?.applyCustomLabels(window.selectedLeadData) ||
+        Object.fromEntries(Object.entries(window.selectedLeadData).map(([key, value]) => [key, {
+            value,
+            label: formatFieldLabel(key),
+            active: true
+        }]));
+
+    let updatedCount = 0;
+
+    // Update ALL fields in memory (not just visible ones)
+    for (const [fieldName, fieldInfo] of Object.entries(processedData)) {
+        // Skip system fields and metadata
+        if (isSystemField(fieldName)) continue;
+        if (fieldName === '__metadata' || fieldName === 'KontaktViewId') continue;
+
+        // Update in-memory data
+        if (typeof fieldInfo === 'object') {
+            fieldInfo.active = active;
+        }
+        if (window.selectedLeadData[fieldName] && typeof window.selectedLeadData[fieldName] === 'object') {
+            window.selectedLeadData[fieldName].active = active;
+        }
+
+        // Update FieldMappingService config in memory
+        if (window.fieldMappingService) {
+            const existingConfig = window.fieldMappingService.getFieldConfig(fieldName);
+            if (existingConfig) {
+                existingConfig.active = active;
+                existingConfig.updatedAt = new Date().toISOString();
+            } else {
+                window.fieldMappingService.setFieldConfigLocal(fieldName, { active });
+            }
+        }
+
+        updatedCount++;
+    }
+
+    console.log(`✅ Updated ${updatedCount} fields in memory`);
+
+    // Bulk save to API
+    if (window.fieldMappingService && typeof window.fieldMappingService.setAllFieldsActive === 'function') {
+        try {
+            await window.fieldMappingService.setAllFieldsActive(active);
+            console.log('✅ Bulk save to API completed');
+        } catch (error) {
+            console.error('❌ Bulk save to API failed:', error);
+            alert(`Failed to save changes: ${error.message}`);
+            return;
+        }
+    }
+
+    // Regenerate current view with current filter
+    if (currentView === 'list') {
+        console.log('🔄 Regenerating ListView after bulk action');
+        if (window.selectedLeadData && typeof displayLeadData === 'function') {
+            displayLeadData(window.selectedLeadData);
+        }
+    } else {
+        console.log('🔄 Regenerating CardView after bulk action');
+        generateCardView();
+    }
+
+    // Update stats and transfer button
+    setTimeout(() => {
+        updateFieldStats();
+        if (typeof updateTransferButtonState === 'function') updateTransferButtonState();
+    }, 100);
+
+    alert(`${active ? 'Activated' : 'Deactivated'} ${updatedCount} fields`);
+    console.log(`✅ Bulk action completed: ${updatedCount} fields set to ${active ? 'active' : 'inactive'}`);
+}
+
+/**
+ * Update field statistics
+ */
+function updateFieldStats() {
+    const isVisible = (el) => !!(el && el.offsetParent !== null);
+
+    let fieldNodes = Array.from(document.querySelectorAll('.lead-field[data-field-name], .field-row[data-field-name]')).filter(isVisible);
+    if (fieldNodes.length === 0) {
+        fieldNodes = Array.from(document.querySelectorAll('.field-card[data-field-name]')).filter(isVisible);
+    }
+
+    const seen = new Set();
+    let activeCount = 0;
+    let inactiveCount = 0;
+
+    for (const node of fieldNodes) {
+        const name = node.dataset.fieldName || node.dataset.field;
+        if (!name || seen.has(name)) continue;
+        seen.add(name);
+
+        const toggle = node.querySelector('input[type="checkbox"]');
+        if (toggle && toggle.checked) activeCount++;
+        else inactiveCount++;
+    }
+
+    const totalCount = activeCount + inactiveCount;
+    const el = (id) => document.getElementById(id);
+    if (el('active-field-count')) el('active-field-count').textContent = activeCount;
+    if (el('inactive-field-count')) el('inactive-field-count').textContent = inactiveCount;
+    if (el('total-field-count')) el('total-field-count').textContent = totalCount;
+
+    console.log(`📊 Stats updated: ${activeCount} active, ${inactiveCount} inactive, ${totalCount} total`);
+}
+
+/**
+ * Setup user profile updates
+ */
+function setupUserProfileUpdates() {
+    const observer = new MutationObserver(() => updateUserProfileSidebar());
+    const profileElement = document.getElementById('salesforceUserInfo');
+    if (profileElement) observer.observe(profileElement, { childList: true, subtree: true });
+}
+
+/**
+ * Update user profile in sidebar
+ */
+function updateUserProfileSidebar() {
+    const sidebarProfile = document.getElementById('user-profile-sidebar');
+    const userName = document.getElementById('user-name-sidebar');
+    const userEmail = document.getElementById('user-email-sidebar');
+    const userOrg = document.getElementById('user-org-sidebar');
+    const userAvatar = document.getElementById('user-avatar');
+
+    if (!sidebarProfile || !userName) return;
+
+    let userInfo = null;
+    try {
+        const userInfoData = JSON.parse(localStorage.getItem('sf_user_info'));
+        if (userInfoData?.userInfo) userInfo = userInfoData.userInfo;
+    } catch (e) {}
+
+    if (userInfo) {
+        sidebarProfile.style.display = 'block';
+        userName.textContent = userInfo.display_name || userInfo.username || 'User';
+        if (userEmail) userEmail.textContent = userInfo.username || '-';
+        if (userOrg) userOrg.textContent = userInfo.organization_name || 'Unknown Org';
+        if (userAvatar) {
+            const initials = (userInfo.display_name || userInfo.username || 'U')
+                .split(' ').map(w => w[0]).join('').toUpperCase().substring(0, 2);
+            userAvatar.textContent = initials;
+        }
+    } else {
+        sidebarProfile.style.display = 'none';
+    }
+}
+
+/**
+ * Setup API status indicator
+ */
+function setupAPIStatusIndicator() {
+    updateAPIStatus();
+    setInterval(updateAPIStatus, 5000);
+}
+
+/**
+ * Update API status
+ */
+function updateAPIStatus() {
+    const statusCard = document.getElementById('api-status-card');
+    if (!statusCard) return;
+
+    try {
+        const userInfoData = localStorage.getItem('sf_user_info');
+        const persistedConnection = userInfoData ? JSON.parse(userInfoData) : null;
+        const isConnected = persistedConnection?.status === 'connected' && persistedConnection?.expiresAt > Date.now();
+
+        if (isConnected) {
+            const displayName = persistedConnection.userInfo?.display_name || persistedConnection.userInfo?.username || 'Connected';
+            statusCard.className = 'bg-green-50 border border-green-200 rounded-lg p-3';
+            statusCard.innerHTML = `
+                <div class="flex items-center">
+                    <div class="w-3 h-3 bg-green-500 rounded-full mr-2 animate-pulse"></div>
+                    <span class="text-sm font-medium text-green-700">API Connected</span>
+                </div>
+                <p class="text-xs text-green-600 mt-1">${displayName}</p>
+            `;
+        } else {
+            statusCard.className = 'bg-gray-100 border border-gray-200 rounded-lg p-3';
+            statusCard.innerHTML = `
+                <div class="flex items-center">
+                    <div class="w-3 h-3 bg-gray-400 rounded-full mr-2"></div>
+                    <span class="text-sm font-medium text-gray-600">Disconnected</span>
+                </div>
+                <p class="text-xs text-gray-500 mt-1">Not connected</p>
+            `;
+        }
+    } catch (e) {}
+}
+
+/**
+ * Setup stats cards click handlers
+ */
+function setupStatsCardsClickHandlers() {
+    const cards = [
+        { id: 'active-stats-card', filter: 'active' },
+        { id: 'inactive-stats-card', filter: 'inactive' },
+        { id: 'total-stats-card', filter: 'all' }
+    ];
+
+    cards.forEach(({ id, filter }) => {
+        const card = document.getElementById(id);
+        if (card) {
+            card.addEventListener('click', () => {
+                const btn = document.querySelector(`.filter-btn[data-filter="${filter}"]`);
+                if (btn) btn.click();
+            });
+        }
+    });
+}
+
+// Setup disconnect button
+ 
+function setupDisconnectButton() {
+    const disconnectBtn = document.getElementById('disconnect-sf-btn');
+    if (!disconnectBtn) return;
+
+    disconnectBtn.addEventListener('click', async () => {
+        if (!confirm('Are you sure you want to disconnect from Salesforce?')) return;
+
+        try {
+            localStorage.removeItem('sf_connection_status');
+            localStorage.removeItem('sf_user_info');
+            localStorage.removeItem('sf_connected_at');
+            sessionStorage.clear();
+
+            const keys = Object.keys(localStorage);
+            keys.forEach(key => {
+                if (key.startsWith('lead_edits_')) localStorage.removeItem(key);
+            });
+
+            updateAPIStatus();
+            alert('Successfully disconnected. Please refresh the page.');
+            setTimeout(() => window.location.reload(), 1000);
+        } catch (error) {
+            console.error('Error during disconnect:', error);
+        }
+    });
+}
+
+// Setup MutationObserver for field rows
+ 
+function setupFieldRowsObserver() {
+    const leadDataContainer = document.getElementById('leadData');
+    if (!leadDataContainer) return;
+
+    const observer = new MutationObserver((mutations) => {
+        const rowsAdded = mutations.some(m => m.type === 'childList' && m.addedNodes.length > 0);
+        if (rowsAdded && leadDataContainer.children.length > 0) {
+            console.log('📊 Field rows detected, updating stats...');
+            updateFieldStats();
+        }
+    });
+
+    observer.observe(leadDataContainer, { childList: true, subtree: false });
+}
+
+// Auto-initialize V2 UI when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeV2UI);
+} else {
+    initializeV2UI();
+}
+
+// functions globally
+window.updateFieldStats = updateFieldStats;
+window.updateUserProfileSidebar = updateUserProfileSidebar;
+window.updateAPIStatus = updateAPIStatus;
+window.openEditModal = openEditModal;
+
 
 
 // Export functions that other modules might use
