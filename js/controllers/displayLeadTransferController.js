@@ -1480,6 +1480,8 @@ function displayLeadData(data) {
     const filterValue = localStorage.getItem('field-display-filter') || 'all';
     console.log(`📋 displayLeadData() applying filter: ${filterValue}`);
 
+    let rowsGenerated = 0;
+
     Object.keys(processedData).forEach((fieldName) => {
         const fieldInfo = processedData[fieldName];
 
@@ -1496,7 +1498,20 @@ function displayLeadData(data) {
 
         const fieldRow = createFieldTableRow(fieldName, fieldInfo);
         leadDataContainer.appendChild(fieldRow);
+        rowsGenerated++;
     });
+
+    // Show message if no rows match filter
+    if (rowsGenerated === 0) {
+        const noResultsMsg = filterValue === 'active'
+            ? 'No active fields to display'
+            : filterValue === 'inactive'
+            ? 'No inactive fields to display'
+            : 'No fields to display';
+        leadDataContainer.innerHTML = `<tr><td colspan="4" class="text-center text-gray-500 py-8">${noResultsMsg}</td></tr>`;
+    }
+
+    console.log(`✅ Generated ${rowsGenerated} rows with filter: ${filterValue}`);
 
     // Mettre à jour les statistiques (use V2 if available)
     // Increased delay to ensure DOM is fully rendered
