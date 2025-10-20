@@ -5976,12 +5976,66 @@ function setupBulkActions() {
 }
 
 /**
+ * Show success modal
+ */
+function showSuccessModal(message) {
+    const modal = document.getElementById('bulk-action-success-modal');
+    const messageEl = document.getElementById('bulk-action-message');
+    const closeBtn = document.getElementById('close-bulk-success-modal');
+    const confirmBtn = document.getElementById('confirm-bulk-success');
+
+    if (!modal || !messageEl) return;
+
+    messageEl.textContent = message;
+    modal.style.display = 'flex';
+
+    const closeModal = () => {
+        modal.style.display = 'none';
+    };
+
+    closeBtn.onclick = closeModal;
+    confirmBtn.onclick = closeModal;
+
+    // Close on backdrop click
+    modal.onclick = (e) => {
+        if (e.target === modal) closeModal();
+    };
+}
+
+/**
+ * Show error modal
+ */
+function showErrorModal(message) {
+    const modal = document.getElementById('bulk-action-error-modal');
+    const messageEl = document.getElementById('bulk-error-message');
+    const closeBtn = document.getElementById('close-bulk-error-modal');
+    const confirmBtn = document.getElementById('confirm-bulk-error');
+
+    if (!modal || !messageEl) return;
+
+    messageEl.textContent = message;
+    modal.style.display = 'flex';
+
+    const closeModal = () => {
+        modal.style.display = 'none';
+    };
+
+    closeBtn.onclick = closeModal;
+    confirmBtn.onclick = closeModal;
+
+    // Close on backdrop click
+    modal.onclick = (e) => {
+        if (e.target === modal) closeModal();
+    };
+}
+
+/**
  * Set ALL fields active/inactive (regardless of current filter)
  */
 async function setAllFieldsActive(active) {
     if (!window.selectedLeadData) {
         console.warn('⚠️ No lead data loaded');
-        alert('No lead data loaded');
+        showErrorModal('No lead data loaded. Please select a lead first.');
         return;
     }
 
@@ -6034,7 +6088,7 @@ async function setAllFieldsActive(active) {
             console.log('✅ Bulk save to API completed');
         } catch (error) {
             console.error('❌ Bulk save to API failed:', error);
-            alert(`Failed to save changes: ${error.message}`);
+            showErrorModal(`Failed to save changes: ${error.message}`);
             return;
         }
     }
@@ -6056,7 +6110,8 @@ async function setAllFieldsActive(active) {
         if (typeof updateTransferButtonState === 'function') updateTransferButtonState();
     }, 100);
 
-    alert(`${active ? 'Activated' : 'Deactivated'} ${updatedCount} fields`);
+    // Show success modal with count
+    showSuccessModal(`Successfully ${active ? 'activated' : 'deactivated'} ${updatedCount} fields.`);
     console.log(`✅ Bulk action completed: ${updatedCount} fields set to ${active ? 'active' : 'inactive'}`);
 }
 

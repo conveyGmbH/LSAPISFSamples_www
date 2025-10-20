@@ -28,25 +28,17 @@
 
         /* Cards */
         .card {
-            background-color: #ffffff;
-            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-        }
-        .card:hover {
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
         }
 
-        /* Field cards (CardView) */
+        /* Field cards */
         .field-card {
             transition: all 0.2s ease;
             cursor: pointer;
-            background-color: #ffffff;
-            border: 1px solid #e5e7eb;
-            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
         }
         .field-card:hover {
             transform: translateY(-2px);
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-            border-color: #3b82f6;
         }
         .field-card.active-field {
             border-left: 4px solid #10B981;
@@ -54,15 +46,14 @@
         .field-card.inactive-field {
             border-left: 4px solid #EF4444;
             opacity: 0.7;
-            background-color: #f9fafb;
         }
 
-        /* Toggle switch - Reduced size */
+        /* Toggle switch */
         .toggle-switch {
             position: relative;
             display: inline-block;
-            width: 36px;
-            height: 18px;
+            width: 50px;
+            height: 24px;
         }
         .toggle-switch input {
             opacity: 0;
@@ -77,25 +68,25 @@
             right: 0;
             bottom: 0;
             background-color: #ccc;
-            transition: .3s;
-            border-radius: 18px;
+            transition: .4s;
+            border-radius: 24px;
         }
         .toggle-slider:before {
             position: absolute;
             content: "";
-            height: 14px;
-            width: 14px;
-            left: 2px;
-            bottom: 2px;
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
             background-color: white;
-            transition: .3s;
+            transition: .4s;
             border-radius: 50%;
         }
         input:checked + .toggle-slider {
             background-color: #10B981;
         }
         input:checked + .toggle-slider:before {
-            transform: translateX(18px);
+            transform: translateX(26px);
         }
 
         /* Modal */
@@ -156,77 +147,38 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #555;
         }
-
-        /* Attachment items styling */
-        .attachment-item {
-            display: flex;
-            align-items: center;
-            padding: 12px;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            margin-bottom: 8px;
-            background: white;
-            transition: all 0.2s ease;
-        }
-        .attachment-item:hover {
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            border-color: #3b82f6;
-        }
-        .attachment-icon {
-            margin-right: 12px;
-            font-size: 24px;
-            color: #6b7280;
-        }
-        .attachment-details {
-            flex: 1;
-            min-width: 0;
-        }
-        .attachment-name {
-            font-weight: 500;
-            color: #1f2937;
-            margin-bottom: 4px;
-        }
-        .attachment-meta {
-            display: flex;
-            gap: 12px;
-            font-size: 12px;
-            color: #6b7280;
-        }
-        .view-attachment-btn {
-            padding: 6px 10px;
-            background: #3b82f6;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .view-attachment-btn:hover {
-            background: #2563eb;
-            transform: scale(1.05);
-        }
-        .view-attachment-btn i {
-            font-size: 14px;
-        }
     </style>
 
     <link rel="icon" type="image/x-icon" href="/images/api-sf.ico">
 </head>
-<body class="text-gray-800 overflow-hidden" style="background-color: rgb(249, 250, 251);">
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200 overflow-hidden">
     <div class="flex h-screen">
         <!-- Sidebar -->
-        <div class="sidebar w-64 bg-white border-r border-gray-200 flex flex-col">
+        <div class="sidebar w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
             <!-- Logo -->
             <div class="p-4 border-b border-gray-200">
                 <div class="flex items-center">
-                    <img src="/images/LS-Icons_LS.png" alt="LS" class="w-12 h-12 rounded-lg p-1 mr-2">
+                    <img src="/images/leadsuccess_white.svg" alt="LS" class="w-8 h-8 bg-blue-600 rounded-lg p-1 mr-2">
                     <div>
                         <h1 class="text-lg font-bold text-blue-700">LeadSuccess</h1>
                         <p class="text-xs text-gray-500">Salesforce API Manager</p>
                     </div>
+                </div>
+            </div>
+
+            <!-- User Profile -->
+            <div id="user-profile-sidebar" class="p-4 border-b border-gray-200" style="display: none;">
+                <div class="flex items-center mb-2">
+                    <div id="user-avatar" class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold mr-3">
+                        ?
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p id="user-name-sidebar" class="font-medium text-sm truncate">Not connected</p>
+                        <p id="user-email-sidebar" class="text-xs text-gray-500 truncate">-</p>
+                    </div>
+                </div>
+                <div class="mt-2 text-xs text-gray-500">
+                    <p id="user-org-sidebar">-</p>
                 </div>
             </div>
 
@@ -271,23 +223,20 @@
                 </div>
             </div>
 
-            <!-- User Profile (Bottom of Sidebar) -->
-            <div id="user-profile-sidebar" class="p-4 border-t border-gray-200 bg-gray-50" style="display: none;">
-                <div class="flex items-center mb-2">
-                    <div id="user-avatar" class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold mr-3">
-                        ?
-                    </div>
-                    <div class="flex-1 min-w-0">
-                        <p id="user-name-sidebar" class="font-medium text-sm truncate">Not connected</p>
-                        <p id="user-email-sidebar" class="text-xs text-gray-500 truncate">-</p>
-                    </div>
-                </div>
-                <div class="mt-2 text-xs text-gray-500">
-                    <p id="user-org-sidebar">-</p>
-                </div>
-                <button id="disconnect-sf-btn" class="mt-3 w-full px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 text-sm font-medium rounded-lg transition-colors flex items-center justify-center">
-                    <i class="fas fa-sign-out-alt mr-2"></i>
-                    Disconnect
+            <!-- Dark Mode Toggle -->
+            <div class="p-4 border-t border-gray-200 dark:border-gray-700">
+                <button id="darkModeToggle" class="w-full flex items-center justify-center px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                    <i class="fas fa-moon mr-2 dark-mode-icon-moon"></i>
+                    <i class="fas fa-sun mr-2 dark-mode-icon-sun" style="display: none;"></i>
+                    <span class="dark-mode-text-dark">Dark Mode</span>
+                    <span class="dark-mode-text-light" style="display: none;">Light Mode</span>
+                </button>
+            </div>
+
+            <!-- Disconnect Button -->
+            <div class="p-4 border-t border-gray-200 dark:border-gray-700">
+                <button id="logoutButton" class="w-full flex items-center justify-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <i class="fas fa-sign-out-alt mr-2"></i> Disconnect
                 </button>
             </div>
         </div>
@@ -295,7 +244,7 @@
         <!-- Main Content -->
         <div class="flex-1 flex flex-col overflow-hidden">
             <!-- Header -->
-            <header class="bg-white border-b border-gray-200 py-4 px-6 flex justify-between items-center">
+            <header class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 py-4 px-6 flex justify-between items-center">
                 <div>
                     <h1 class="text-xl font-bold text-gray-800">Transfer Lead to Salesforce</h1>
                     <p class="text-sm text-gray-500">
@@ -318,14 +267,14 @@
             </header>
 
             <!-- Content -->
-            <main class="flex-1 overflow-y-auto p-4">
+            <main class="flex-1 overflow-y-auto p-6">
                 <!-- Stats Cards -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                    <div id="active-stats-card" class="card rounded-xl p-4 cursor-pointer transition-shadow" data-filter="active">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                    <div class="card bg-white rounded-xl p-5">
                         <div class="flex justify-between items-center">
                             <div>
                                 <p class="text-sm font-medium text-gray-500">Active</p>
-                                <p id="active-field-count" class="text-lg font-bold text-green-600">0</p>
+                                <p id="active-field-count" class="text-3xl font-bold text-green-600">0</p>
                             </div>
                             <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
                                 <i class="fas fa-check-circle text-green-500 text-xl"></i>
@@ -333,11 +282,11 @@
                         </div>
                     </div>
 
-                    <div id="inactive-stats-card" class="card rounded-xl p-4 cursor-pointer transition-shadow" data-filter="inactive">
+                    <div class="card bg-white rounded-xl p-5">
                         <div class="flex justify-between items-center">
                             <div>
                                 <p class="text-sm font-medium text-gray-500">Inactive</p>
-                                <p id="inactive-field-count" class="text-lg font-bold text-red-600">0</p>
+                                <p id="inactive-field-count" class="text-3xl font-bold text-red-600">0</p>
                             </div>
                             <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
                                 <i class="fas fa-times-circle text-red-500 text-xl"></i>
@@ -345,11 +294,11 @@
                         </div>
                     </div>
 
-                    <div id="total-stats-card" class="card rounded-xl p-4 cursor-pointer transition-shadow" data-filter="all">
+                    <div class="card bg-white rounded-xl p-5">
                         <div class="flex justify-between items-center">
                             <div>
                                 <p class="text-sm font-medium text-gray-500">Total</p>
-                                <p id="total-field-count" class="text-lg font-bold text-blue-600">0</p>
+                                <p id="total-field-count" class="text-3xl font-bold text-blue-600">0</p>
                             </div>
                             <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
                                 <i class="fas fa-chart-bar text-blue-500 text-xl"></i>
@@ -359,28 +308,28 @@
                 </div>
 
                 <!-- Field Management Controls -->
-                <div class="card rounded-xl p-4 mb-4">
+                <div class="card bg-white dark:bg-gray-800 rounded-xl p-6 mb-6">
                     <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-lg font-bold text-gray-800">Field Management Controls</h2>
+                        <h2 class="text-lg font-bold text-gray-800 dark:text-white">Field Management Controls</h2>
                         <div class="flex items-center space-x-3">
                             <!-- View Toggle -->
                             <div class="flex items-center space-x-2 mr-4">
-                                <button id="listViewBtn" class="view-toggle-btn active px-3 py-1 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded text-sm flex items-center">
+                                <button id="listViewBtn" class="view-toggle-btn active px-3 py-1 bg-gray-200 hover:bg-gray-300 text-gray-700 dark:bg-gray-700 dark:text-gray-300 rounded text-sm flex items-center">
                                     <i class="fas fa-list mr-1"></i> List
                                 </button>
-                                <button id="cardViewBtn" class="view-toggle-btn px-3 py-1 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded text-sm flex items-center">
+                                <button id="cardViewBtn" class="view-toggle-btn px-3 py-1 bg-gray-200 hover:bg-gray-300 text-gray-700 dark:bg-gray-700 dark:text-gray-300 rounded text-sm flex items-center">
                                     <i class="fas fa-th mr-1"></i> Cards
                                 </button>
                             </div>
                             <!-- Filter Buttons -->
                             <div class="flex items-center space-x-2">
-                                <button data-filter="all" class="filter-btn active px-3 py-1.5 text-blue-600 border-b-2 border-blue-600 text-sm font-medium hover:bg-blue-50">
+                                <button data-filter="all" class="filter-btn active px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 dark:bg-blue-900 dark:text-blue-300 rounded-lg text-sm font-medium">
                                     All Fields
                                 </button>
-                                <button data-filter="active" class="filter-btn px-3 py-1.5 text-gray-600 border-b-2 border-transparent text-sm font-medium hover:bg-gray-50">
+                                <button data-filter="active" class="filter-btn px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium">
                                     Active Only
                                 </button>
-                                <button data-filter="inactive" class="filter-btn px-3 py-1.5 text-gray-600 border-b-2 border-transparent text-sm font-medium hover:bg-gray-50">
+                                <button data-filter="inactive" class="filter-btn px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium">
                                     Inactive Only
                                 </button>
                             </div>
@@ -407,15 +356,15 @@
                 </div>
 
                 <!-- Lead Information -->
-                <div id="lead-data-container" class="card rounded-xl p-4">
-                    <div class="flex justify-between items-center mb-4">
+                <div id="lead-data-container" class="card bg-white rounded-xl p-6">
+                    <div class="flex justify-between items-center mb-6">
                         <h2 class="text-lg font-bold text-gray-800">Lead Information</h2>
                         <button id="backButton" class="text-gray-600 hover:text-gray-800 text-sm flex items-center">
                             <i class="fas fa-arrow-left mr-2"></i> Back to Lead Selection
                         </button>
                     </div>
 
-                    <div id="lead-info-header" class="mb-3" style="display: none;">
+                    <div id="lead-info-header" class="mb-4" style="display: none;">
                         <div class="flex items-center text-sm text-gray-500 mb-2">
                             <span id="lead-source" class="mr-2">Source: -</span>
                             <span class="mr-2">•</span>
@@ -427,26 +376,13 @@
                         </div>
                     </div>
 
-                    <!-- ListView Container (Table) -->
+                    <!-- ListView Container -->
                     <div id="list-view-container">
-                        <div class="overflow-x-auto max-h-[600px] overflow-y-auto">
-                            <table class="min-w-full divide-y divide-gray-200">
-                                <thead class="bg-gray-50 sticky top-0 z-10">
-                                    <tr>
-                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b-2 border-gray-300">Field Name</th>
-                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b-2 border-gray-300">Value</th>
-                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b-2 border-gray-300">Status</th>
-                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b-2 border-gray-300">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="leadData" class="bg-white divide-y divide-gray-200">
-                                    <!-- Fields will be populated here as table rows -->
-                                </tbody>
-                            </table>
-                        </div>
+                        <!-- Original lead-preview content will go here -->
+                        <div id="leadData" class="lead-preview"></div>
                     </div>
 
-                    <!-- CardView Container (Grid) -->
+                    <!-- CardView Container -->
                     <div id="card-view-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" style="display: none;">
                         <!-- Field cards will be generated dynamically here -->
                     </div>
@@ -459,19 +395,9 @@
                     </div>
                 </div>
 
-                <!-- Attachments Section -->
-                <div id="attachmentsPreview" class="card rounded-xl p-4 mt-4" style="display: none;">
-                    <h3 class="text-md font-bold text-gray-800 mb-3 flex items-center">
-                        <i class="fas fa-paperclip mr-2 text-blue-600"></i>
-                        Attachments to Transfer
-                    </h3>
-                    <ul id="attachmentsList" class="space-y-2"></ul>
-                    <div class="mt-3 p-3 bg-blue-50 rounded-lg">
-                        <p class="text-sm text-blue-700 attachments-summary">
-                            <i class="fas fa-info-circle mr-1"></i>
-                            <span class="font-medium">0 file(s)</span> will be transferred with this lead
-                        </p>
-                    </div>
+                <!-- Attachments Section (keep existing) -->
+                <div id="attachments-section" class="card bg-white rounded-xl p-6 mt-6" style="display: none;">
+                    <!-- Will be populated by existing code -->
                 </div>
             </main>
         </div>
@@ -491,7 +417,7 @@
                 </div>
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Field Value</label>
-                    <textarea id="edit-field-value" rows="1" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                    <textarea id="edit-field-value" rows="4" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
                 </div>
                 <div class="mb-6 flex items-center">
                     <label class="toggle-switch mr-3">
@@ -506,44 +432,6 @@
                     </button>
                     <button id="save-edit-btn" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">
                         Save Changes
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Edit Label Modal -->
-    <div id="edit-label-modal" class="modal">
-        <div class="modal-content">
-            <div class="bg-gradient-to-r from-green-500 to-green-600 text-white p-4 rounded-t-xl flex justify-between items-center">
-                <h3 class="text-lg font-bold">Edit Field Label</h3>
-                <button id="close-edit-label-modal" class="text-white hover:text-gray-200 text-2xl">&times;</button>
-            </div>
-            <div class="p-6">
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">API Field Name (Read-only)</label>
-                    <input type="text" id="edit-field-api-name" class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none" readonly>
-                    <p class="text-xs text-gray-500 mt-1">This is the original field name from the API</p>
-                </div>
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Salesforce Field Name</label>
-                    <input type="text" id="edit-field-custom-label" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="e.g., Hot__c, CustomField__c">
-                    <p class="text-xs text-gray-500 mt-1">
-                        Must start with a letter, contain only letters, numbers, and underscores.<br>
-                        Custom fields should end with __c (e.g., Question01__c → Hot__c)
-                    </p>
-                </div>
-                <div class="bg-blue-50 border-l-4 border-blue-500 p-3 rounded mb-4">
-                    <p class="text-xs text-blue-700">
-                        <strong>Example:</strong> Map "Question01" to "Hot__c" - this custom name will be used when transferring to Salesforce.
-                    </p>
-                </div>
-                <div class="flex justify-end space-x-3">
-                    <button id="cancel-edit-label-btn" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium">
-                        Cancel
-                    </button>
-                    <button id="save-edit-label-btn" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium">
-                        Save Label
                     </button>
                 </div>
             </div>
@@ -590,149 +478,8 @@
     <!-- Toast Container -->
     <div id="toast-container" class="fixed top-4 right-4 z-50 space-y-2"></div>
 
-    <!-- Field Details Modal -->
-    <div id="field-details-modal" class="modal">
-        <div class="modal-content" style="max-width: 800px; max-height: 80vh;">
-            <div class="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-3 rounded-t-xl flex justify-between items-center">
-                <h3 id="field-details-title" class="text-sm font-bold">Field Details</h3>
-                <button id="close-field-details-modal" class="text-white hover:text-gray-200 text-xl">&times;</button>
-            </div>
-            <div id="field-details-body" class="p-4 overflow-auto" style="max-height: calc(80vh - 60px);">
-                <!-- Content will be loaded here -->
-            </div>
-        </div>
-    </div>
-
-    <!-- Attachment Preview Modal -->
-    <div id="attachment-preview-modal" class="modal">
-        <div class="modal-content" style="max-width: 650px; max-height: 650px;">
-            <div class="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-3 rounded-t-xl flex justify-between items-center">
-                <h3 id="attachment-modal-title" class="text-sm font-bold">Attachment Preview</h3>
-                <button id="close-attachment-modal" class="text-white hover:text-gray-200 text-xl">&times;</button>
-            </div>
-            <div id="attachment-modal-body" class="p-4 overflow-auto" style="max-height: 580px;">
-                <!-- Content will be loaded here -->
-            </div>
-        </div>
-    </div>
-
-    <!-- Disconnect Confirmation Modal -->
-    <div id="disconnect-modal" class="modal">
-        <div class="modal-content" style="max-width: 450px;">
-            <div class="bg-gradient-to-r from-red-500 to-red-600 text-white p-4 rounded-t-xl flex justify-between items-center">
-                <div class="flex items-center">
-                    <i class="fas fa-sign-out-alt mr-2"></i>
-                    <h3 class="text-lg font-bold">Disconnect from Salesforce</h3>
-                </div>
-                <button id="close-disconnect-modal" class="text-white hover:text-gray-200 text-2xl font-bold">&times;</button>
-            </div>
-            <div class="p-6">
-                <p class="text-gray-700 text-base mb-6">Are you sure you want to disconnect from Salesforce? You will need to authenticate again to transfer leads.</p>
-                <div class="flex justify-end space-x-3">
-                    <button id="cancel-disconnect-btn" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-medium transition-colors">
-                        Cancel
-                    </button>
-                    <button id="confirm-disconnect-btn" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors flex items-center">
-                        <i class="fas fa-sign-out-alt mr-2"></i>
-                        Disconnect
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Toast Container -->
-    <div id="toast-container" class="fixed top-4 right-4 z-[10000] flex flex-col gap-2"></div>
-
-    <!-- Missing SF Fields Modal -->
-    <div id="missing-fields-modal" class="modal">
-        <div class="modal-content" style="max-width: 700px; max-height: 80vh;">
-            <div class="bg-gradient-to-r from-orange-500 to-orange-600 text-white p-4 rounded-t-xl flex justify-between items-center">
-                <div class="flex items-center">
-                    <i class="fas fa-exclamation-triangle mr-2"></i>
-                    <h3 class="text-lg font-bold">Missing Salesforce Fields</h3>
-                </div>
-                <button id="close-missing-fields-modal" class="text-white hover:text-gray-200 text-2xl font-bold">&times;</button>
-            </div>
-            <div class="p-6 overflow-auto" style="max-height: calc(80vh - 150px);">
-                <p class="text-gray-700 text-sm mb-4">The following fields do not exist in your Salesforce Lead object. Would you like to create them?</p>
-
-                <!-- Missing fields list -->
-                <div id="missing-fields-list" class="space-y-2 mb-4">
-                    <!-- Will be populated dynamically -->
-                </div>
-
-                <div class="border-t pt-4 mt-4">
-                    <div class="flex items-start space-x-2 text-sm text-gray-600 mb-4">
-                        <i class="fas fa-info-circle mt-1"></i>
-                        <p>Fields will be created as custom fields in Salesforce. You can modify their properties later in Salesforce Setup.</p>
-                    </div>
-                </div>
-            </div>
-            <div class="bg-gray-50 p-4 rounded-b-xl flex justify-end space-x-3 border-t">
-                <button id="cancel-missing-fields-btn" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-medium transition-colors">
-                    Cancel Transfer
-                </button>
-                <button id="skip-missing-fields-btn" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center">
-                    <i class="fas fa-forward mr-2"></i>
-                    Transfer Without These Fields
-                </button>
-                <button id="create-missing-fields-btn" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors flex items-center">
-                    <i class="fas fa-plus-circle mr-2"></i>
-                    Create & Transfer
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Success Modal for Bulk Actions -->
-    <div id="bulk-action-success-modal" class="modal" style="display: none;">
-        <div class="modal-content" style="max-width: 500px;">
-            <div class="bg-gradient-to-r from-green-500 to-green-600 text-white p-4 rounded-t-xl flex justify-between items-center">
-                <div class="flex items-center">
-                    <i class="fas fa-check-circle mr-2 text-2xl"></i>
-                    <h3 class="text-lg font-bold">Success</h3>
-                </div>
-                <button id="close-bulk-success-modal" class="text-white hover:text-gray-200 text-2xl font-bold">&times;</button>
-            </div>
-            <div class="p-6">
-                <p id="bulk-action-message" class="text-gray-700 text-base mb-4"></p>
-                <div class="flex justify-end">
-                    <button id="confirm-bulk-success" class="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors">
-                        OK
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Error Modal for Bulk Actions -->
-    <div id="bulk-action-error-modal" class="modal" style="display: none;">
-        <div class="modal-content" style="max-width: 500px;">
-            <div class="bg-gradient-to-r from-red-500 to-red-600 text-white p-4 rounded-t-xl flex justify-between items-center">
-                <div class="flex items-center">
-                    <i class="fas fa-exclamation-circle mr-2 text-2xl"></i>
-                    <h3 class="text-lg font-bold">Error</h3>
-                </div>
-                <button id="close-bulk-error-modal" class="text-white hover:text-gray-200 text-2xl font-bold">&times;</button>
-            </div>
-            <div class="p-6">
-                <p id="bulk-error-message" class="text-gray-700 text-base mb-4"></p>
-                <div class="flex justify-end">
-                    <button id="confirm-bulk-error" class="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors">
-                        OK
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Scripts -->
-    <script src="/js/services/mapping/SalesforceFieldMapper.js"></script>
-    <script src="/js/services/mapping/FieldRenderer.js"></script>
-    <script src="/js/services/mapping/FieldMappingService.js"></script>
-
-    <!-- Load unified controller with all functionality -->
     <script type="module" src="/js/controllers/displayLeadTransferController.js"></script>
+    <script type="module" src="/js/controllers/displayLeadTransfer_v2_adapter.js"></script>
 </body>
 </html>
