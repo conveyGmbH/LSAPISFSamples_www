@@ -966,17 +966,21 @@ async function handleTransferButtonClick() {
 
     showModernToast('Transferring lead to Salesforce...', 'info', 3000);
 
-    // Show transfer status UI
-    transferResults.style.display = "block";
-    transferStatus.innerHTML = `
-      <div class="transfer-pending">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"/>
-          <polyline points="12 6 12 12 16 14"/>
-        </svg>
-        Transferring lead to Salesforce...
-      </div>
-    `;
+    // Show transfer status UI (if elements exist)
+    if (transferResults) {
+      transferResults.style.display = "block";
+    }
+    if (transferStatus) {
+      transferStatus.innerHTML = `
+        <div class="transfer-pending">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+          </svg>
+          Transferring lead to Salesforce...
+        </div>
+      `;
+    }
 
     // Prepare attachments if present
     const attachmentIds = leadData.AttachmentIdList || window.selectedLeadData?.AttachmentIdList;
@@ -994,14 +998,16 @@ async function handleTransferButtonClick() {
     const result = await response.json();
 
     // Success!
-    transferStatus.innerHTML = `
-      <div class="status-success">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="20 6 9 17 4 12"/>
-        </svg>
-        Lead transferred successfully to Salesforce!
-      </div>
-    `;
+    if (transferStatus) {
+      transferStatus.innerHTML = `
+        <div class="status-success">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+          Lead transferred successfully to Salesforce!
+        </div>
+      `;
+    }
 
     showModernToast('✅ Lead transferred successfully!', 'success', 5000);
     console.log('✅ Transfer complete:', result);
@@ -1009,16 +1015,18 @@ async function handleTransferButtonClick() {
   } catch (error) {
     console.error('❌ Transfer failed:', error);
 
-    transferStatus.innerHTML = `
-      <div class="status-error">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"/>
-          <line x1="15" y1="9" x2="9" y2="15"/>
-          <line x1="9" y1="9" x2="15" y2="15"/>
-        </svg>
-        Transfer failed: ${error.message}
-      </div>
-    `;
+    if (transferStatus) {
+      transferStatus.innerHTML = `
+        <div class="status-error">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="15" y1="9" x2="9" y2="15"/>
+            <line x1="9" y1="9" x2="15" y2="15"/>
+          </svg>
+          Transfer failed: ${error.message}
+        </div>
+      `;
+    }
 
     showModernToast(`❌ Transfer failed: ${error.message}`, 'error', 6000);
 
