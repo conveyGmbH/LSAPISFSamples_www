@@ -583,11 +583,24 @@ function collectActiveFieldsOnly() {
             return;
         }
 
-        // Get Salesforce field name (custom label if exists, otherwise API name)
-        let sfFieldName = window.fieldMappingService?.customLabels?.[apiFieldName] || apiFieldName;
+        // Get Salesforce field name
+        let sfFieldName;
 
-        // Normalize Salesforce field name
-        sfFieldName = normalizeSalesforceFieldName(sfFieldName);
+        // For STANDARD fields: always use API name (ignore custom labels)
+        if (isStandardSalesforceField(apiFieldName)) {
+            sfFieldName = apiFieldName;
+
+            // Warn if user tried to set a custom label on a standard field
+            const customLabel = window.fieldMappingService?.customLabels?.[apiFieldName];
+            if (customLabel && customLabel !== apiFieldName) {
+                console.warn(`⚠️ Custom label "${customLabel}" ignored for standard field "${apiFieldName}"`);
+            }
+        }
+        // For CUSTOM fields: use custom label if exists, then normalize
+        else {
+            sfFieldName = window.fieldMappingService?.customLabels?.[apiFieldName] || apiFieldName;
+            sfFieldName = normalizeSalesforceFieldName(sfFieldName);
+        }
 
         // Get display label
         const displayLabel = typeof fieldInfo === 'object' ? fieldInfo.label : formatFieldLabel(apiFieldName);
