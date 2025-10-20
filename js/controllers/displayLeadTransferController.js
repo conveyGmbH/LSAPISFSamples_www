@@ -112,7 +112,6 @@ class ConnectionPersistenceManager {
 }
 
 
-// Global variables
 // Global variable for lead data - accessible from all functions
 window.selectedLeadData = null;
 let leadSource = null;
@@ -359,16 +358,28 @@ function displayUserInfo(userInfo) {
  */
 async function checkForDuplicates(leadData) {
   try {
+    // Extract string values from potential objects
+    const getStringValue = (field) => {
+      if (!field) return '';
+      if (typeof field === 'string') return field;
+      if (typeof field === 'object' && field.value) return field.value;
+      return String(field);
+    };
+
+    const email = getStringValue(leadData.Email);
+    const lastName = getStringValue(leadData.LastName);
+    const company = getStringValue(leadData.Company);
+
     const searchCriteria = [];
 
     // Search by email if provided
-    if (leadData.Email && leadData.Email.trim()) {
-      searchCriteria.push(`Email = '${leadData.Email.trim()}'`);
+    if (email && email.trim()) {
+      searchCriteria.push(`Email = '${email.trim()}'`);
     }
 
     // Search by lastname + company if provided
-    if (leadData.LastName && leadData.Company) {
-      searchCriteria.push(`(LastName = '${leadData.LastName.trim()}' AND Company = '${leadData.Company.trim()}')`);
+    if (lastName && lastName.trim() && company && company.trim()) {
+      searchCriteria.push(`(LastName = '${lastName.trim()}' AND Company = '${company.trim()}')`);
     }
 
     if (searchCriteria.length === 0) {
@@ -384,9 +395,9 @@ async function checkForDuplicates(leadData) {
       },
       credentials: 'include',
       body: JSON.stringify({
-        LastName: leadData.LastName,
-        Company: leadData.Company,
-        Email: leadData.Email
+        LastName: lastName,
+        Company: company,
+        Email: email
       })
     });
 
@@ -515,10 +526,15 @@ function initializeToggleListeners() {
 }
 
 
+/**
+ * Collect ONLY active fields with values from window.selectedLeadData
+ * Uses custom labels (SF field names) from fieldMappingService when available
+ * @returns {Object} { leadData, fieldsList, labels }
+ */
 function collectActiveFieldsOnly() {
-    const leadData = {};
-    const fieldsList = [];
-    const labels = {};
+    const salesforceData = {}; // Data to send to Salesforce (with custom SF field names)
+    const fieldsList = [];     // List of SF field names
+    const labels = {};          // Map of SF field name -> Display label
 
     // System/metadata fields to exclude (not transferable to Salesforce)
     const excludedFields = new Set([
@@ -527,74 +543,73 @@ function collectActiveFieldsOnly() {
         'LastViewedDate', 'LastReferencedDate', 'Jigsaw', 'JigsawContactId',
         'CleanStatus', 'CompanyDunsNumber', 'DandbCompanyId', 'EmailBouncedReason',
         'EmailBouncedDate', 'IndividualId', 'apiEndpoint', 'credentials',
-        'serverName', 'apiName', 'AttachmentIdList', 'EventID'
+        'serverName', 'apiName', 'AttachmentIdList', 'EventID', '__metadata', 'KontaktViewId'
     ]);
 
-    // Get all field elements from the DOM
-    const fieldElements = document.querySelectorAll('.field-row, .field-container');
-
-    console.log(`📋 Found ${fieldElements.length} field elements in DOM`);
-
-    fieldElements.forEach(fieldElement => {
-        // Get field name from data attribute
-        const fieldName = fieldElement.dataset.fieldName || fieldElement.dataset.field;
-
-        if (!fieldName) return;
-
-        // Skip excluded/system fields
-        if (excludedFields.has(fieldName)) {
-            return;
-        }
-
-        // Check if field is active (toggle is checked)
-        const toggleInput = fieldElement.querySelector('input[type="checkbox"][id$="-toggle"]');
-        const isActive = toggleInput ? toggleInput.checked : true; // Default to true if no toggle
-
-        if (!isActive) {
-            console.log(`⏭️  Skipping inactive field: ${fieldName}`);
-            return;
-        }
-
-        // Get the field value
-        const valueInput = fieldElement.querySelector('.field-input, input, select, textarea');
-
-        if (valueInput) {
-            const value = getInputValue(valueInput);
-
-            if (value && value.trim() !== '' && value !== 'N/A') {
-                leadData[fieldName] = value.trim();
-                fieldsList.push(fieldName);
-
-                // Get label from the field header or use formatted name
-                const labelElement = fieldElement.querySelector('.field-label, .field-name');
-                const label = labelElement?.textContent?.trim() ||
-                             window.fieldMappingService?.formatFieldLabel(fieldName) ||
-                             formatFieldLabel(fieldName);
-
-                labels[fieldName] = label;
-
-                console.log(`✅ Active field: ${fieldName} = "${value.substring(0, 50)}${value.length > 50 ? '...' : ''}"`);
-            }
-        }
-    });
-
-    console.log(`✅ Collected ${fieldsList.length} Salesforce-valid active fields with values`);
-
-    // Validation: ensure required fields are present
-    if (!leadData.LastName && !leadData.Company) {
-        console.warn('⚠️  No required fields found. Falling back to collectCurrentLeadData()');
-        // Fallback to old method if new method fails
-        const fallbackData = collectCurrentLeadData();
-        return {
-            leadData: fallbackData,
-            fieldsList: Object.keys(fallbackData),
-            labels: Object.fromEntries(
-                Object.keys(fallbackData).map(f => [f, formatFieldLabel(f)])
-            )
-        };
+    if (!window.selectedLeadData) {
+        console.error('❌ No lead data found in window.selectedLeadData');
+        return { leadData: {}, fieldsList: [], labels: {} };
     }
 
-    return { leadData, fieldsList, labels };
+    // Process data with labels
+    const processedData = window.fieldMappingService?.applyCustomLabels(window.selectedLeadData) ||
+        Object.fromEntries(Object.entries(window.selectedLeadData).map(([key, value]) => [key, {
+            value,
+            label: formatFieldLabel(key),
+            active: true
+        }]));
+
+    console.log(`📋 Processing ${Object.keys(processedData).length} fields from window.selectedLeadData`);
+
+    Object.keys(processedData).forEach(apiFieldName => {
+        // Skip excluded/system fields
+        if (excludedFields.has(apiFieldName)) return;
+
+        const fieldInfo = processedData[apiFieldName];
+
+        // Check if field is active
+        const isActive = typeof fieldInfo === 'object' ? (fieldInfo.active !== false) : true;
+
+        if (!isActive) {
+            console.log(`⏭️  Skipping inactive field: ${apiFieldName}`);
+            return;
+        }
+
+        // Get field value
+        const value = typeof fieldInfo === 'object' ? fieldInfo.value : fieldInfo;
+
+        // Skip empty values
+        if (!value || (typeof value === 'string' && (value.trim() === '' || value === 'N/A'))) {
+            return;
+        }
+
+        // Get Salesforce field name (custom label if exists, otherwise API name)
+        const sfFieldName = window.fieldMappingService?.customLabels?.[apiFieldName] || apiFieldName;
+
+        // Get display label
+        const displayLabel = typeof fieldInfo === 'object' ? fieldInfo.label : formatFieldLabel(apiFieldName);
+
+        // Add to salesforceData with SF field name
+        salesforceData[sfFieldName] = typeof value === 'string' ? value.trim() : value;
+        fieldsList.push(sfFieldName);
+        labels[sfFieldName] = displayLabel;
+
+        const valuePreview = typeof value === 'string' ? value.substring(0, 50) : String(value).substring(0, 50);
+        console.log(`✅ Active field: ${apiFieldName} → SF: ${sfFieldName} = "${valuePreview}${String(value).length > 50 ? '...' : ''}"`);
+    });
+
+    console.log(`✅ Collected ${fieldsList.length} active fields with SF field names`);
+    console.log(`📤 Salesforce field names:`, fieldsList);
+
+    // Validation: ensure required fields are present (check both API name and SF name)
+    const hasLastName = salesforceData.LastName || Object.keys(salesforceData).some(k => k.toLowerCase() === 'lastname');
+    const hasCompany = salesforceData.Company || Object.keys(salesforceData).some(k => k.toLowerCase() === 'company');
+
+    if (!hasLastName && !hasCompany) {
+        console.warn('⚠️  No required fields found (LastName or Company)');
+    }
+
+    return { leadData: salesforceData, fieldsList, labels };
 }
 
 /**
