@@ -4276,14 +4276,16 @@ async function fetchAttachments(attachmentIdList) {
 
   const transferStatus = document.getElementById("transferStatus");
 
-  // Add attachments progress section
-  transferStatus.innerHTML += `
-    <div class="attachment-section">
-      <h4>Preparing Attachments</h4>
-      <div id="attachment-progress">0/${attachmentIds.length} prepared</div>
-      <div id="attachment-list"></div>
-    </div>
-  `;
+  // Add attachments progress section (if element exists)
+  if (transferStatus) {
+    transferStatus.innerHTML += `
+      <div class="attachment-section">
+        <h4>Preparing Attachments</h4>
+        <div id="attachment-progress">0/${attachmentIds.length} prepared</div>
+        <div id="attachment-list"></div>
+      </div>
+    `;
+  }
 
   const attachmentList = document.getElementById("attachment-list");
   const progressElement = document.getElementById("attachment-progress");
@@ -4301,12 +4303,14 @@ async function fetchAttachments(attachmentIdList) {
 
     // Show status for current attachment
     const itemId = `attachment-${i}`;
-    attachmentList.innerHTML += `
-      <div id="${itemId}" class="attachment-item pending">
-        <span class="attachment-name">Attachment ${i + 1}</span>
-        <span class="attachment-status">Retrieving...</span>
-      </div>
-    `;
+    if (attachmentList) {
+      attachmentList.innerHTML += `
+        <div id="${itemId}" class="attachment-item pending">
+          <span class="attachment-name">Attachment ${i + 1}</span>
+          <span class="attachment-status">Retrieving...</span>
+        </div>
+      `;
+    }
 
     try {
       // Retrieve attachment data
