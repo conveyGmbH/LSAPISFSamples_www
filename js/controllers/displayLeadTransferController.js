@@ -975,10 +975,6 @@ async function handleTransferButtonClick() {
   if (isTransferInProgress) return;
   console.log("=== STARTING ENHANCED LEAD TRANSFER ===");
 
-  const transferBtn = document.getElementById("transferToSalesforceBtn");
-  const transferResults = document.getElementById("transferResults");
-  const transferStatus = document.getElementById("transferStatus");
-
   try {
     // ========== PHASE 1: Collect ONLY Active Fields ==========
     console.log('📋 Phase 1: Collecting active fields only...');
@@ -993,100 +989,67 @@ async function handleTransferButtonClick() {
 
     // ========== PHASE 2: Validate Required Fields ==========
     console.log('📋 Phase 2: Validating required fields...');
-    if (!leadData.LastName || !leadData.Company) {
-      showModernToast('Last Name and Company are required fields', 'error');
+    if (!leadData.LastName && !leadData.Company) {
+      showModernToast('Either Last Name or Company is required', 'error');
       return;
     }
 
     // ========== PHASE 3: Check Missing Custom Fields ==========
     console.log('📋 Phase 3: Checking for missing custom fields in Salesforce...');
-    showModernToast('Checking fields in Salesforce...', 'info', 2000);
+    const loadingModal = showTransferLoadingModal('Checking Salesforce fields...');
 
     const fieldCheck = await checkMissingFields(fieldsList);
     console.log(`✅ Existing fields: ${fieldCheck.existing.length}`);
     console.log(`❌ Missing fields: ${fieldCheck.missing.length}`);
 
-    // ========== PHASE 4: Handle Missing Custom Fields (Auto-create without confirmation) ==========
+    // Close loading modal
+    if (loadingModal) loadingModal.remove();
+
+    // ========== PHASE 4: Show Confirmation Modal if Fields Need Creation ==========
     if (fieldCheck.missing.length > 0) {
-      console.log(`⚠️ Found ${fieldCheck.missing.length} missing custom fields - creating automatically...`);
+      console.log(`⚠️ Found ${fieldCheck.missing.length} missing custom fields`);
 
-      // Auto-create the fields without modal confirmation
-      console.log('🛠️  Creating custom fields automatically...');
-      showModernToast(`Creating ${fieldCheck.missing.length} custom field(s)...`, 'info');
+      // Show confirmation modal
+      const confirmed = await showFieldCreationConfirmationModal(fieldCheck.missing, labels, fieldsList.length);
 
-      const createResult = await createCustomFields(
-        fieldCheck.missing,
-        labels
-      );
+      if (!confirmed) {
+        console.log('User cancelled transfer');
+        return;
+      }
+
+      // User confirmed - proceed with field creation
+      const createModal = showTransferLoadingModal(`Creating ${fieldCheck.missing.length} custom field(s)...`);
+
+      const createResult = await createCustomFields(fieldCheck.missing, labels);
+
+      if (createModal) createModal.remove();
 
       if (createResult.failed.length > 0) {
-        showModernToast(
-          `Failed to create ${createResult.failed.length} field(s). Check console for details.`,
-          'error',
-          6000
+        showErrorModal(
+          'Field Creation Errors',
+          `Failed to create ${createResult.failed.length} field(s):\n\n${createResult.failed.map(f => `• ${f.name}: ${f.error}`).join('\n')}`
         );
-        console.error('❌ Failed to create fields:', createResult.failed);
+        return;
       }
 
       if (createResult.created.length > 0) {
-        showModernToast(
-          `✅ Created ${createResult.created.length} custom field(s) successfully!`,
-          'success',
-          5000
-        );
         console.log('✅ Created fields:', createResult.created);
-      }
-
-      // Wait a moment for Salesforce to process the field creation
-      if (createResult.created.length > 0) {
-        showModernToast('Waiting for Salesforce to process new fields...', 'info', 3000);
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        // Wait for Salesforce to process
+        await new Promise(resolve => setTimeout(resolve, 2000));
       }
     }
 
-    // ========== PHASE 5: Check for Duplicates (Auto-proceed without confirmation) ==========
-    console.log('📋 Phase 5: Checking for duplicate leads...');
-    showModernToast('Checking for duplicates...', 'info', 2000);
+    // ========== PHASE 5: Transfer Lead to Salesforce ==========
+    console.log('📋 Phase 5: Transferring lead to Salesforce...');
 
-    const duplicateCheck = await checkForDuplicates(leadData);
-    if (duplicateCheck.hasDuplicates) {
-      console.log(`⚠️ Found ${duplicateCheck.duplicates.length} potential duplicate(s) - proceeding anyway...`);
-      showModernToast(`Found ${duplicateCheck.duplicates.length} duplicate(s) - creating anyway...`, 'warning', 3000);
-    }
-
-    // ========== PHASE 6: Transfer Lead to Salesforce ==========
-    console.log('📋 Phase 6: Transferring lead to Salesforce...');
-
+    const transferModal = showTransferLoadingModal('Transferring lead to Salesforce...');
     isTransferInProgress = true;
-    transferBtn.disabled = true;
-    transferBtn.innerHTML = `
-      <div class="spinner"></div>
-      Transferring to Salesforce...
-    `;
-
-    showModernToast('Transferring lead to Salesforce...', 'info', 3000);
-
-    // Show transfer status UI (if elements exist)
-    if (transferResults) {
-      transferResults.style.display = "block";
-    }
-    if (transferStatus) {
-      transferStatus.innerHTML = `
-        <div class="transfer-pending">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"/>
-            <polyline points="12 6 12 12 16 14"/>
-          </svg>
-          Transferring lead to Salesforce...
-        </div>
-      `;
-    }
 
     // Prepare attachments if present
     const attachmentIds = leadData.AttachmentIdList || window.selectedLeadData?.AttachmentIdList;
     const attachments = await fetchAttachments(attachmentIds);
 
-    // IMPORTANT: Transfer ONLY active fields (leadData), NOT merged data
+    // Transfer ONLY active fields
     console.log('📤 Transferring active fields only:', Object.keys(leadData));
     const response = await transferLeadDirectlyToSalesforce(leadData, attachments);
 
@@ -1097,43 +1060,25 @@ async function handleTransferButtonClick() {
 
     const result = await response.json();
 
-    // Success!
-    if (transferStatus) {
-      transferStatus.innerHTML = `
-        <div class="status-success">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="20 6 9 17 4 12"/>
-          </svg>
-          Lead transferred successfully to Salesforce!
-        </div>
-      `;
-    }
+    // Close transfer modal
+    if (transferModal) transferModal.remove();
 
-    showModernToast('✅ Lead transferred successfully!', 'success', 5000);
+    // Success!
+    showSuccessModal(
+      'Transfer Successful!',
+      `Lead transferred successfully to Salesforce!\n\nSalesforce ID: ${result.salesforceId || 'N/A'}\nFields transferred: ${fieldsList.length}`
+    );
+
     console.log('✅ Transfer complete:', result);
 
   } catch (error) {
     console.error('❌ Transfer failed:', error);
-
-    if (transferStatus) {
-      transferStatus.innerHTML = `
-        <div class="status-error">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"/>
-            <line x1="15" y1="9" x2="9" y2="15"/>
-            <line x1="9" y1="9" x2="15" y2="15"/>
-          </svg>
-          Transfer failed: ${error.message}
-        </div>
-      `;
-    }
-
-    showModernToast(`❌ Transfer failed: ${error.message}`, 'error', 6000);
+    showErrorModal('Transfer Failed', error.message);
 
   } finally {
     isTransferInProgress = false;
-    transferBtn.disabled = false;
-    transferBtn.innerHTML = `Transfer to Salesforce`;
+    // Close any remaining loading modals
+    document.querySelectorAll('.transfer-loading-modal').forEach(m => m.remove());
   }
 }
 
