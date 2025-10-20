@@ -1704,36 +1704,39 @@ app.post('/api/salesforce/fields/create', async (req, res) => {
                 const { apiName, label } = field;
 
                 // Create custom field metadata
+                // For Metadata API, FullName should be just the field name for custom fields
+                // Format: FieldName__c (not Lead.FieldName__c)
                 const customField = {
-                    FullName: `Lead.${apiName}`,
-                    Metadata: {
-                        type: 'Text',
-                        label: label || apiName.replace(/__c$/, '').replace(/_/g, ' '),
-                        length: 255,
-                        required: false,
-                        externalId: false,
-                        unique: false
-                    }
+                    fullName: `Lead.${apiName}`,  // Object.FieldName format for Salesforce
+                    label: label || apiName.replace(/__c$/, '').replace(/_/g, ' '),
+                    type: 'Text',
+                    length: 255,
+                    required: false,
+                    externalId: false,
+                    unique: false
                 };
 
-                console.log(`Creating field: ${apiName} (${customField.Metadata.label})`);
+                console.log(`Creating field: Lead.${apiName} (${customField.label})`);
 
-                const result = await conn.metadata.create('CustomField', customField);
+                const result = await conn.metadata.create('CustomField', [customField]);
 
-                if (result.success) {
+                // Result is an array when passing array to create()
+                const fieldResult = Array.isArray(result) ? result[0] : result;
+
+                if (fieldResult.success) {
                     results.created.push({
                         apiName,
-                        label: customField.Metadata.label,
+                        label: customField.label,
                         success: true
                     });
                     console.log(`✅ Field created: ${apiName}`);
                 } else {
                     results.failed.push({
                         apiName,
-                        label: customField.Metadata.label,
-                        error: result.errors ? JSON.stringify(result.errors) : 'Unknown error'
+                        label: customField.label,
+                        error: fieldResult.errors ? JSON.stringify(fieldResult.errors) : 'Unknown error'
                     });
-                    console.error(`❌ Field creation failed: ${apiName}`, result.errors);
+                    console.error(`❌ Field creation failed: ${apiName}`, fieldResult.errors);
                 }
 
             } catch (fieldError) {

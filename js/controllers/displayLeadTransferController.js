@@ -805,14 +805,25 @@ function normalizeSalesforceFieldName(fieldName) {
  * @returns {boolean} True if standard field
  */
 function isStandardSalesforceField(fieldName) {
+    // Remove __c suffix for checking
+    const cleanName = fieldName.replace(/__c$/gi, '');
+
     const standardFields = [
-        'FirstName', 'LastName', 'Company', 'Email', 'Phone', 'Title', 'Salutation',
-        'Street', 'City', 'State', 'PostalCode', 'Country', 'Description', 'Status',
-        'Industry', 'Rating', 'AnnualRevenue', 'NumberOfEmployees', 'Website',
-        'LeadSource', 'OwnerId', 'IsConverted', 'ConvertedDate', 'ConvertedAccountId',
-        'ConvertedContactId', 'ConvertedOpportunityId', 'Suffix'
+        // Name fields
+        'FirstName', 'LastName', 'MiddleName', 'Suffix', 'Salutation',
+        // Contact info
+        'Company', 'Email', 'Phone', 'MobilePhone', 'Fax',
+        // Address fields
+        'Title', 'Street', 'City', 'State', 'PostalCode', 'Country', 'Address',
+        // Other standard fields
+        'Description', 'Status', 'Industry', 'Rating', 'AnnualRevenue',
+        'NumberOfEmployees', 'Website', 'LeadSource',
+        // System fields
+        'OwnerId', 'IsConverted', 'ConvertedDate', 'ConvertedAccountId',
+        'ConvertedContactId', 'ConvertedOpportunityId', 'Id', 'Name'
     ];
-    return standardFields.includes(fieldName);
+
+    return standardFields.includes(cleanName);
 }
 
 /**
