@@ -586,10 +586,8 @@ function collectActiveFieldsOnly() {
         // Get Salesforce field name (custom label if exists, otherwise API name)
         let sfFieldName = window.fieldMappingService?.customLabels?.[apiFieldName] || apiFieldName;
 
-        // Add __c suffix for custom fields if not present and not a standard field
-        if (!sfFieldName.endsWith('__c') && !isStandardSalesforceField(sfFieldName)) {
-            sfFieldName = `${sfFieldName}__c`;
-        }
+        // Normalize Salesforce field name
+        sfFieldName = normalizeSalesforceFieldName(sfFieldName);
 
         // Get display label
         const displayLabel = typeof fieldInfo === 'object' ? fieldInfo.label : formatFieldLabel(apiFieldName);
@@ -724,18 +722,15 @@ function showMissingFieldsModal(missingFields, labels) {
  */
 async function createCustomFields(missingFields, labels) {
     const fields = missingFields.map(fieldName => {
-        // Ensure field API name has __c suffix for custom fields
-        let apiName = fieldName;
+        // Normalize field API name
+        const apiName = normalizeSalesforceFieldName(fieldName);
 
-        // Add __c suffix if not present and not a standard field
-        if (!apiName.endsWith('__c') && !isStandardSalesforceField(apiName)) {
-            apiName = `${fieldName}__c`;
-            console.log(`🔧 Auto-correcting field name: "${fieldName}" → "${apiName}"`);
-        }
+        // Get clean label (remove __c suffix, replace underscores with spaces)
+        const cleanLabel = labels[fieldName] || fieldName.replace(/__c$/gi, '').replace(/_/g, ' ');
 
         return {
             apiName,
-            label: labels[fieldName] || fieldName.replace(/__c$/, '').replace(/_/g, ' ')
+            label: cleanLabel
         };
     });
 
@@ -763,6 +758,48 @@ async function createCustomFields(missingFields, labels) {
 }
 
 /**
+ * Normalize Salesforce field name
+ * - Removes extra __c suffixes
+ * - Replaces spaces with underscores
+ * - Removes invalid characters
+ * - Adds __c suffix for custom fields
+ * @param {string} fieldName - Raw field name
+ * @returns {string} Normalized Salesforce field name
+ */
+function normalizeSalesforceFieldName(fieldName) {
+    if (!fieldName) return '';
+
+    // Check if it's a standard field first
+    if (isStandardSalesforceField(fieldName)) {
+        return fieldName;
+    }
+
+    let normalized = fieldName;
+
+    // Remove any existing __c or __C suffixes (case insensitive)
+    normalized = normalized.replace(/__c$/gi, '').replace(/__C$/gi, '');
+
+    // Replace spaces with underscores
+    normalized = normalized.replace(/\s+/g, '_');
+
+    // Remove invalid characters (only letters, numbers, and underscores allowed)
+    normalized = normalized.replace(/[^a-zA-Z0-9_]/g, '');
+
+    // Ensure it doesn't start with a number
+    if (/^\d/.test(normalized)) {
+        normalized = `Field_${normalized}`;
+    }
+
+    // Add __c suffix for custom fields
+    if (!isStandardSalesforceField(normalized)) {
+        normalized = `${normalized}__c`;
+    }
+
+    console.log(`🔧 Normalized field: "${fieldName}" → "${normalized}"`);
+    return normalized;
+}
+
+/**
  * Check if a field name is a standard Salesforce field
  * @param {string} fieldName - Field name to check
  * @returns {boolean} True if standard field
@@ -773,7 +810,7 @@ function isStandardSalesforceField(fieldName) {
         'Street', 'City', 'State', 'PostalCode', 'Country', 'Description', 'Status',
         'Industry', 'Rating', 'AnnualRevenue', 'NumberOfEmployees', 'Website',
         'LeadSource', 'OwnerId', 'IsConverted', 'ConvertedDate', 'ConvertedAccountId',
-        'ConvertedContactId', 'ConvertedOpportunityId'
+        'ConvertedContactId', 'ConvertedOpportunityId', 'Suffix'
     ];
     return standardFields.includes(fieldName);
 }
