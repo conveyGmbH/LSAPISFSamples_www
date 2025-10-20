@@ -5200,25 +5200,97 @@ function createEditLabelModal(fieldName) {
     modal.className = 'config-modal-overlay';
     modal.style.display = 'flex';
 
+    const isStandardField = isStandardSalesforceField(fieldName);
+    const currentLabel = window.fieldMappingService?.customLabels[fieldName] || '';
+
     modal.innerHTML = `
-        <div class="config-modal-content">
+        <div class="config-modal-content" style="max-width: 600px;">
             <div class="config-modal-header">
-                <h3>Edit Field Label</h3>
+                <h3>Edit Salesforce Field Mapping</h3>
                 <button class="config-modal-close">&times;</button>
             </div>
             <div class="config-modal-body">
                 <div class="form-group">
-                    <label>API Field Name</label>
-                    <input type="text" id="edit-field-api-name" class="form-input" readonly value="${fieldName}">
+                    <label style="font-weight: 600; color: #374151;">API Field Name</label>
+                    <input type="text" id="edit-field-api-name" class="form-input" readonly value="${fieldName}" style="background: #f3f4f6; cursor: not-allowed;">
+                    <small style="color: #6b7280; font-size: 0.75rem;">This is the original field name from your data source</small>
                 </div>
+
+                ${isStandardField ? `
+                    <div style="background: #fef3c7; border: 1px solid #fbbf24; border-radius: 6px; padding: 12px; margin: 16px 0;">
+                        <div style="display: flex; align-items: start; gap: 8px;">
+                            <svg style="width: 20px; height: 20px; color: #f59e0b; flex-shrink: 0; margin-top: 2px;" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                            </svg>
+                            <div>
+                                <strong style="color: #92400e; display: block; margin-bottom: 4px;">Standard Salesforce Field</strong>
+                                <p style="color: #92400e; font-size: 0.875rem; margin: 0;">This is a standard field. Custom labels for standard fields are used for display only and will be ignored during transfer to Salesforce.</p>
+                            </div>
+                        </div>
+                    </div>
+                ` : ''}
+
                 <div class="form-group">
-                    <label>Custom Label</label>
-                    <input type="text" id="edit-field-custom-label" class="form-input" placeholder="Enter custom label" value="${window.fieldMappingService?.customLabels[fieldName] || ''}">
+                    <label style="font-weight: 600; color: #374151;">
+                        ${isStandardField ? 'Display Label (optional)' : 'Salesforce Field Name'}
+                        ${!isStandardField ? '<span style="color: #ef4444;">*</span>' : ''}
+                    </label>
+                    <input
+                        type="text"
+                        id="edit-field-custom-label"
+                        class="form-input"
+                        placeholder="${isStandardField ? 'Display name for UI' : 'e.g., Products Interest'}"
+                        value="${currentLabel}"
+                        ${isStandardField ? '' : 'required'}
+                        style="font-family: 'Courier New', monospace;"
+                    >
+                    <small style="color: #6b7280; font-size: 0.75rem;">
+                        ${isStandardField
+                            ? 'This label is for display purposes only in the UI'
+                            : 'Enter a descriptive name. Spaces will be replaced with underscores.'
+                        }
+                    </small>
+                </div>
+
+                ${!isStandardField ? `
+                    <div id="salesforce-preview-container" style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 6px; padding: 12px; margin-top: 16px; display: none;">
+                        <div style="display: flex; align-items: start; gap: 8px;">
+                            <svg style="width: 20px; height: 20px; color: #22c55e; flex-shrink: 0; margin-top: 2px;" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                            </svg>
+                            <div style="flex: 1;">
+                                <strong style="color: #166534; display: block; margin-bottom: 4px;">Salesforce Field Preview</strong>
+                                <code id="salesforce-field-preview" style="background: #dcfce7; color: #166534; padding: 4px 8px; border-radius: 4px; font-size: 0.875rem; display: inline-block;"></code>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="validation-error" style="background: #fee; border: 1px solid #fca5a5; border-radius: 6px; padding: 12px; margin-top: 16px; display: none;">
+                        <div style="display: flex; align-items: start; gap: 8px;">
+                            <svg style="width: 20px; height: 20px; color: #dc2626; flex-shrink: 0; margin-top: 2px;" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                            </svg>
+                            <div>
+                                <strong style="color: #991b1b; display: block; margin-bottom: 4px;">Invalid Field Name</strong>
+                                <p id="validation-error-message" style="color: #991b1b; font-size: 0.875rem; margin: 0;"></p>
+                            </div>
+                        </div>
+                    </div>
+                ` : ''}
+
+                <div style="background: #eff6ff; border-left: 4px solid #3b82f6; padding: 12px; margin-top: 16px; border-radius: 4px;">
+                    <strong style="color: #1e40af; font-size: 0.875rem; display: block; margin-bottom: 4px;">ℹ️ Salesforce Naming Rules:</strong>
+                    <ul style="color: #1e3a8a; font-size: 0.813rem; margin: 4px 0 0 0; padding-left: 20px;">
+                        <li>Must start with a letter</li>
+                        <li>Can contain letters, numbers, and underscores</li>
+                        <li>Spaces will be automatically replaced with underscores</li>
+                        ${!isStandardField ? '<li>Custom fields automatically get <code>__c</code> suffix</li>' : ''}
+                    </ul>
                 </div>
             </div>
             <div class="config-modal-footer">
                 <button class="config-btn cancel-btn">Cancel</button>
-                <button class="config-btn export-btn" id="save-custom-label">Save Label</button>
+                <button class="config-btn export-btn" id="save-custom-label" disabled style="opacity: 0.5;">Save Label</button>
             </div>
         </div>
     `;
@@ -5248,11 +5320,99 @@ function createEditLabelModal(fieldName) {
         }
     });
 
+    // Real-time validation for custom fields
+    const labelInput = modal.querySelector('#edit-field-custom-label');
+    const saveButton = modal.querySelector('#save-custom-label');
+    const previewContainer = modal.querySelector('#salesforce-preview-container');
+    const previewField = modal.querySelector('#salesforce-field-preview');
+    const errorContainer = modal.querySelector('#validation-error');
+    const errorMessage = modal.querySelector('#validation-error-message');
+
+    if (!isStandardField && labelInput && saveButton) {
+        // Validate and preview on input
+        labelInput.addEventListener('input', () => {
+            const value = labelInput.value.trim();
+
+            if (!value) {
+                // Empty input
+                if (previewContainer) previewContainer.style.display = 'none';
+                if (errorContainer) errorContainer.style.display = 'none';
+                saveButton.disabled = true;
+                saveButton.style.opacity = '0.5';
+                return;
+            }
+
+            // Normalize the field name
+            const normalized = normalizeSalesforceFieldName(value);
+
+            // Validation rules
+            const errors = [];
+
+            // Must start with letter
+            if (!/^[a-zA-Z]/.test(value)) {
+                errors.push('Field name must start with a letter');
+            }
+
+            // Check for invalid characters (before normalization)
+            const invalidChars = value.match(/[^a-zA-Z0-9\s_]/g);
+            if (invalidChars) {
+                errors.push(`Invalid characters: ${[...new Set(invalidChars)].join(', ')}`);
+            }
+
+            // Check minimum length
+            if (value.length < 2) {
+                errors.push('Field name must be at least 2 characters');
+            }
+
+            // Show errors or preview
+            if (errors.length > 0) {
+                if (errorContainer && errorMessage) {
+                    errorMessage.textContent = errors.join('. ');
+                    errorContainer.style.display = 'block';
+                }
+                if (previewContainer) previewContainer.style.display = 'none';
+                saveButton.disabled = true;
+                saveButton.style.opacity = '0.5';
+            } else {
+                // Valid input - show preview
+                if (errorContainer) errorContainer.style.display = 'none';
+                if (previewContainer && previewField) {
+                    previewField.textContent = normalized;
+                    previewContainer.style.display = 'block';
+                }
+                saveButton.disabled = false;
+                saveButton.style.opacity = '1';
+            }
+        });
+
+        // Trigger validation on initial load if there's a value
+        if (currentLabel) {
+            labelInput.dispatchEvent(new Event('input'));
+        }
+    } else if (isStandardField && labelInput && saveButton) {
+        // For standard fields, always enable save button
+        labelInput.addEventListener('input', () => {
+            const value = labelInput.value.trim();
+            // Allow any value for standard fields (it's just for display)
+            saveButton.disabled = false;
+            saveButton.style.opacity = '1';
+        });
+
+        // Enable immediately if there's an initial value
+        if (currentLabel) {
+            saveButton.disabled = false;
+            saveButton.style.opacity = '1';
+        }
+    }
+
     // Focus on input
     setTimeout(() => {
-        const labelInput = modal.querySelector('#edit-field-custom-label');
         if (labelInput) {
             labelInput.focus();
+            // If there's existing text, select it for easy replacement
+            if (currentLabel) {
+                labelInput.select();
+            }
         }
     }, 100);
 }

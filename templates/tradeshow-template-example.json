@@ -1,0 +1,140 @@
+{
+  "id": "template_tradeshow_default",
+  "name": "Trade Show Event Template",
+  "description": "Standard field mappings for trade show lead capture with 30 dynamic question fields. Maps Question01-30, Answers01-30, and Text01-30 to meaningful Salesforce custom fields.",
+  "categories": ["Trade Show", "Events", "Lead Capture"],
+  "createdAt": "2025-01-15T00:00:00.000Z",
+  "updatedAt": "2025-01-15T00:00:00.000Z",
+  "fieldMappings": {
+    "Question01": "Products_Interest",
+    "Answers01": "Products_Answer",
+    "Text01": "Products_Notes",
+
+    "Question02": "Prospects_Level",
+    "Answers02": "Prospects_Answer",
+    "Text02": "Prospects_Notes",
+
+    "Question03": "Priority",
+    "Answers03": "Priority_Answer",
+    "Text03": "Priority_Notes",
+
+    "Question04": "Contact_Preference",
+    "Answers04": "Contact_Answer",
+    "Text04": "Contact_Notes",
+
+    "Question05": "Followup_Timeline",
+    "Answers05": "Followup_Answer",
+    "Text05": "Followup_Notes",
+
+    "Question06": "Budget_Range",
+    "Answers06": "Budget_Answer",
+    "Text06": "Budget_Notes",
+
+    "Question07": "Decision_Maker",
+    "Answers07": "Decision_Maker_Answer",
+    "Text07": "Decision_Maker_Notes",
+
+    "Question08": "Purchase_Timeframe",
+    "Answers08": "Purchase_Timeframe_Answer",
+    "Text08": "Purchase_Timeframe_Notes",
+
+    "Question09": "Current_Solution",
+    "Answers09": "Current_Solution_Answer",
+    "Text09": "Current_Solution_Notes",
+
+    "Question10": "Pain_Points",
+    "Answers10": "Pain_Points_Answer",
+    "Text10": "Pain_Points_Notes",
+
+    "Question11": "Team_Size",
+    "Answers11": "Team_Size_Answer",
+    "Text11": "Team_Size_Notes",
+
+    "Question12": "Implementation_Needs",
+    "Answers12": "Implementation_Answer",
+    "Text12": "Implementation_Notes",
+
+    "Question13": "Training_Required",
+    "Answers13": "Training_Answer",
+    "Text13": "Training_Notes",
+
+    "Question14": "Integration_Systems",
+    "Answers14": "Integration_Answer",
+    "Text14": "Integration_Notes",
+
+    "Question15": "Compliance_Requirements",
+    "Answers15": "Compliance_Answer",
+    "Text15": "Compliance_Notes",
+
+    "Question16": "Geographic_Coverage",
+    "Answers16": "Geographic_Answer",
+    "Text16": "Geographic_Notes",
+
+    "Question17": "Scalability_Needs",
+    "Answers17": "Scalability_Answer",
+    "Text17": "Scalability_Notes",
+
+    "Question18": "Support_Level",
+    "Answers18": "Support_Level_Answer",
+    "Text18": "Support_Level_Notes",
+
+    "Question19": "Contract_Duration",
+    "Answers19": "Contract_Answer",
+    "Text19": "Contract_Notes",
+
+    "Question20": "Special_Requirements",
+    "Answers20": "Special_Req_Answer",
+    "Text20": "Special_Req_Notes",
+
+    "Question21": "Industry_Specific_Needs",
+    "Answers21": "Industry_Needs_Answer",
+    "Text21": "Industry_Needs_Notes",
+
+    "Question22": "Competitor_Evaluation",
+    "Answers22": "Competitor_Answer",
+    "Text22": "Competitor_Notes",
+
+    "Question23": "ROI_Expectations",
+    "Answers23": "ROI_Answer",
+    "Text23": "ROI_Notes",
+
+    "Question24": "Deployment_Preference",
+    "Answers24": "Deployment_Answer",
+    "Text24": "Deployment_Notes",
+
+    "Question25": "Security_Requirements",
+    "Answers25": "Security_Answer",
+    "Text25": "Security_Notes",
+
+    "Question26": "Customization_Needs",
+    "Answers26": "Customization_Answer",
+    "Text26": "Customization_Notes",
+
+    "Question27": "Mobile_Access_Required",
+    "Answers27": "Mobile_Answer",
+    "Text27": "Mobile_Notes",
+
+    "Question28": "Reporting_Needs",
+    "Answers28": "Reporting_Answer",
+    "Text28": "Reporting_Notes",
+
+    "Question29": "API_Integration",
+    "Answers29": "API_Answer",
+    "Text29": "API_Notes",
+
+    "Question30": "Additional_Comments",
+    "Answers30": "Additional_Answer",
+    "Text30": "Additional_Notes",
+
+    "SalesArea": "Sales_Region",
+    "Department": "Department",
+    "Industry": "Industry"
+  },
+  "metadata": {
+    "totalFields": 93,
+    "customLabelsCount": 93,
+    "version": "1.0",
+    "compatibility": "LeadSuccess SF Transfer v2.0+",
+    "notes": "All Question/Answer/Text field names will be automatically suffixed with __c when transferred to Salesforce"
+  }
+}
