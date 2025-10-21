@@ -1009,34 +1009,59 @@ async function handleTransferButtonClick() {
     if (fieldCheck.missing.length > 0) {
       console.log(`⚠️ Found ${fieldCheck.missing.length} missing custom fields`);
 
-      // Show confirmation modal
-      const confirmed = await showFieldCreationConfirmationModal(fieldCheck.missing, labels, fieldsList.length);
+      // Filter out standard fields from missing fields list
+      const customFieldsToCreate = fieldCheck.missing.filter(fieldName => !isStandardSalesforceField(fieldName));
+      const standardFieldsSkipped = fieldCheck.missing.filter(fieldName => isStandardSalesforceField(fieldName));
 
-      if (!confirmed) {
-        console.log('User cancelled transfer');
-        return;
+      if (standardFieldsSkipped.length > 0) {
+        console.log(`⏭️  Skipping ${standardFieldsSkipped.length} standard fields: ${standardFieldsSkipped.join(', ')}`);
       }
 
-      // User confirmed - proceed with field creation
-      const createModal = showTransferLoadingModal(`Creating ${fieldCheck.missing.length} custom field(s)...`);
+      if (customFieldsToCreate.length === 0) {
+        console.log('✅ No custom fields need to be created (only standard fields)');
+        // Continue to transfer
+      } else {
+        // Show confirmation modal
+        const confirmed = await showFieldCreationConfirmationModal(customFieldsToCreate, labels, fieldsList.length);
 
-      const createResult = await createCustomFields(fieldCheck.missing, labels);
+        if (!confirmed) {
+          console.log('User cancelled transfer');
+          return;
+        }
 
-      if (createModal) createModal.remove();
+        // User confirmed - proceed with field creation
+        const createModal = showTransferLoadingModal(`Creating ${customFieldsToCreate.length} custom field(s)...`);
 
-      if (createResult.failed && createResult.failed.length > 0) {
-        const errorDetails = createResult.failed.map(f => `• ${f.name || f.apiName}: ${f.error || 'Unknown error'}`).join('\n');
-        showErrorModal(
-          'Field Creation Errors',
-          `Failed to create ${createResult.failed.length} field(s):\n\n${errorDetails}`
-        );
-        return;
-      }
+        const createResult = await createCustomFields(customFieldsToCreate, labels);
 
-      if (createResult.created.length > 0) {
-        console.log('✅ Created fields:', createResult.created);
-        // Wait for Salesforce to process
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        if (createModal) createModal.remove();
+
+        if (createResult.failed && createResult.failed.length > 0) {
+          const errorDetails = createResult.failed.map(f => {
+            const fieldName = f.name || f.apiName;
+            const error = f.error || 'Unknown error';
+
+            // Check if it's a duplicate error
+            if (error.includes('already a field named') || error.includes('DUPLICATE')) {
+              return `• ${fieldName}: Field already exists in Salesforce`;
+            }
+            return `• ${fieldName}: ${error}`;
+          }).join('\n');
+
+          showErrorModal(
+            'Field Creation Results',
+            `${createResult.created ? createResult.created.length : 0} field(s) created successfully\n${createResult.failed.length} field(s) failed:\n\n${errorDetails}\n\nContinuing with transfer...`
+          );
+
+          // Don't return - continue with transfer even if some fields failed to create
+          // (they might already exist)
+        }
+
+        if (createResult.created && createResult.created.length > 0) {
+          console.log('✅ Created fields:', createResult.created);
+          // Wait for Salesforce to process
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
       }
     }
 
