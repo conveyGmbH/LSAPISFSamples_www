@@ -1024,10 +1024,11 @@ async function handleTransferButtonClick() {
 
       if (createModal) createModal.remove();
 
-      if (createResult.failed.length > 0) {
+      if (createResult.failed && createResult.failed.length > 0) {
+        const errorDetails = createResult.failed.map(f => `• ${f.name || f.apiName}: ${f.error || 'Unknown error'}`).join('\n');
         showErrorModal(
           'Field Creation Errors',
-          `Failed to create ${createResult.failed.length} field(s):\n\n${createResult.failed.map(f => `• ${f.name}: ${f.error}`).join('\n')}`
+          `Failed to create ${createResult.failed.length} field(s):\n\n${errorDetails}`
         );
         return;
       }
@@ -1073,7 +1074,14 @@ async function handleTransferButtonClick() {
 
   } catch (error) {
     console.error('❌ Transfer failed:', error);
-    showErrorModal('Transfer Failed', error.message);
+
+    // More detailed error message
+    let errorMessage = error.message || 'Unknown error occurred';
+    if (error.stack) {
+      console.error('Error stack:', error.stack);
+    }
+
+    showErrorModal('Transfer Failed', errorMessage);
 
   } finally {
     isTransferInProgress = false;
