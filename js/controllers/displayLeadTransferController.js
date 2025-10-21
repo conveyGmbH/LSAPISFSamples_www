@@ -1081,6 +1081,18 @@ async function handleTransferButtonClick() {
 
     if (!response.ok) {
       const errorData = await response.json();
+
+      // Handle duplicate lead error specially
+      if (response.status === 409 && errorData.salesforceId) {
+        if (transferModal) transferModal.remove();
+
+        showErrorModal(
+          'Duplicate Lead Found',
+          `A lead with the same Last Name and Company already exists in Salesforce.\n\nSalesforce ID: ${errorData.salesforceId}\n\nPlease update the existing lead or modify the lead information.`
+        );
+        return; // Exit early - don't throw error
+      }
+
       throw new Error(errorData.message || 'Transfer failed');
     }
 

@@ -1642,7 +1642,15 @@ app.post('/api/salesforce/fields/check', async (req, res) => {
 
         // Describe Lead object to get all fields
         const leadMetadata = await conn.sobject('Lead').describe();
-        const existingFields = new Set(leadMetadata.fields.map(f => f.name));
+
+        // Create a map of field names (both with and without __c suffix)
+        const existingFieldsMap = new Map();
+        leadMetadata.fields.forEach(f => {
+            existingFieldsMap.set(f.name, f);
+            // Also store without __c suffix for easier lookup
+            const baseName = f.name.replace(/__c$/i, '');
+            existingFieldsMap.set(baseName, f);
+        });
 
         // Check which fields exist and which don't
         const results = {
@@ -1651,10 +1659,15 @@ app.post('/api/salesforce/fields/check', async (req, res) => {
         };
 
         fieldNames.forEach(fieldName => {
-            if (existingFields.has(fieldName)) {
+            const baseName = fieldName.replace(/__c$/i, '');
+
+            // Check both exact match and base name match
+            if (existingFieldsMap.has(fieldName) || existingFieldsMap.has(baseName)) {
                 results.existing.push(fieldName);
+                console.log(`✅ Field exists: ${fieldName}`);
             } else {
                 results.missing.push(fieldName);
+                console.log(`❌ Field missing: ${fieldName}`);
             }
         });
 
