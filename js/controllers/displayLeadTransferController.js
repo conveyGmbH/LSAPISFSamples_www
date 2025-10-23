@@ -1084,12 +1084,19 @@ async function handleTransferButtonClick() {
 
       // Handle duplicate lead error specially
       if (response.status === 409 && errorData.salesforceId) {
+        console.log('❌ Duplicate lead detected:', errorData);
         if (transferModal) transferModal.remove();
 
-        showErrorModal(
-          'Duplicate Lead Found',
-          `A lead with the same Last Name and Company already exists in Salesforce.\n\nSalesforce ID: ${errorData.salesforceId}\n\nPlease update the existing lead or modify the lead information.`
-        );
+        // Check if showErrorModal is available
+        if (typeof window.showErrorModal === 'function') {
+          window.showErrorModal(
+            'Duplicate Lead Found',
+            `A lead with the same Last Name and Company already exists in Salesforce.\n\nSalesforce ID: ${errorData.salesforceId}\n\nPlease update the existing lead or modify the lead information.`
+          );
+        } else {
+          console.error('showErrorModal function not found!');
+          alert(`Duplicate Lead Found\n\nA lead with the same Last Name and Company already exists.\n\nSalesforce ID: ${errorData.salesforceId}`);
+        }
         return; // Exit early - don't throw error
       }
 
@@ -1102,10 +1109,15 @@ async function handleTransferButtonClick() {
     if (transferModal) transferModal.remove();
 
     // Success!
-    showSuccessModal(
-      'Transfer Successful!',
-      `Lead transferred successfully to Salesforce!\n\nSalesforce ID: ${result.salesforceId || 'N/A'}\nFields transferred: ${fieldsList.length}`
-    );
+    if (typeof window.showSuccessModal === 'function') {
+      window.showSuccessModal(
+        'Transfer Successful!',
+        `Lead transferred successfully to Salesforce!\n\nSalesforce ID: ${result.salesforceId || 'N/A'}\nFields transferred: ${fieldsList.length}`
+      );
+    } else {
+      console.error('showSuccessModal function not found!');
+      alert(`Transfer Successful!\n\nLead transferred successfully!\nSalesforce ID: ${result.salesforceId || 'N/A'}`);
+    }
 
     console.log('✅ Transfer complete:', result);
 
@@ -1118,7 +1130,13 @@ async function handleTransferButtonClick() {
       console.error('Error stack:', error.stack);
     }
 
-    showErrorModal('Transfer Failed', errorMessage);
+    // Show error to user
+    if (typeof window.showErrorModal === 'function') {
+      window.showErrorModal('Transfer Failed', errorMessage);
+    } else {
+      console.error('showErrorModal function not found!');
+      alert(`Transfer Failed\n\n${errorMessage}`);
+    }
 
   } finally {
     isTransferInProgress = false;
