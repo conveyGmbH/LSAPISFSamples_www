@@ -5237,7 +5237,7 @@ function createEditLabelModal(fieldName) {
                     <small style="color: #6b7280; font-size: 0.75rem;">
                         ${isStandardField
                             ? 'This label is for display purposes only in the UI'
-                            : 'Enter a descriptive name. Spaces will be replaced with underscores.'
+                            : '⚠️ Use underscores (_) instead of spaces. Only letters, numbers, and underscores allowed.'
                         }
                     </small>
                 </div>
@@ -5271,9 +5271,10 @@ function createEditLabelModal(fieldName) {
                 <div style="background: #eff6ff; border-left: 4px solid #3b82f6; padding: 12px; margin-top: 16px; border-radius: 4px;">
                     <strong style="color: #1e40af; font-size: 0.875rem; display: block; margin-bottom: 4px;">ℹ️ Salesforce Naming Rules:</strong>
                     <ul style="color: #1e3a8a; font-size: 0.813rem; margin: 4px 0 0 0; padding-left: 20px;">
-                        <li>Must start with a letter</li>
-                        <li>Can contain letters, numbers, and underscores</li>
-                        <li>Spaces will be automatically replaced with underscores</li>
+                        <li>Must start with a letter (A-Z, a-z)</li>
+                        <li>Only letters, numbers, and underscores allowed</li>
+                        <li><strong>NO SPACES</strong> - use underscores (_) instead</li>
+                        <li>Maximum 40 characters</li>
                         ${!isStandardField ? '<li>Custom fields automatically get <code>__c</code> suffix</li>' : ''}
                     </ul>
                 </div>
@@ -5319,7 +5320,7 @@ function createEditLabelModal(fieldName) {
     const errorMessage = modal.querySelector('#validation-error-message');
 
     if (!isStandardField && labelInput && saveButton) {
-        // Validate and preview on input
+        // Validate and preview on input (STRICT MODE - NO AUTO-CORRECTION)
         labelInput.addEventListener('input', () => {
             const value = labelInput.value.trim();
 
@@ -5332,20 +5333,22 @@ function createEditLabelModal(fieldName) {
                 return;
             }
 
-            // Normalize the field name
-            const normalized = normalizeSalesforceFieldName(value);
-
-            // Validation rules
+            // STRICT Validation rules - NO automatic correction
             const errors = [];
 
             // Must start with letter
             if (!/^[a-zA-Z]/.test(value)) {
-                errors.push('Field name must start with a letter');
+                errors.push('Must start with a letter (A-Z, a-z)');
             }
 
-            // Check for invalid characters (before normalization)
-            const invalidChars = value.match(/[^a-zA-Z0-9\s_]/g);
-            if (invalidChars) {
+            // NO SPACES ALLOWED - Force user to use underscores
+            if (/\s/.test(value)) {
+                errors.push('⛔ Spaces are NOT allowed - use underscores (_) instead');
+            }
+
+            // Check for invalid characters (ONLY letters, numbers, underscores)
+            const invalidChars = value.match(/[^a-zA-Z0-9_]/g);
+            if (invalidChars && !(/\s/.test(value))) { // Don't show this if already showing space error
                 errors.push(`Invalid characters: ${[...new Set(invalidChars)].join(', ')}`);
             }
 
@@ -5354,10 +5357,16 @@ function createEditLabelModal(fieldName) {
                 errors.push('Field name must be at least 2 characters');
             }
 
+            // Check maximum length (40 chars without __c)
+            const baseLength = value.replace(/__c$/i, '').length;
+            if (baseLength > 40) {
+                errors.push(`Too long! Max 40 characters (currently ${baseLength})`);
+            }
+
             // Show errors or preview
             if (errors.length > 0) {
                 if (errorContainer && errorMessage) {
-                    errorMessage.textContent = errors.join('. ');
+                    errorMessage.innerHTML = errors.map(e => `• ${e}`).join('<br>');
                     errorContainer.style.display = 'block';
                 }
                 if (previewContainer) previewContainer.style.display = 'none';
@@ -5367,7 +5376,11 @@ function createEditLabelModal(fieldName) {
                 // Valid input - show preview
                 if (errorContainer) errorContainer.style.display = 'none';
                 if (previewContainer && previewField) {
-                    previewField.textContent = normalized;
+                    // Show with __c suffix if not already present
+                    const preview = value.endsWith('__c') || value.endsWith('__C')
+                        ? value.replace(/__C$/i, '__c')
+                        : `${value}__c`;
+                    previewField.textContent = preview;
                     previewContainer.style.display = 'block';
                 }
                 saveButton.disabled = false;
