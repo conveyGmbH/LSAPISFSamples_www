@@ -573,6 +573,9 @@ setCurrentEventId(eventId) {
 
         this.saveConfig();
         console.log(`Field config set for ${fieldName}:`, fieldConfig);
+
+        // Sync active fields with backend
+        await this.syncWithBackend();
     }
 
     async setCustomLabel(fieldName, label) {
@@ -597,9 +600,12 @@ setCurrentEventId(eventId) {
     
     // Also save locally as backup
     this.saveCustomLabels();
-    
+
     // Update the field configuration locally
     await this.setFieldConfigLocal(fieldName, fieldConfig);
+
+    // Sync active fields with backend
+    await this.syncWithBackend();
 }
 
 /* Bulk save all configurations to database
@@ -758,28 +764,35 @@ async bulkSaveToDatabase() {
 
             let salesforceFieldName = originalField;
 
-            const customLabel = this.customLabels[originalField];
-            const defaultLabel = this.formatFieldLabel(originalField);
+            // Auto-add __c suffix for Question/Answers/Text fields if not already present
+            // Question01 -> Question01__c, Answers01 -> Answers01__c, Text01 -> Text01__c
+            if (/^(Question|Answers|Text)\d{2}$/.test(originalField) && !originalField.endsWith('__c')) {
+                salesforceFieldName = `${originalField}__c`;
+                console.log(`Auto-added __c suffix: ${originalField} → ${salesforceFieldName}`);
+            } else {
+                const customLabel = this.customLabels[originalField];
+                const defaultLabel = this.formatFieldLabel(originalField);
 
-            const isValidSalesforceFieldName = (name) => {
-                if (!name || name.trim() === '') return false;
-                return /^[a-zA-Z][a-zA-Z0-9_]*(__c)?$/.test(name.trim());
-            };
+                const isValidSalesforceFieldName = (name) => {
+                    if (!name || name.trim() === '') return false;
+                    return /^[a-zA-Z][a-zA-Z0-9_]*(__c)?$/.test(name.trim());
+                };
 
-            if (customLabel && customLabel.trim() !== '' && customLabel !== defaultLabel) {
-                const trimmedLabel = customLabel.trim();
+                if (customLabel && customLabel.trim() !== '' && customLabel !== defaultLabel) {
+                    const trimmedLabel = customLabel.trim();
 
-                if (isValidSalesforceFieldName(trimmedLabel)) {
-                    salesforceFieldName = trimmedLabel;                    
-                } else {
-                    salesforceFieldName = originalField;
+                    if (isValidSalesforceFieldName(trimmedLabel)) {
+                        salesforceFieldName = trimmedLabel;
+                    } else {
+                        salesforceFieldName = originalField;
+                    }
                 }
-            }
-            else if (this.customFieldNames[originalField]) {
-                salesforceFieldName = this.customFieldNames[originalField];
-            }
-            else {
-                console.log(`Using original field name: ${originalField}`);
+                else if (this.customFieldNames[originalField]) {
+                    salesforceFieldName = this.customFieldNames[originalField];
+                }
+                else {
+                    console.log(`Using original field name: ${originalField}`);
+                }
             }
             mappedData[salesforceFieldName] = value;
         }
@@ -794,6 +807,135 @@ async bulkSaveToDatabase() {
         }
         return this.applyCustomLabels(leadData);
     }
+
+    // ========== BACKEND SYNCHRONIZATION ==========
+
+    /**
+     * Get list of active field names
+     * @returns {Array} Array of active field names
+     */
+    getActiveFieldNames() {
+        const activeFields = [];
+        if (this.fieldConfig && this.fieldConfig.config && this.fieldConfig.config.fields) {
+            for (const field of this.fieldConfig.config.fields) {
+                if (field.active !== false) {
+                    activeFields.push(field.fieldName);
+                }
+            }
+        }
+        return activeFields;
+    }
+
+    /**
+     * Save active fields configuration to backend
+     * @returns {Promise} Promise resolving to backend response
+     */
+    async saveActiveFieldsToBackend() {
+        try {
+            const activeFields = this.getActiveFieldNames();
+            const customLabels = this.customLabels || {};
+
+            console.log(`💾 Saving ${activeFields.length} active fields to backend...`);
+
+            const response = await fetch('/api/salesforce/field-config', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                    activeFields,
+                    customLabels
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to save field config: ${response.statusText}`);
+            }
+
+            const result = await response.json();
+            console.log('✅ Field configuration saved to backend:', result);
+            return result;
+
+        } catch (error) {
+            console.error('❌ Failed to save field configuration to backend:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Load active fields configuration from backend
+     * @returns {Promise} Promise resolving to configuration
+     */
+    async loadActiveFieldsFromBackend() {
+        try {
+            console.log('📥 Loading field configuration from backend...');
+
+            const response = await fetch('/api/salesforce/field-config', {
+                method: 'GET',
+                credentials: 'include'
+            });
+
+            if (!response.ok) {
+                if (response.status === 401) {
+                    console.log('ℹ️  Not connected to Salesforce, skipping field config load');
+                    return null;
+                }
+                throw new Error(`Failed to load field config: ${response.statusText}`);
+            }
+
+            const config = await response.json();
+            console.log(`✅ Loaded ${config.activeFields?.length || 0} active fields from backend`);
+
+            // Apply the configuration
+            if (config.activeFields && config.activeFields.length > 0) {
+                // Update local field config to match backend
+                for (const fieldName of config.activeFields) {
+                    await this.setFieldConfig(fieldName, { active: true });
+                }
+
+                // Deactivate fields not in the active list
+                if (this.fieldConfig && this.fieldConfig.config && this.fieldConfig.config.fields) {
+                    for (const field of this.fieldConfig.config.fields) {
+                        if (!config.activeFields.includes(field.fieldName)) {
+                            await this.setFieldConfig(field.fieldName, { active: false });
+                        }
+                    }
+                }
+            }
+
+            // Apply custom labels if present
+            if (config.customLabels) {
+                this.customLabels = { ...this.customLabels, ...config.customLabels };
+                this.saveConfig();
+            }
+
+            return config;
+
+        } catch (error) {
+            console.error('❌ Failed to load field configuration from backend:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Sync field configuration with backend after field toggle
+     * This should be called whenever a field is activated/deactivated
+     */
+    async syncWithBackend() {
+        // Debounce to avoid too many calls
+        if (this.syncTimeout) {
+            clearTimeout(this.syncTimeout);
+        }
+
+        this.syncTimeout = setTimeout(async () => {
+            try {
+                await this.saveActiveFieldsToBackend();
+            } catch (error) {
+                console.error('Failed to sync with backend:', error);
+            }
+        }, 1000); // Wait 1 second after last change
+    }
 }
- 
+
 window.FieldMappingService = FieldMappingService;

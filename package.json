@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "@salesforce/cli": "^2.109.6"
+  }
+}

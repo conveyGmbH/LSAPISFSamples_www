@@ -827,7 +827,7 @@ function isStandardSalesforceField(fieldName) {
         // Contact info
         'Company', 'Email', 'Phone', 'MobilePhone', 'Fax',
         // Address fields
-        'Title', 'Street', 'City', 'State', 'PostalCode', 'Country', 'Address',
+        'Title', 'Street', 'City', 'State', 'PostalCode', 'Country', 'CountryCode', 'Address',
         // Other standard fields
         'Description', 'Status', 'Industry', 'Rating', 'AnnualRevenue',
         'NumberOfEmployees', 'Website', 'LeadSource',
@@ -1053,13 +1053,10 @@ async function handleTransferButtonClick() {
             `${createResult.created ? createResult.created.length : 0} field(s) created successfully\n${createResult.failed.length} field(s) failed:\n\n${errorDetails}\n\nContinuing with transfer...`
           );
 
-          // Don't return - continue with transfer even if some fields failed to create
-          // (they might already exist)
+    
         }
 
         if (createResult.created && createResult.created.length > 0) {
-          console.log('✅ Created fields:', createResult.created);
-          // Wait for Salesforce to process
           await new Promise(resolve => setTimeout(resolve, 2000));
         }
       }
@@ -1540,6 +1537,16 @@ async function checkSalesforceConnection() {
           email: userInfo.username,
           organization_id: userInfo.organization_id
         });
+
+        // Load active fields configuration from backend after successful connection
+        if (window.fieldMappingService) {
+          try {
+            await window.fieldMappingService.loadActiveFieldsFromBackend();
+            console.log('✅ Loaded active fields configuration from backend after connection');
+          } catch (error) {
+            console.warn('⚠️ Could not load active fields from backend:', error);
+          }
+        }
       }
 
     } else if (response.status === 401) {
@@ -2505,7 +2512,7 @@ async function transferLeadDirectlyToSalesforce(leadData, attachments) {
       status: 200,
       json: async () => ({
         success: result.success,
-        leadId: result.salesforceId,
+        salesforceId: result.salesforceId,
         message: result.message || 'Lead transferred successfully',
         attachmentsTransferred: result.attachments ? result.attachments.filter(a => a.success).length : 0,
         duplicateWarning: result.duplicateWarning || null,
@@ -4882,6 +4889,14 @@ async function initializeEnhancedSystem() {
     try {
         // Initialize field mapping service
         window.fieldMappingService = new window.FieldMappingService();
+
+        // Load active fields configuration from backend
+        try {
+            await window.fieldMappingService.loadActiveFieldsFromBackend();
+            console.log('✅ Loaded active fields configuration from backend');
+        } catch (error) {
+            console.warn('⚠️ Could not load active fields from backend (may not be connected yet):', error);
+        }
 
         // Create enhanced UI controls
         createAdvancedControlPanel();

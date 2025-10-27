@@ -10,6 +10,8 @@ require('dotenv').config();
 // Import new service modules
 const salesforceService = require('./salesforce');
 const { authMiddleware, setupOrgMiddleware } = require('./middleware/auth');
+const { transferLeadWithAutoFieldCreation } = require('./leadTransferService');
+const fieldConfigStorage = require('./fieldConfigStorage');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -1881,12 +1883,35 @@ app.post('/api/salesforce/leads', async (req, res) => {
 
         console.log('📝 Creating lead with data:', leadData);
 
-        // Remove null or undefined fields
+        // Get active fields for this client
+        const activeFields = fieldConfigStorage.getActiveFields(orgId);
+        console.log(`📋 Client has ${activeFields.length} active fields configured`);
+
+        // Filter lead data to only include active custom fields
         const processedLeadData = {};
+        const customFieldPattern = /^(Question|Answers|Text)\d{2}(__c)?$/;
+
         Object.keys(leadData).forEach(field => {
             const value = leadData[field];
-            if (value !== null && value !== undefined) {
-                processedLeadData[field] = value;
+            const baseFieldName = field.replace(/__c$/, '');
+
+            // Check if it's a custom field
+            if (customFieldPattern.test(field)) {
+                // Only include if it's in the active fields list
+                const isActive = activeFields.includes(field) || activeFields.includes(baseFieldName);
+
+                if (isActive) {
+                    // Include even if value is null (allows clearing values in Salesforce)
+                    processedLeadData[field] = value !== undefined ? value : null;
+                    console.log(`✅ Including active field: ${field} = ${value}`);
+                } else {
+                    console.log(`⏭️  Skipping inactive field: ${field}`);
+                }
+            } else {
+                // For non-custom fields, only include if not null/undefined
+                if (value !== null && value !== undefined) {
+                    processedLeadData[field] = value;
+                }
             }
         });
 
@@ -1956,6 +1981,54 @@ app.post('/api/salesforce/leads', async (req, res) => {
                 console.log(`⚠️ Invalid state moved to Street field: ${validatedLeadData.Street}`);
             } else {
                 validatedLeadData.State = validStates[0].toUpperCase();
+            }
+        }
+
+        // Validate and fix Country/CountryCode
+        // Valid ISO country codes for Salesforce (most common ones)
+        const validCountryCodes = ['DE', 'FR', 'GB', 'US', 'CA', 'AU', 'CH', 'AT', 'IT', 'ES', 'NL', 'BE', 'SE', 'DK', 'NO', 'FI', 'PL', 'CZ', 'PT', 'IE', 'GR', 'LU', 'JP', 'CN', 'IN', 'BR', 'MX', 'AR'];
+
+        if (validatedLeadData.CountryCode) {
+            const code = validatedLeadData.CountryCode.toUpperCase().substring(0, 2);
+            if (!validCountryCodes.includes(code)) {
+                console.log(`⚠️ Invalid CountryCode removed: ${validatedLeadData.CountryCode}`);
+                delete validatedLeadData.CountryCode;
+            } else {
+                validatedLeadData.CountryCode = code;
+            }
+        }
+
+        // If Country field has been modified (e.g., "Germany1"), clean it
+        if (validatedLeadData.Country) {
+            // Remove numbers and extra characters from country name
+            const cleanCountry = validatedLeadData.Country.replace(/[0-9]+/g, '').trim();
+            if (cleanCountry !== validatedLeadData.Country) {
+                console.log(`⚠️ Cleaned Country field: "${validatedLeadData.Country}" → "${cleanCountry}"`);
+                validatedLeadData.Country = cleanCountry;
+            }
+        }
+
+        // If CountryCode exists but Country doesn't match, remove CountryCode to avoid mismatch
+        if (validatedLeadData.CountryCode && validatedLeadData.Country) {
+            const countryCodeMap = {
+                'DE': ['Germany', 'Deutschland'],
+                'FR': ['France'],
+                'GB': ['United Kingdom', 'UK', 'Great Britain'],
+                'US': ['United States', 'USA', 'America'],
+                'CA': ['Canada'],
+                'CH': ['Switzerland', 'Schweiz'],
+                'AT': ['Austria', 'Österreich'],
+                // Add more as needed
+            };
+
+            const expectedCountries = countryCodeMap[validatedLeadData.CountryCode] || [];
+            const countryMatches = expectedCountries.some(c =>
+                validatedLeadData.Country.toLowerCase().includes(c.toLowerCase())
+            );
+
+            if (!countryMatches) {
+                console.log(`⚠️ Country/CountryCode mismatch - removing CountryCode: ${validatedLeadData.Country} / ${validatedLeadData.CountryCode}`);
+                delete validatedLeadData.CountryCode;
             }
         }
 
@@ -2054,6 +2127,90 @@ app.post('/api/salesforce/leads', async (req, res) => {
     }
 });
 
+
+// NEW ENDPOINT: Check and prepare fields before transfer
+app.post('/api/salesforce/leads/prepare', async (req, res) => {
+    try {
+        const orgId = getCurrentOrgId(req);
+        const conn = getConnection(orgId);
+
+        if (!conn) {
+            return res.status(401).json({ message: 'Not connected to Salesforce' });
+        }
+
+        const { leadData } = req.body;
+
+        if (!leadData) {
+            return res.status(400).json({ message: 'leadData is required' });
+        }
+
+        console.log('🔍 Preparing lead transfer - checking fields...');
+
+        // Get active fields for this client
+        const activeFields = fieldConfigStorage.getActiveFields(orgId);
+        console.log(`📋 Client has ${activeFields.length} active fields configured`);
+
+        // Use the new service to check and create fields (with active fields filter)
+        const result = await transferLeadWithAutoFieldCreation(conn, leadData, activeFields);
+
+        res.json(result);
+
+    } catch (error) {
+        console.error('❌ Lead preparation failed:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to prepare lead transfer',
+            error: error.message
+        });
+    }
+});
+
+// Get field configuration for current client
+app.get('/api/salesforce/field-config', (req, res) => {
+    try {
+        const orgId = getCurrentOrgId(req);
+
+        if (!orgId) {
+            return res.status(401).json({ message: 'Not connected to Salesforce' });
+        }
+
+        const config = fieldConfigStorage.getFieldConfig(orgId);
+        res.json(config);
+
+    } catch (error) {
+        console.error('Failed to get field config:', error);
+        res.status(500).json({ message: 'Failed to get field configuration', error: error.message });
+    }
+});
+
+// Set field configuration for current client
+app.post('/api/salesforce/field-config', async (req, res) => {
+    try {
+        const orgId = getCurrentOrgId(req);
+
+        if (!orgId) {
+            return res.status(401).json({ message: 'Not connected to Salesforce' });
+        }
+
+        const { activeFields, customLabels } = req.body;
+
+        if (!activeFields || !Array.isArray(activeFields)) {
+            return res.status(400).json({ message: 'activeFields array is required' });
+        }
+
+        const config = await fieldConfigStorage.setFieldConfig(orgId, activeFields, customLabels);
+
+        res.json({
+            success: true,
+            message: `Field configuration saved for ${activeFields.length} active fields`,
+            config
+        });
+
+    } catch (error) {
+        console.error('Failed to set field config:', error);
+        res.status(500).json({ message: 'Failed to save field configuration', error: error.message });
+    }
+});
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -2401,6 +2558,13 @@ app.use((error, req, res, next) => {
 
 
 // SERVER STARTUP
+
+// Initialize field configuration storage
+fieldConfigStorage.initializeStorage().then(() => {
+    console.log('✅ Field configuration storage initialized');
+}).catch(error => {
+    console.error('❌ Failed to initialize field configuration storage:', error);
+});
 
 app.listen(port, () => {
     console.log('\n🚀 Salesforce Lead Manager Backend');
