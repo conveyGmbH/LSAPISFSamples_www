@@ -887,61 +887,26 @@ async function handleTransferButtonClick() {
 
 // DISCONNECT & CONNECT HANDLERS
 
-/* Handle disconnect button click */
+/* Handle disconnect button click - using modern confirm dialog */
 async function handleDisconnectClick() {
-  try {
-
-    if (typeof showLogoutModal === 'function') {
-
-      window.actualDisconnectFunction = () => {
-        performDisconnect();
-      };
-      showLogoutModal();
-    } else {
-      // Show modern disconnect modal
-      showDisconnectModal(() => {
-        performDisconnect();
-      });
+  const confirmed = await showConfirmDialog(
+    'Disconnect from Salesforce?',
+    'Are you sure you want to disconnect from Salesforce?',
+    {
+      confirmText: 'Disconnect',
+      cancelText: 'Cancel',
+      type: 'warning'
     }
+  );
+
+  if (!confirmed) return;
+
+  try {
+    performDisconnect();
   } catch (error) {
     console.error("Error during disconnect process:", error);
     showError("Failed to disconnect from Salesforce");
   }
-}
-
-/**
- * Show disconnect confirmation modal
- */
-function showDisconnectModal(onConfirm) {
-  const modal = document.getElementById('disconnect-modal');
-  if (!modal) {
-    console.error('Disconnect modal not found');
-    return;
-  }
-
-  modal.classList.add('show');
-
-  const closeBtn = document.getElementById('close-disconnect-modal');
-  const cancelBtn = document.getElementById('cancel-disconnect-btn');
-  const confirmBtn = document.getElementById('confirm-disconnect-btn');
-
-  const closeModal = () => {
-    modal.classList.remove('show');
-  };
-
-  if (closeBtn) closeBtn.onclick = closeModal;
-  if (cancelBtn) cancelBtn.onclick = closeModal;
-  if (confirmBtn) {
-    confirmBtn.onclick = () => {
-      closeModal();
-      if (onConfirm) onConfirm();
-    };
-  }
-
-  // Close on outside click
-  modal.onclick = (e) => {
-    if (e.target === modal) closeModal();
-  };
 }
 
 // Perform the actual disconnect logic
