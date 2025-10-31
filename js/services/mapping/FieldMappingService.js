@@ -1,9 +1,10 @@
-// FieldMappingService.js 
+// FieldMappingService.js
 class FieldMappingService {
     constructor() {
         this.fieldConfig = this.loadConfig();
         this.customLabels = {};
-        this.customFieldNames = {}; 
+        this.customFieldNames = {};
+        this.customFields = []; // 🆕 Custom fields created by client
         this.credentials = sessionStorage.getItem('credentials');
         this.currentEventId = null;
 
@@ -12,6 +13,9 @@ class FieldMappingService {
 
         // Load custom field name mappings
         this.loadCustomFieldNames();
+
+        // Load custom fields
+        this.loadCustomFields();
     }
 
     // Create a basic API service for database interactions
@@ -194,6 +198,12 @@ setFieldConfigLocal(fieldName, config) {
                         this.customLabels = parsedConfig.customLabels;
                     }
 
+                    // 🆕 Load custom fields if available
+                    if (parsedConfig.customFields && Array.isArray(parsedConfig.customFields)) {
+                        this.customFields = parsedConfig.customFields;
+                        console.log(`✅ Loaded ${this.customFields.length} custom fields from API`);
+                    }
+
                 } catch (parseError) {
                     console.error('Failed to parse ConfigData from database, using default config:', parseError);
                     console.log('Raw ConfigData:', configRecord.ConfigData?.substring(0, 500));
@@ -234,6 +244,7 @@ async saveFieldMappingsToAPI(fieldName, operation = 'update') {
         const configData = {
             fieldConfig: this.fieldConfig,
             customLabels: this.customLabels,
+            customFields: this.customFields || [], // 🆕 Include custom fields
             lastModified: new Date().toISOString(),
             modifiedField: fieldName,
             operation: operation,
@@ -837,7 +848,7 @@ async bulkSaveToDatabase() {
 
             console.log(`💾 Saving ${activeFields.length} active fields to backend...`);
 
-            const response = await fetch('/api/salesforce/field-config', {
+            const response = await fetch('http://localhost:3000/api/salesforce/field-config', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -871,7 +882,7 @@ async bulkSaveToDatabase() {
         try {
             console.log('📥 Loading field configuration from backend...');
 
-            const response = await fetch('/api/salesforce/field-config', {
+            const response = await fetch('http://localhost:3000/api/salesforce/field-config', {
                 method: 'GET',
                 credentials: 'include'
             });
@@ -886,6 +897,9 @@ async bulkSaveToDatabase() {
 
             const config = await response.json();
             console.log(`✅ Loaded ${config.activeFields?.length || 0} active fields from backend`);
+
+            // Disable auto-sync during initial load to prevent infinite loop
+            this._isLoadingFromBackend = true;
 
             // Apply the configuration
             if (config.activeFields && config.activeFields.length > 0) {
@@ -910,10 +924,14 @@ async bulkSaveToDatabase() {
                 this.saveConfig();
             }
 
+            // Re-enable auto-sync after load completes
+            this._isLoadingFromBackend = false;
+
             return config;
 
         } catch (error) {
             console.error('❌ Failed to load field configuration from backend:', error);
+            this._isLoadingFromBackend = false;
             return null;
         }
     }
@@ -923,6 +941,12 @@ async bulkSaveToDatabase() {
      * This should be called whenever a field is activated/deactivated
      */
     async syncWithBackend() {
+        // Skip sync if we're currently loading from backend (prevents infinite loop)
+        if (this._isLoadingFromBackend) {
+            console.log('⏭️  Skipping sync - currently loading from backend');
+            return;
+        }
+
         // Debounce to avoid too many calls
         if (this.syncTimeout) {
             clearTimeout(this.syncTimeout);
@@ -935,6 +959,202 @@ async bulkSaveToDatabase() {
                 console.error('Failed to sync with backend:', error);
             }
         }, 1000); // Wait 1 second after last change
+    }
+
+    // ========== CUSTOM FIELDS MANAGEMENT (Client-created fields) ==========
+
+    /**
+     * Load custom fields from localStorage
+     */
+    loadCustomFields() {
+        try {
+            const saved = localStorage.getItem('salesforce_custom_fields');
+            if (saved) {
+                this.customFields = JSON.parse(saved);
+                console.log(`✅ Loaded ${this.customFields.length} custom fields from localStorage`);
+            } else {
+                this.customFields = [];
+            }
+        } catch (error) {
+            console.error('❌ Failed to load custom fields:', error);
+            this.customFields = [];
+        }
+    }
+
+    /**
+     * Save custom fields to localStorage
+     */
+    saveCustomFields() {
+        try {
+            localStorage.setItem('salesforce_custom_fields', JSON.stringify(this.customFields));
+            console.log(`💾 Saved ${this.customFields.length} custom fields to localStorage`);
+        } catch (error) {
+            console.error('❌ Failed to save custom fields:', error);
+        }
+    }
+
+    /**
+     * Get all custom fields
+     * @returns {Array} Array of custom field objects
+     */
+    getAllCustomFields() {
+        return this.customFields || [];
+    }
+
+    /**
+     * Get active custom fields only
+     * @returns {Array} Array of active custom field objects
+     */
+    getActiveCustomFields() {
+        return (this.customFields || []).filter(field => field.active !== false);
+    }
+
+    /**
+     * Add a new custom field
+     * @param {Object} fieldData - { label, sfFieldName, value, active }
+     * @returns {Object} Created custom field object
+     */
+    async addCustomField(fieldData) {
+        const newField = {
+            id: `custom_${Date.now()}`,
+            label: fieldData.label || '',
+            sfFieldName: fieldData.sfFieldName || '',
+            value: fieldData.value || '',
+            active: fieldData.active !== false,
+            isCustom: true,
+            createdAt: new Date().toISOString(),
+            createdBy: 'user'
+        };
+
+        this.customFields.push(newField);
+        this.saveCustomFields();
+
+        // Save to API immediately
+        if (this.currentEventId) {
+            await this.saveFieldMappingsToAPI('custom_field_add', 'custom_field');
+        }
+
+        console.log('✅ Custom field added:', newField);
+        return newField;
+    }
+
+    /**
+     * Update an existing custom field
+     * @param {string} fieldId - Custom field ID
+     * @param {Object} updates - Fields to update
+     * @returns {boolean} Success status
+     */
+    async updateCustomField(fieldId, updates) {
+        const index = this.customFields.findIndex(f => f.id === fieldId);
+
+        if (index === -1) {
+            console.error(`❌ Custom field not found: ${fieldId}`);
+            return false;
+        }
+
+        this.customFields[index] = {
+            ...this.customFields[index],
+            ...updates,
+            updatedAt: new Date().toISOString()
+        };
+
+        this.saveCustomFields();
+
+        // Save to API immediately
+        if (this.currentEventId) {
+            await this.saveFieldMappingsToAPI('custom_field_update', 'custom_field');
+        }
+
+        console.log('✅ Custom field updated:', this.customFields[index]);
+        return true;
+    }
+
+    /**
+     * Delete a custom field
+     * @param {string} fieldId - Custom field ID
+     * @returns {boolean} Success status
+     */
+    async deleteCustomField(fieldId) {
+        const index = this.customFields.findIndex(f => f.id === fieldId);
+
+        if (index === -1) {
+            console.error(`❌ Custom field not found: ${fieldId}`);
+            return false;
+        }
+
+        const deletedField = this.customFields.splice(index, 1)[0];
+        this.saveCustomFields();
+
+        // Save to API immediately
+        if (this.currentEventId) {
+            await this.saveFieldMappingsToAPI('custom_field_delete', 'custom_field');
+        }
+
+        console.log('✅ Custom field deleted:', deletedField);
+        return true;
+    }
+
+    /**
+     * Toggle custom field active status
+     * @param {string} fieldId - Custom field ID
+     * @returns {boolean} New active status
+     */
+    async toggleCustomField(fieldId) {
+        const field = this.customFields.find(f => f.id === fieldId);
+
+        if (!field) {
+            console.error(`❌ Custom field not found: ${fieldId}`);
+            return false;
+        }
+
+        field.active = !field.active;
+        this.saveCustomFields();
+
+        // Save to API immediately
+        if (this.currentEventId) {
+            await this.saveFieldMappingsToAPI('custom_field_toggle', 'custom_field');
+        }
+
+        console.log(`✅ Custom field ${field.active ? 'activated' : 'deactivated'}:`, field);
+        return field.active;
+    }
+
+    /**
+     * Get custom field by ID
+     * @param {string} fieldId - Custom field ID
+     * @returns {Object|null} Custom field object or null
+     */
+    getCustomFieldById(fieldId) {
+        return this.customFields.find(f => f.id === fieldId) || null;
+    }
+
+    /**
+     * Get custom field by Salesforce field name
+     * @param {string} sfFieldName - Salesforce field name
+     * @returns {Object|null} Custom field object or null
+     */
+    getCustomFieldBySfName(sfFieldName) {
+        return this.customFields.find(f => f.sfFieldName === sfFieldName) || null;
+    }
+
+    /**
+     * Check if a Salesforce field name already exists
+     * @param {string} sfFieldName - Salesforce field name to check
+     * @returns {boolean} True if exists
+     */
+    customFieldExists(sfFieldName) {
+        return this.customFields.some(f => f.sfFieldName === sfFieldName);
+    }
+
+    /**
+     * Get all active field names for transfer (including custom fields)
+     * @returns {Array} Array of Salesforce field names
+     */
+    getAllActiveFieldNamesForTransfer() {
+        const standardActiveFields = this.getActiveFieldNames();
+        const customActiveFields = this.getActiveCustomFields().map(f => f.sfFieldName);
+
+        return [...standardActiveFields, ...customActiveFields];
     }
 }
 
