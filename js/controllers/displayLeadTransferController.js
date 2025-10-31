@@ -1055,7 +1055,7 @@ async function checkAuthenticationStatus() {
 
 async function checkSalesforceConnection() {
   try {
-    console.log('Checking Salesforce connection status...');
+    console.log('🔍 [CHECK SF CONNECTION] Starting connection check...', new Error().stack.split('\n')[2].trim());
 
     // First check if we have valid persisted connection data
     const persistedConnection = ConnectionPersistenceManager.loadConnection();
