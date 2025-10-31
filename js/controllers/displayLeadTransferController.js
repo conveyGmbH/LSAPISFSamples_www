@@ -1189,6 +1189,13 @@ async function checkSalesforceConnection() {
       ConnectionPersistenceManager.clearConnection();
       updateConnectionStatus("not-connected", "Not connected to Salesforce");
 
+    } else if (response.status === 503) {
+      // Service Unavailable
+      console.error("❌ Service Unavailable (503)");
+      ConnectionPersistenceManager.clearConnection();
+      updateConnectionStatus("not-connected", "Service unavailable");
+      showServiceUnavailableMessage();
+
     } else {
       console.error("❌ Unexpected response status:", response.status);
       ConnectionPersistenceManager.clearConnection();
@@ -1206,6 +1213,70 @@ async function checkSalesforceConnection() {
       updateConnectionStatus("not-connected", "Connection error");
     }
   }
+}
+
+// Show simple message when service is unavailable (503)
+function showServiceUnavailableMessage() {
+  const messageHtml = `
+    <div id="service-unavailable-overlay" style="
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: #f5f5f5;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100000;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+    ">
+      <div style="
+        text-align: center;
+        padding: 40px;
+        max-width: 500px;
+      ">
+        <div style="font-size: 72px; margin-bottom: 20px;">⚠️</div>
+        <h1 style="
+          font-size: 32px;
+          font-weight: 600;
+          color: #333;
+          margin: 0 0 16px 0;
+        ">503 Service Unavailable</h1>
+        <p style="
+          font-size: 16px;
+          color: #666;
+          line-height: 1.6;
+          margin: 0 0 24px 0;
+        ">
+          We were not able to resume the service because the backend is temporarily unavailable.
+          Please try again in a few moments.
+        </p>
+        <button onclick="location.reload()" style="
+          background: #4f46e5;
+          color: white;
+          border: none;
+          padding: 12px 32px;
+          border-radius: 6px;
+          font-size: 15px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: background 0.2s;
+        " onmouseover="this.style.background='#4338ca'" onmouseout="this.style.background='#4f46e5'">
+          Retry
+        </button>
+      </div>
+    </div>
+  `;
+
+  // Remove existing overlay if present
+  const existingOverlay = document.getElementById('service-unavailable-overlay');
+  if (existingOverlay) {
+    existingOverlay.remove();
+  }
+
+  // Add overlay
+  document.body.insertAdjacentHTML('beforeend', messageHtml);
 }
 
 // Show friendly message when backend is offline
