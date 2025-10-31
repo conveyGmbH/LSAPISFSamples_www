@@ -566,18 +566,23 @@ setCurrentEventId(eventId) {
             this.fieldConfig.config.fields.push(fieldConfig);
         }
 
-        // Save to API immediately if we have an event ID
-        if (this.currentEventId) {
-           try {
-            const success = await this.saveFieldMappingsToAPI(fieldName, 'toggle');
-            if (success) {
-                console.log(`Field config for ${fieldName} saved to database successfully`);
-            } else {
-                console.warn(`Failed to save field config for ${fieldName} to database`);
+        // Skip database saves during backend load to prevent spam
+        if (!this._isLoadingFromBackend) {
+            // Save to API immediately if we have an event ID
+            if (this.currentEventId) {
+               try {
+                const success = await this.saveFieldMappingsToAPI(fieldName, 'toggle');
+                if (success) {
+                    console.log(`Field config for ${fieldName} saved to database successfully`);
+                } else {
+                    console.warn(`Failed to save field config for ${fieldName} to database`);
+                }
+            } catch (error) {
+                console.error(`Error saving field config for ${fieldName} to database:`, error);
             }
-        } catch (error) {
-            console.error(`Error saving field config for ${fieldName} to database:`, error);
-        }
+            }
+        } else {
+            console.log(`⏭️  Skipping database save for ${fieldName} - loading from backend`);
         }
 
         //Also save locally as backup
