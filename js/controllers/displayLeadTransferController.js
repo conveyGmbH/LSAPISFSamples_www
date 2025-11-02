@@ -786,8 +786,45 @@ async function handleTransferButtonClick() {
 
     // ========== PHASE 2: Validate Required Fields ==========
     console.log('📋 Phase 2: Validating required fields...');
-    if (!leadData.LastName && !leadData.Company) {
-      showModernToast('Either Last Name or Company is required', 'error');
+
+    // Validate LastName and Company - both required
+    const hasLastName = leadData.LastName && leadData.LastName.trim() !== '';
+    const hasCompany = leadData.Company && leadData.Company.trim() !== '';
+
+    if (!hasLastName && !hasCompany) {
+      // Show error modal instead of toast for better visibility
+      if (typeof window.showErrorModal === 'function') {
+        window.showErrorModal(
+          'Required Fields Missing',
+          'Both Last Name and Company are required fields.\n\nPlease fill in at least one of these fields before transferring the lead to Salesforce.'
+        );
+      } else {
+        showModernToast('Last Name and Company are required. Please fill in both fields.', 'error', 6000);
+      }
+      return;
+    }
+
+    if (!hasLastName) {
+      if (typeof window.showErrorModal === 'function') {
+        window.showErrorModal(
+          'Last Name Required',
+          'Last Name is a required field.\n\nPlease enter the lead\'s last name before transferring to Salesforce.'
+        );
+      } else {
+        showModernToast('Last Name is required. Please enter a value.', 'error', 6000);
+      }
+      return;
+    }
+
+    if (!hasCompany) {
+      if (typeof window.showErrorModal === 'function') {
+        window.showErrorModal(
+          'Company Required',
+          'Company is a required field.\n\nPlease enter the company name before transferring to Salesforce.'
+        );
+      } else {
+        showModernToast('Company is required. Please enter a value.', 'error', 6000);
+      }
       return;
     }
 
@@ -840,16 +877,31 @@ async function handleTransferButtonClick() {
     if (transferModal) transferModal.remove();
 
     // Success!
+    // Build success message with details
+    let successMessage = `Lead successfully transferred to Salesforce!\n\n`;
+    successMessage += `Salesforce ID: ${result.salesforceId || 'N/A'}\n`;
+    successMessage += `Fields transferred: ${fieldsList.length}\n`;
+
+    // Add attachment info if present
+    if (result.attachmentsTransferred > 0) {
+      successMessage += `Attachments: ${result.attachmentsTransferred} uploaded\n`;
+    }
+
+    // Add validation warnings if any
+    if (result.validationWarnings && result.validationWarnings.length > 0) {
+      successMessage += `\nWarnings:\n${result.validationWarnings.map(w => `• ${w}`).join('\n')}`;
+    }
+
     if (typeof window.showSuccessModal === 'function') {
       window.showSuccessModal(
         'Transfer Successful!',
-        `Lead transferred successfully to Salesforce!\n\nSalesforce ID: ${result.salesforceId || 'N/A'}\nFields transferred: ${fieldsList.length}`
+        successMessage.trim()
       );
     } else {
       console.error('showSuccessModal function not found!');
       await showAlertDialog(
         'Transfer Successful!',
-        `Lead transferred successfully!\n\nSalesforce ID: ${result.salesforceId || 'N/A'}`,
+        successMessage.trim(),
         { type: 'success', buttonText: 'OK' }
       );
     }
@@ -859,19 +911,38 @@ async function handleTransferButtonClick() {
   } catch (error) {
     console.error('❌ Transfer failed:', error);
 
-    // More detailed error message
+    // Close any loading modals first
+    document.querySelectorAll('.transfer-loading-modal').forEach(m => m.remove());
+
+    // Parse error message for better user experience
+    let errorTitle = 'Transfer Failed';
     let errorMessage = error.message || 'Unknown error occurred';
+
+    // Detect specific error types
+    if (errorMessage.includes('Custom field(s) not found')) {
+      errorTitle = 'Custom Fields Missing';
+    } else if (errorMessage.includes('REQUIRED_FIELD_MISSING')) {
+      errorTitle = 'Required Field Missing';
+    } else if (errorMessage.includes('DUPLICATE')) {
+      errorTitle = 'Duplicate Record';
+    } else if (errorMessage.includes('INVALID_EMAIL')) {
+      errorTitle = 'Invalid Email';
+    } else if (errorMessage.includes('Not connected')) {
+      errorTitle = 'Connection Error';
+      errorMessage = 'You are not connected to Salesforce. Please connect and try again.';
+    }
+
     if (error.stack) {
       console.error('Error stack:', error.stack);
     }
 
     // Show error to user
     if (typeof window.showErrorModal === 'function') {
-      window.showErrorModal('Transfer Failed', errorMessage);
+      window.showErrorModal(errorTitle, errorMessage);
     } else {
       console.error('showErrorModal function not found!');
       await showAlertDialog(
-        'Transfer Failed',
+        errorTitle,
         errorMessage,
         { type: 'error', buttonText: 'OK' }
       );

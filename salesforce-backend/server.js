@@ -1218,11 +1218,40 @@ app.get('/api/salesforce/check', async (req, res) => {
             console.log('🔎 Looking for connection in local Map...');
             const conn = getConnection(orgId);
 
+            if (!conn) {
+                throw new Error('Connection object is null');
+            }
+
             console.log('✅ Connection found!');
+            console.log('   - Connection type:', typeof conn);
+            console.log('   - Has identity method:', typeof conn.identity);
+            console.log('   - Access token present:', !!conn.accessToken);
+            console.log('   - Instance URL:', conn.instanceUrl);
             console.log('🔄 Verifying connection with identity call...');
 
             // Verify connection is valid by calling identity
-            const identity = await conn.identity();
+            let identity;
+            try {
+                identity = await conn.identity();
+            } catch (identityError) {
+                console.error('❌ Identity call failed:', identityError.message);
+                // If identity fails, still return connection info if we have accessToken
+                if (conn.accessToken && conn.instanceUrl) {
+                    console.log('⚠️ Using cached connection info (identity call failed but tokens exist)');
+                    const connData = connections.get(orgId);
+                    if (connData && connData.userInfo) {
+                        return res.json({
+                            connected: true,
+                            userInfo: connData.userInfo,
+                            tokens: {
+                                access_token: conn.accessToken,
+                                instance_url: conn.instanceUrl
+                            }
+                        });
+                    }
+                }
+                throw identityError;
+            }
 
             console.log('✅ Identity verified successfully');
 
@@ -2037,12 +2066,36 @@ app.post('/api/salesforce/leads', async (req, res) => {
 
         if (!leadResult.success) {
             // Include detailed Salesforce errors if available
-            let detailedError = 'Failed to create lead';
+            let detailedError = 'Failed to create lead in Salesforce';
+            let missingFields = [];
+
             if (leadResult.errors && Array.isArray(leadResult.errors) && leadResult.errors.length > 0) {
-                detailedError += ': ' + leadResult.errors.map(e => e.message || JSON.stringify(e)).join('; ');
+                // Check for missing field errors
+                leadResult.errors.forEach(err => {
+                    const errorMsg = err.message || JSON.stringify(err);
+
+                    // Detect missing field errors
+                    if (errorMsg.includes('No such column') || errorMsg.includes('Invalid field') ||
+                        errorMsg.includes('does not exist') || errorMsg.includes('INVALID_FIELD')) {
+
+                        // Extract field name from error message
+                        const fieldMatch = errorMsg.match(/['"]?(\w+__c)['"]?/) || errorMsg.match(/column ['"](\w+)['"]/);
+                        if (fieldMatch && fieldMatch[1]) {
+                            missingFields.push(fieldMatch[1]);
+                        }
+                    }
+                });
+
+                if (missingFields.length > 0) {
+                    detailedError = `Custom field(s) not found in Salesforce: ${missingFields.join(', ')}.\n\n` +
+                                   `Please create these custom fields in your Salesforce org before transferring leads, or deactivate them in the field configuration.`;
+                } else {
+                    detailedError += ':\n' + leadResult.errors.map(e => e.message || JSON.stringify(e)).join('\n');
+                }
             } else {
                 detailedError += ': ' + JSON.stringify(leadResult.errors);
             }
+
             throw new Error(detailedError);
         }
 
