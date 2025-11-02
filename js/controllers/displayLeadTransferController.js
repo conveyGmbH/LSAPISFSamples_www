@@ -1284,60 +1284,73 @@ function showBackendOfflineMessage() {
   const messageHtml = `
     <div id="backend-offline-notice" style="
       position: fixed;
-      top: 80px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      padding: 20px 30px;
-      border-radius: 12px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-      z-index: 10000;
-      max-width: 500px;
-      text-align: center;
-      animation: slideDown 0.3s ease-out;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100000;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
     ">
-      <div style="font-size: 48px; margin-bottom: 10px;">🔌</div>
-      <h3 style="margin: 0 0 10px 0; font-size: 20px; font-weight: 600;">
-        Backend Server Offline
-      </h3>
-      <p style="margin: 0 0 15px 0; font-size: 14px; opacity: 0.9;">
-        The Node.js backend server is not running. Please start it to use Salesforce features.
-      </p>
-      <div style="background: rgba(255,255,255,0.2); padding: 12px; border-radius: 8px; margin-bottom: 15px;">
-        <code style="font-size: 13px; display: block; margin-bottom: 5px;">
-          cd salesforce-backend
-        </code>
-        <code style="font-size: 13px; display: block;">
-          npm run dev
-        </code>
+      <div style="
+        text-align: center;
+        padding: 40px;
+        max-width: 500px;
+      ">
+        <div style="font-size: 72px; margin-bottom: 20px;">🔌</div>
+        <h1 style="
+          font-size: 32px;
+          font-weight: 600;
+          color: #333;
+          margin: 0 0 16px 0;
+        ">Backend Server Offline</h1>
+        <p style="
+          font-size: 16px;
+          color: #666;
+          line-height: 1.6;
+          margin: 0 0 24px 0;
+        ">
+          The Node.js backend server is not running. Please start it to use Salesforce features.
+        </p>
+        <div style="
+          background: #f5f5f5;
+          padding: 16px;
+          border-radius: 8px;
+          margin-bottom: 24px;
+          text-align: left;
+        ">
+          <code style="
+            font-size: 14px;
+            color: #333;
+            display: block;
+            margin-bottom: 8px;
+            font-family: 'Courier New', monospace;
+          ">cd salesforce-backend</code>
+          <code style="
+            font-size: 14px;
+            color: #333;
+            display: block;
+            font-family: 'Courier New', monospace;
+          ">npm run dev</code>
+        </div>
+        <button onclick="location.reload()" style="
+          background: #4f46e5;
+          color: white;
+          border: none;
+          padding: 12px 32px;
+          border-radius: 6px;
+          font-size: 15px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: background 0.2s;
+        " onmouseover="this.style.background='#4338ca'" onmouseout="this.style.background='#4f46e5'">
+          Retry Connection
+        </button>
       </div>
-      <button onclick="location.reload()" style="
-        background: white;
-        color: #667eea;
-        border: none;
-        padding: 10px 24px;
-        border-radius: 6px;
-        font-weight: 600;
-        cursor: pointer;
-        font-size: 14px;
-        transition: transform 0.2s;
-      " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
-        Retry Connection
-      </button>
     </div>
-    <style>
-      @keyframes slideDown {
-        from {
-          opacity: 0;
-          transform: translateX(-50%) translateY(-20px);
-        }
-        to {
-          opacity: 1;
-          transform: translateX(-50%) translateY(0);
-        }
-      }
-    </style>
   `;
 
   // Remove existing notice if present
@@ -1348,15 +1361,6 @@ function showBackendOfflineMessage() {
 
   // Add new notice
   document.body.insertAdjacentHTML('beforeend', messageHtml);
-
-  // Auto-hide after 30 seconds
-  setTimeout(() => {
-    const notice = document.getElementById('backend-offline-notice');
-    if (notice) {
-      notice.style.animation = 'slideUp 0.3s ease-out';
-      setTimeout(() => notice.remove(), 300);
-    }
-  }, 30000);
 }
 
 
