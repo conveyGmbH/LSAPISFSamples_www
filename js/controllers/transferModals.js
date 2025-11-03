@@ -294,8 +294,11 @@ function showSuccessModal(title, message) {
     });
 }
 
-// Make functions available globally
+// Make functions available globally immediately (not waiting for DOMContentLoaded)
 window.showTransferLoadingModal = showTransferLoadingModal;
 window.showFieldCreationConfirmationModal = showFieldCreationConfirmationModal;
 window.showErrorModal = showErrorModal;
 window.showSuccessModal = showSuccessModal;
+
+// Log for debugging
+console.log('✅ transferModals.js loaded - showErrorModal available:', typeof window.showErrorModal);

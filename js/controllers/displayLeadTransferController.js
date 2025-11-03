@@ -851,19 +851,26 @@ async function handleTransferButtonClick() {
         console.log('❌ Duplicate lead detected:', errorData);
         if (transferModal) transferModal.remove();
 
-        // Check if showErrorModal is available
+        // Build detailed duplicate message
+        const duplicateMessage = `A lead with the same Last Name and Company already exists in Salesforce.\n\nSalesforce ID: ${errorData.salesforceId}` +
+          (errorData.existingLead ? `\nName: ${errorData.existingLead.name || 'N/A'}\nCompany: ${errorData.existingLead.company || 'N/A'}\nEmail: ${errorData.existingLead.email || 'N/A'}` : '') +
+          `\n\nPlease update the existing lead or modify the lead information.`;
+
+        // Try showErrorModal first, fallback to alert
         if (typeof window.showErrorModal === 'function') {
-          window.showErrorModal(
-            'Duplicate Lead Found',
-            `A lead with the same Last Name and Company already exists in Salesforce.\n\nSalesforce ID: ${errorData.salesforceId}\n\nPlease update the existing lead or modify the lead information.`
-          );
-        } else {
-          console.error('showErrorModal function not found!');
+          console.log('✅ Using showErrorModal for duplicate');
+          window.showErrorModal('Duplicate Lead Found', duplicateMessage);
+        } else if (typeof showAlertDialog === 'function') {
+          console.log('⚠️ Fallback to showAlertDialog for duplicate');
           await showAlertDialog(
             'Duplicate Lead Found',
-            `A lead with the same Last Name and Company already exists.\n\nSalesforce ID: ${errorData.salesforceId}`,
+            duplicateMessage,
             { type: 'warning', buttonText: 'OK' }
           );
+        } else {
+          // Last resort: browser alert
+          console.error('❌ No modal functions available, using alert()');
+          alert(`Duplicate Lead Found\n\n${duplicateMessage}`);
         }
         return; // Exit early - don't throw error
       }
