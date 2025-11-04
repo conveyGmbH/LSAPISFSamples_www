@@ -27,7 +27,7 @@ class ConnectionPersistenceManager {
       localStorage.setItem(this.USER_INFO_KEY, JSON.stringify(connectionData));
       localStorage.setItem(this.CONNECTED_AT_KEY, Date.now().toString());
 
-      console.log(`💾 Connection saved to localStorage for org ${orgId}:`, userInfo.display_name || userInfo.username);
+      console.log(` Connection saved to localStorage for org ${orgId}:`, userInfo.display_name || userInfo.username);
 
       this.syncPendingModifications();
 
@@ -112,7 +112,7 @@ class ConnectionPersistenceManager {
 }
 
 
-// Global variable for lead data - accessible from all functions
+// Global variable for lead data 
 window.selectedLeadData = null;
 let leadSource = null;
 let isTransferInProgress = false;
@@ -217,14 +217,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   displayUserName();
 
   await checkSalesforceConnection();
-
-  // Add required styles
-  addRequiredStyles();
 });
 
 
-/* Initialize button event listeners
- */
+// Initialize button event listeners
 function initializeButtonListeners() {
   // Connect/Disconnect buttons
   document.getElementById('connectButton')?.addEventListener('click', handleConnectClick);
@@ -248,7 +244,6 @@ function initializeButtonListeners() {
   const transferBtn = document.getElementById('transferToSalesforceBtn');
   if (transferBtn) {
     transferBtn.addEventListener('click', handleTransferButtonClick);
-    // Keep button disabled until backend connection is verified
     transferBtn.disabled = true;
     transferBtn.classList.add('disabled');
     transferBtn.title = 'Please connect to Salesforce first';
@@ -403,7 +398,7 @@ function updateTransferButtonState() {
         return;
     }
 
-    // Count active fields from window.selectedLeadData (single source of truth)
+    // Count active fields from window.selectedLeadData 
     if (!window.selectedLeadData) {
         transferBtn.disabled = true;
         transferBtn.title = 'No lead data loaded';
@@ -764,7 +759,51 @@ function showModernToast(message, type = 'info', duration = 4000) {
 
 
 // ============================================================================
-// TRANSFER BUTTON HANDLER 
+// LEAD TRANSFER STATUS TRACKING
+// ============================================================================
+
+/**
+ * Save transfer status to backend after successful transfer
+ */
+async function saveTransferStatus(leadId, salesforceId, status = 'Success') {
+  try {
+    const BACKEND_API_URL = window.location.hostname === 'localhost'
+      ? 'http://localhost:3000'
+      : 'https://lsapisfbackenddev-gnfbema5gcaxdahz.germanywestcentral-01.azurewebsites.net';
+
+    const orgId = localStorage.getItem('orgId') || 'default';
+
+    const response = await fetch(`${BACKEND_API_URL}/api/leads/transfer-status`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Org-Id': orgId
+      },
+      credentials: 'include',
+      body: JSON.stringify({
+        leadId,
+        status,
+        salesforceId
+      })
+    });
+
+    if (!response.ok) {
+      console.warn('Failed to save transfer status:', response.statusText);
+      return false;
+    }
+
+    const result = await response.json();
+    console.log('✅ Transfer status saved:', result);
+    return true;
+
+  } catch (error) {
+    console.error('Error saving transfer status:', error);
+    return false;
+  }
+}
+
+// ============================================================================
+// TRANSFER BUTTON HANDLER
 // ============================================================================
 
 async function handleTransferButtonClick() {
@@ -786,8 +825,45 @@ async function handleTransferButtonClick() {
 
     // ========== PHASE 2: Validate Required Fields ==========
     console.log('📋 Phase 2: Validating required fields...');
-    if (!leadData.LastName && !leadData.Company) {
-      showModernToast('Either Last Name or Company is required', 'error');
+
+    // Validate LastName and Company - both required
+    const hasLastName = leadData.LastName && leadData.LastName.trim() !== '';
+    const hasCompany = leadData.Company && leadData.Company.trim() !== '';
+
+    if (!hasLastName && !hasCompany) {
+      // Show error modal instead of toast for better visibility
+      if (typeof window.showErrorModal === 'function') {
+        window.showErrorModal(
+          'Required Fields Missing',
+          'Both Last Name and Company are required fields.\n\nPlease fill in at least one of these fields before transferring the lead to Salesforce.'
+        );
+      } else {
+        showModernToast('Last Name and Company are required. Please fill in both fields.', 'error', 6000);
+      }
+      return;
+    }
+
+    if (!hasLastName) {
+      if (typeof window.showErrorModal === 'function') {
+        window.showErrorModal(
+          'Last Name Required',
+          'Last Name is a required field.\n\nPlease enter the lead\'s last name before transferring to Salesforce.'
+        );
+      } else {
+        showModernToast('Last Name is required. Please enter a value.', 'error', 6000);
+      }
+      return;
+    }
+
+    if (!hasCompany) {
+      if (typeof window.showErrorModal === 'function') {
+        window.showErrorModal(
+          'Company Required',
+          'Company is a required field.\n\nPlease enter the company name before transferring to Salesforce.'
+        );
+      } else {
+        showModernToast('Company is required. Please enter a value.', 'error', 6000);
+      }
       return;
     }
 
@@ -814,19 +890,26 @@ async function handleTransferButtonClick() {
         console.log('❌ Duplicate lead detected:', errorData);
         if (transferModal) transferModal.remove();
 
-        // Check if showErrorModal is available
+        // Build detailed duplicate message
+        const duplicateMessage = `A lead with the same Last Name and Company already exists in Salesforce.\n\nSalesforce ID: ${errorData.salesforceId}` +
+          (errorData.existingLead ? `\nName: ${errorData.existingLead.name || 'N/A'}\nCompany: ${errorData.existingLead.company || 'N/A'}\nEmail: ${errorData.existingLead.email || 'N/A'}` : '') +
+          `\n\nPlease update the existing lead or modify the lead information.`;
+
+        // Try showErrorModal first, fallback to alert
         if (typeof window.showErrorModal === 'function') {
-          window.showErrorModal(
-            'Duplicate Lead Found',
-            `A lead with the same Last Name and Company already exists in Salesforce.\n\nSalesforce ID: ${errorData.salesforceId}\n\nPlease update the existing lead or modify the lead information.`
-          );
-        } else {
-          console.error('showErrorModal function not found!');
+          console.log('✅ Using showErrorModal for duplicate');
+          window.showErrorModal('Duplicate Lead Found', duplicateMessage);
+        } else if (typeof showAlertDialog === 'function') {
+          console.log('⚠️ Fallback to showAlertDialog for duplicate');
           await showAlertDialog(
             'Duplicate Lead Found',
-            `A lead with the same Last Name and Company already exists.\n\nSalesforce ID: ${errorData.salesforceId}`,
+            duplicateMessage,
             { type: 'warning', buttonText: 'OK' }
           );
+        } else {
+          // Last resort: browser alert
+          console.error('❌ No modal functions available, using alert()');
+          alert(`Duplicate Lead Found\n\n${duplicateMessage}`);
         }
         return; // Exit early - don't throw error
       }
@@ -839,17 +922,38 @@ async function handleTransferButtonClick() {
     // Close transfer modal
     if (transferModal) transferModal.remove();
 
+    // Save transfer status to backend
+    const leadId = window.selectedLeadData?.Id;
+    if (leadId && result.salesforceId) {
+      await saveTransferStatus(leadId, result.salesforceId, 'Success');
+    }
+
     // Success!
+    // Build success message with details
+    let successMessage = `Lead successfully transferred to Salesforce!\n\n`;
+    successMessage += `Salesforce ID: ${result.salesforceId || 'N/A'}\n`;
+    successMessage += `Fields transferred: ${fieldsList.length}\n`;
+
+    // Add attachment info if present
+    if (result.attachmentsTransferred > 0) {
+      successMessage += `Attachments: ${result.attachmentsTransferred} uploaded\n`;
+    }
+
+    // Add validation warnings if any
+    if (result.validationWarnings && result.validationWarnings.length > 0) {
+      successMessage += `\nWarnings:\n${result.validationWarnings.map(w => `• ${w}`).join('\n')}`;
+    }
+
     if (typeof window.showSuccessModal === 'function') {
       window.showSuccessModal(
         'Transfer Successful!',
-        `Lead transferred successfully to Salesforce!\n\nSalesforce ID: ${result.salesforceId || 'N/A'}\nFields transferred: ${fieldsList.length}`
+        successMessage.trim()
       );
     } else {
       console.error('showSuccessModal function not found!');
       await showAlertDialog(
         'Transfer Successful!',
-        `Lead transferred successfully!\n\nSalesforce ID: ${result.salesforceId || 'N/A'}`,
+        successMessage.trim(),
         { type: 'success', buttonText: 'OK' }
       );
     }
@@ -859,19 +963,38 @@ async function handleTransferButtonClick() {
   } catch (error) {
     console.error('❌ Transfer failed:', error);
 
-    // More detailed error message
+    // Close any loading modals first
+    document.querySelectorAll('.transfer-loading-modal').forEach(m => m.remove());
+
+    // Parse error message for better user experience
+    let errorTitle = 'Transfer Failed';
     let errorMessage = error.message || 'Unknown error occurred';
+
+    // Detect specific error types
+    if (errorMessage.includes('Custom field(s) not found')) {
+      errorTitle = 'Custom Fields Missing';
+    } else if (errorMessage.includes('REQUIRED_FIELD_MISSING')) {
+      errorTitle = 'Required Field Missing';
+    } else if (errorMessage.includes('DUPLICATE')) {
+      errorTitle = 'Duplicate Record';
+    } else if (errorMessage.includes('INVALID_EMAIL')) {
+      errorTitle = 'Invalid Email';
+    } else if (errorMessage.includes('Not connected')) {
+      errorTitle = 'Connection Error';
+      errorMessage = 'You are not connected to Salesforce. Please connect and try again.';
+    }
+
     if (error.stack) {
       console.error('Error stack:', error.stack);
     }
 
     // Show error to user
     if (typeof window.showErrorModal === 'function') {
-      window.showErrorModal('Transfer Failed', errorMessage);
+      window.showErrorModal(errorTitle, errorMessage);
     } else {
       console.error('showErrorModal function not found!');
       await showAlertDialog(
-        'Transfer Failed',
+        errorTitle,
         errorMessage,
         { type: 'error', buttonText: 'OK' }
       );
@@ -1141,7 +1264,7 @@ async function checkSalesforceConnection() {
 
       // 🔑 STORE SALESFORCE TOKENS for direct API calls
       if (responseData.tokens) {
-        console.log('💾 Storing Salesforce tokens for direct API access');
+        console.log(' Storing Salesforce tokens for direct API access');
         localStorage.setItem('sf_access_token', responseData.tokens.access_token);
         localStorage.setItem('sf_instance_url', responseData.tokens.instance_url);
         console.log('✅ Tokens stored successfully');
@@ -1655,6 +1778,11 @@ function createFieldTableRow(fieldName, fieldInfo) {
         statusBadge.className = `px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${isChecked ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`;
         statusBadge.textContent = isChecked ? 'Active' : 'Inactive';
 
+        row.style.display = 'none';
+        row.offsetHeight;
+        row.style.display = '';
+
+
         // Sync with CardView if exists
         syncToggleWithCardView(fieldName, isChecked);
 
@@ -1665,11 +1793,9 @@ function createFieldTableRow(fieldName, fieldInfo) {
 
     // Add edit button listener - Opens inline editing or modal
     editBtn.addEventListener('click', () => {
-        // Option 1: Use the edit modal (if available)
         if (typeof window.openEditModal === 'function') {
             window.openEditModal(fieldName, fieldInfo.label || fieldName, fieldInfo.value);
         } else {
-            // Option 2: Make the value cell editable inline
             const valueCell = row.querySelector('.field-value');
             const currentValue = fieldInfo.value || '';
 
@@ -1711,412 +1837,6 @@ function createFieldTableRow(fieldName, fieldInfo) {
     return row;
 }
 
-// 3.  fonction principale pour créer un élément de champ (kept for CardView)
-function createFieldElement(fieldName, fieldInfo) {
-    const fieldElement = document.createElement("div");
-    fieldElement.className = `lead-field ${fieldInfo.active ? '' : 'field-inactive'}`;
-    fieldElement.dataset.fieldName = fieldName;
-
-    // Configuration Salesforce pour le champ
-    const salesforceConfig = getSalesforceFieldConfig(fieldName);
-    
-    // Header du champ
-    const fieldHeader = createFieldHeader(fieldName, fieldInfo.label, salesforceConfig);
-    
-    // Contenu du champ avec logique d'édition
-    const fieldContent = createFieldContent(fieldName, fieldInfo.value, salesforceConfig);
-    
-    // Footer avec toggle actif/inactif
-    const fieldFooter = createFieldFooter(fieldName, fieldInfo.active);
-
-    fieldElement.appendChild(fieldHeader);
-    fieldElement.appendChild(fieldContent);
-    fieldElement.appendChild(fieldFooter);
-
-    return fieldElement;
-}
-
-// 4. Créer le header du champ
-function createFieldHeader(fieldName, label, config) {
-    const header = document.createElement("div");
-    header.className = "field-header";
-
-    const labelContainer = document.createElement("div");
-    labelContainer.className = "field-label-container";
-
-    const labelText = document.createElement("span");
-    labelText.className = "field-label";
-    labelText.textContent = label;
-
-    // Ajouter indicateur requis
-    if (config.required) {
-        labelText.innerHTML += ' <span class="required-indicator">*</span>';
-    }
-
-    const apiName = document.createElement("div");
-    apiName.className = "field-api-name";
-    apiName.textContent = `${fieldName} (${config.type})`;
-
-    labelContainer.appendChild(labelText);
-    labelContainer.appendChild(apiName);
-
-    // Container pour les actions à droite
-    const actionsContainer = document.createElement("div");
-    actionsContainer.className = "field-actions-container";
-
-    // Ajouter indicateur READ-ONLY pour les champs non éditables (à droite)
-    const readOnlyFields = [
-        'Id', 'CreatedDate', 'LastModifiedDate', 'CreatedById', 'LastModifiedById',
-        'RequestBarcode', 'AttachmentIdList', 'DeviceRecordId', 'DeviceId',
-        'EventId', 'SystemModstamp'
-    ];
-
-    if (readOnlyFields.includes(fieldName)) {
-        const readOnlyIndicator = document.createElement("span");
-        readOnlyIndicator.className = "read-only-indicator";
-        readOnlyIndicator.innerHTML = '🔒 READ-ONLY';
-        actionsContainer.appendChild(readOnlyIndicator);
-    }
-
-    // Bouton d'édition du label
-    const editLabelBtn = document.createElement("button");
-    editLabelBtn.className = "edit-label-btn";
-    editLabelBtn.innerHTML = '✏️';
-    editLabelBtn.title = 'Edit field label';
-    editLabelBtn.onclick = () => openEditLabelModal(fieldName);
-    actionsContainer.appendChild(editLabelBtn);
-
-    header.appendChild(labelContainer);
-    header.appendChild(actionsContainer);
-
-    return header;
-}
-
-function createFieldContent(fieldName, value, config) {
-    const content = document.createElement("div");
-    content.className = "field-content";
-
-    const displayContainer = createDisplayWithEditIcon(fieldName, value, config);
-    content.appendChild(displayContainer);
-
-    const errorElement = document.createElement("div");
-    errorElement.className = "field-error";
-    errorElement.id = `error-${fieldName}`;
-    content.appendChild(errorElement);
-
-    return content;
-}
-
-// Créer un input selon le type Salesforce
-function createSalesforceInput(fieldName, value, config) {
-    let input;
-    
-    switch (config.type) {
-        case 'Picklist':
-            input = createPicklistInput(fieldName, value, config);
-            break;
-        case 'Email':
-            input = createEmailInput(fieldName, value);
-            break;
-        case 'Phone':
-            input = createPhoneInput(fieldName, value);
-            break;
-        case 'Url':
-            input = createUrlInput(fieldName, value);
-            break;
-        case 'TextArea':
-        case 'LongTextArea':
-            input = createTextAreaInput(fieldName, value, config);
-            break;
-        case 'Checkbox':
-            input = createCheckboxInput(fieldName, value);
-            break;
-        case 'DateTime':
-            input = createTextInput(fieldName, value, config);
-            break;
-        default:
-            input = createTextInput(fieldName, value, config);
-    }
-
-    input.className += ' field-input';
-    input.dataset.fieldName = fieldName;
-    
-    // ✅ ESSENTIEL: Ajouter les événements de sauvegarde
-    addSaveEvents(input, fieldName);
-    
-    return input;
-}
-
-
-
-function createPicklistInput(fieldName, value, config) {
-    const select = document.createElement('select');
-    select.className = 'field-input';
-    
-    // Options selon le champ
-    const options = getPicklistOptions(fieldName);
-    
-    // Option vide si pas requis
-    if (!config.required) {
-        const emptyOption = document.createElement('option');
-        emptyOption.value = '';
-        emptyOption.textContent = '-- Select --';
-        select.appendChild(emptyOption);
-    }
-    
-    options.forEach(option => {
-        const optionElement = document.createElement('option');
-        optionElement.value = option;
-        optionElement.textContent = option;
-        if (value === option) {
-            optionElement.selected = true;
-        }
-        select.appendChild(optionElement);
-    });
-    
-    return select;
-}
-
-function createEmailInput(fieldName, value) {
-    const input = document.createElement('input');
-    input.type = 'email';
-    input.className = 'field-input';
-    input.value = value || '';
-    input.placeholder = 'email@example.com';
-    addSaveEvents(input, fieldName);
-    return input;
-}
-
-function createPhoneInput(fieldName, value) {
-    const input = document.createElement('input');
-    input.type = 'tel';
-    input.className = 'field-input';
-    input.value = value || '';
-    input.placeholder = '+49 123 456789';
-    addSaveEvents(input, fieldName);
-    return input;
-}
-
-function createTextAreaInput(fieldName, value, config) {
-    const textarea = document.createElement('textarea');
-    textarea.className = 'field-input';
-    textarea.value = value || '';
-    textarea.rows = config.type === 'LongTextArea' ? 6 : 3;
-    textarea.placeholder = `Enter ${fieldName}`;
-    return textarea;
-}
-
-function createCheckboxInput(fieldName, value) {
-    const container = document.createElement('div');
-    container.className = 'checkbox-container field-input';
-    
-    const input = document.createElement('input');
-    input.type = 'checkbox';
-    input.checked = value === true || value === 1 || value === '1';
-    
-    const label = document.createElement('label');
-    label.textContent = 'Yes';
-    
-    container.appendChild(input);
-    container.appendChild(label);
-    
-    return container;
-}
-
-function createTextInput(fieldName, value, config) {
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.className = 'field-input';
-    input.value = value || '';
-    input.placeholder = `Enter ${fieldName}`;
-    
-    if (config.maxLength) {
-        input.maxLength = config.maxLength;
-    }
-    
-    return input;
-}
-
-function isAlwaysEditable(fieldName) {
-    const alwaysEditable = [
-        'Description', 'Title', 'Department', 'Industry', 'SalesArea'
-    ];
-    return alwaysEditable.includes(fieldName);
-}
-
-
-function createFieldFooter(fieldName, isActive) {
-    const footer = document.createElement("div");
-    footer.className = "field-footer";
-    
-    const toggleContainer = document.createElement("label");
-    toggleContainer.className = "toggle-switch";
-    
-    const toggleInput = document.createElement("input");
-    toggleInput.type = "checkbox";
-    toggleInput.checked = isActive !== false;
-    toggleInput.addEventListener('change', () => {
-        toggleFieldActive(fieldName, toggleInput.checked);
-    });
-    
-    const slider = document.createElement("span");
-    slider.className = "slider";
-    
-    toggleContainer.appendChild(toggleInput);
-    toggleContainer.appendChild(slider);
-    
-    const statusText = document.createElement("span");
-    statusText.className = "field-status";
-    statusText.textContent = isActive !== false ? "Active" : "Inactive";
-    
-    footer.appendChild(toggleContainer);
-    footer.appendChild(statusText);
-    
-    return footer;
-}
-
-function addRequiredStyles() {
-    if (document.getElementById('lead-editing-styles')) return;
-    
-    const style = document.createElement('style');
-    style.id = 'lead-editing-styles';
-    style.textContent = `
-        .lead-field {
-            border: 1px solid #e5e5e5;
-            border-radius: 8px;
-            padding: 16px;
-            background: white;
-            margin-bottom: 16px;
-            transition: all 0.2s ease;
-        }
-        
-        .lead-field.field-saved {
-            border-color: #10b981;
-            box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.1);
-            animation: saveFlash 0.5s ease;
-        }
-        
-        @keyframes saveFlash {
-            0% { background-color: rgba(16, 185, 129, 0.1); }
-            100% { background-color: white; }
-        }
-        
-        .field-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 12px;
-        }
-        
-        .field-label {
-            font-weight: 600;
-            color: #1f2937;
-            font-size: 14px;
-        }
-        
-        .required-indicator {
-            color: #ef4444;
-            font-weight: bold;
-        }
-        
-        .field-api-name {
-            font-size: 12px;
-            color: #6b7280;
-            margin-top: 2px;
-        }
-        
-        .edit-label-btn {
-            background: none;
-            border: none;
-            cursor: pointer;
-            opacity: 0.7;
-            transition: opacity 0.2s;
-            padding: 4px;
-            border-radius: 4px;
-        }
-        
-        .edit-label-btn:hover {
-            opacity: 1;
-            background: #f3f4f6;
-        }
-        
-        .field-content {
-            margin-bottom: 12px;
-        }
-        
-        .field-display-container {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .field-display-value {
-            flex: 1;
-            padding: 8px 12px;
-            background: #f9fafb;
-            border: 1px solid #e5e7eb;
-            border-radius: 6px;
-            min-height: 20px;
-        }
-        
-        .field-edit-icon {
-            background: none;
-            border: none;
-            cursor: pointer;
-            opacity: 0.7;
-            transition: all 0.2s;
-            padding: 6px;
-            border-radius: 4px;
-        }
-        
-        .field-edit-icon:hover {
-            opacity: 1;
-            background: #f3f4f6;
-        }
-        
-        .field-input {
-            width: 100%;
-            padding: 8px 12px;
-            border: 1px solid #d1d5db;
-            border-radius: 6px;
-            font-size: 14px;
-            transition: border-color 0.2s;
-            box-sizing: border-box;
-        }
-        
-        .field-input:focus {
-            outline: none;
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-        }
-        
-        .field-error {
-            color: #ef4444;
-            font-size: 12px;
-            margin-top: 4px;
-            display: none;
-        }
-        
-        .field-error.show {
-            display: block;
-        }
-        
-        .checkbox-container {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 0;
-        }
-        
-        .lead-info-grid {
-            display: grid;
-            gap: 16px;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-        }
-    `;
-    
-    document.head.appendChild(style);
-}
 
 
 // Configuration Salesforce étendue pour Lead + LeadReport
@@ -2160,42 +1880,6 @@ function getSalesforceFieldConfig(fieldName) {
     return configs[fieldName] || { type: 'Text', required: false };
 }
 
-function getPicklistOptions(fieldName) {
-    const options = {
-        'Salutation': ['Mr.', 'Ms.', 'Mrs.', 'Dr.', 'Prof.'],
-        'Industry': [
-            'Agriculture', 'Banking', 'Biotechnology', 'Chemicals', 'Communications',
-            'Construction', 'Consulting', 'Education', 'Electronics', 'Energy',
-            'Engineering', 'Entertainment', 'Finance', 'Healthcare', 'Insurance',
-            'Manufacturing', 'Media', 'Technology', 'Transportation', 'Other'
-        ],
-        'CountryCode': ['DE', 'US', 'GB', 'FR', 'IT', 'ES', 'NL', 'BE', 'CH', 'AT']
-    };
-    
-    return options[fieldName] || [];
-}
-
-// Gestion des événements et sauvegarde
-function addSaveEvents(input, fieldName) {
-    // Sauvegarde lors du changement de valeur
-    input.addEventListener('change', () => {
-        const value = getInputValue(input);
-        console.log(`💾 Field ${fieldName} changed to:`, value);
-        saveFieldValue(fieldName, value);
-    });
-    
-    // Sauvegarde lors de la perte de focus
-    input.addEventListener('blur', () => {
-        const value = getInputValue(input);
-        saveFieldValue(fieldName, value);
-    });
-    
-    // Validation en temps réel
-    input.addEventListener('input', () => {
-        const value = getInputValue(input);
-        validateField(fieldName, value);
-    });
-}
 
 
 /**
@@ -2243,61 +1927,6 @@ async function transferLeadDirectlyToSalesforce(leadData, attachments) {
       mappedFields: Object.keys(salesforceLeadData)
     });
 
-    // MODIFICATION CLIENT: Les champs Question/Answer/Text sont maintenant envoyés directement
-    // avec leurs noms mappés (Question01__c, Answer01__c, etc.) grâce à filterConfiguredFields()
-    // Ce code legacy est conservé en commentaire au cas où vous souhaitez l'ancienne logique
-    // qui ajoutait tout dans le champ Description
-    /*
-    if (leadSource === "LeadReport") {
-      console.log('Source is LeadReport - checking for Question/Answer/Text fields...');
-
-      const questionsAndAnswers = [];
-      let activeQACount = 0;
-
-      for (let i = 1; i <= 50; i++) {
-        const questionNum = i.toString().padStart(2, '0');
-        const questionField = `Question${questionNum}`;
-        const answersField = `Answers${questionNum}`;
-        const textField = `Text${questionNum}`;
-
-        const hasQuestion = leadData[questionField] && leadData[questionField].trim() !== '' && leadData[questionField] !== 'N/A';
-        const hasAnswers = leadData[answersField] && leadData[answersField].trim() !== '' && leadData[answersField] !== 'N/A';
-        const hasText = leadData[textField] && leadData[textField].trim() !== '' && leadData[textField] !== 'N/A';
-
-        if (hasQuestion || hasAnswers || hasText) {
-          activeQACount++;
-          const qaSection = [];
-
-          if (hasQuestion) {
-            qaSection.push(`Q${i}: ${leadData[questionField]}`);
-          }
-          if (hasAnswers) {
-            qaSection.push(`A${i}: ${leadData[answersField]}`);
-          }
-          if (hasText) {
-            qaSection.push(`Text${i}: ${leadData[textField]}`);
-          }
-
-          questionsAndAnswers.push(qaSection.join('\n'));
-        }
-      }
-
-      if (questionsAndAnswers.length > 0) {
-        const qaContent = '\n\n=== Questions & Answers ===\n' + questionsAndAnswers.join('\n\n');
-
-        if (salesforceLeadData.Description) {
-          salesforceLeadData.Description += qaContent;
-        } else {
-          salesforceLeadData.Description = qaContent.trim();
-        }
-
-        console.log(`✅ Added ${activeQACount} Q&A groups to Description field`);
-      } else {
-        console.log('ℹ️ No active Q&A fields found in LeadReport');
-      }
-    }
-    */
-    console.log('ℹ️ Question/Answer fields are now sent as individual mapped fields (e.g., Question01__c)');
 
     // Remove null/empty values
     Object.keys(salesforceLeadData).forEach(key => {
@@ -2872,7 +2501,7 @@ async function loadLeadData() {
 //         "Insurance",
 //         "Machinery",
 //         "Manufacturing",
-       
+//
 //       ],
 //       maxLength: 40,
 //     },
@@ -3164,229 +2793,7 @@ function isFieldDirectlyEditable(fieldName, fieldValue) {
  * @param {*} currentValue - Current field value
  * @param {Object} config - Field configuration
  */
-function switchToEditMode(fieldName, currentValue, config) {
-    console.log(`🎯 Switching to edit mode for ${fieldName}`);
 
-    const fieldElement = document.querySelector(`[data-field-name="${fieldName}"]`);
-    if (!fieldElement) return;
-
-    const content = fieldElement.querySelector('.field-content');
-    const displayContainer = content.querySelector('.field-value-container');
-
-    if (!displayContainer) return;
-
-    // Créer l'input de remplacement
-    const input = createSalesforceInput(fieldName, currentValue, config);
-
-    // Remplacer l'affichage par l'input
-    content.replaceChild(input, displayContainer);
-
-    // Focus sur l'input
-    setTimeout(() => input.focus(), 100);
-
-    // Fonction pour revenir au mode affichage
-    const exitEditMode = () => {
-        const newValue = getInputValue(input);
-        saveFieldValue(fieldName, newValue); // Sauvegarder avant de sortir
-        const newDisplayContainer = createDisplayWithEditIcon(fieldName, newValue, config);
-        content.replaceChild(newDisplayContainer, input);
-    };
-
-    // Événements pour sortir du mode édition
-    input.addEventListener('blur', exitEditMode, { once: true });
-    input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            exitEditMode();
-        }
-        if (e.key === 'Escape') {
-            input.value = currentValue; // Restaurer la valeur originale
-            exitEditMode();
-        }
-    });
-}
-
-/**
- * Vérifier si un champ est en lecture seule (système)
- */
-function isReadOnlyField(fieldName) {
-    const readOnlyFields = [
-        // Champs système Salesforce
-        'Id', 'CreatedDate', 'LastModifiedDate', 'SystemModstamp',
-        'CreatedById', 'LastModifiedById', 'IsDeleted',
-
-        // Champs Lead système
-        'OwnerId', 'ConvertedAccountId', 'ConvertedContactId', 'ConvertedOpportunityId',
-        'ConvertedDate', 'IsConverted', 'IsUnreadByOwner',
-
-        // Champs système métadonnées
-        '__metadata', 'KontaktViewId', 'DeviceId', 'DeviceRecordId',
-        'EventId', 'RequestBarcode', 'StatusMessage',
-
-        // Champs audit système
-        'CurrencyIsoCode', 'RecordTypeId', 'MasterRecordId',
-
-        // Champs spéciaux non éditables
-        'AttachmentIdList', 'EVENTID'
-    ];
-    return readOnlyFields.includes(fieldName);
-}
-
-/**
- * Créer un affichage avec icône d'édition
- */
-function createDisplayWithEditIcon(fieldName, value, config) {
-    const container = document.createElement("div");
-    container.className = "field-value-container";
-
-    // Vérifier si le champ est en lecture seule
-    const isReadOnly = isReadOnlyField(fieldName);
-
-    // Valeur affichée
-    const displayValue = document.createElement("div");
-    displayValue.className = "field-value";
-    displayValue.textContent = formatDisplayValue(value, config);
-
-    container.appendChild(displayValue);
-
-    // Si le champ n'est pas en lecture seule, ajouter l'icône d'édition
-    if (!isReadOnly) {
-        // Icône d'édition
-        const editIcon = document.createElement("button");
-        editIcon.className = "field-edit-icon";
-        editIcon.innerHTML = `
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-            </svg>
-        `;
-        editIcon.title = `Edit ${fieldName}`;
-        editIcon.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            switchToEditMode(fieldName, value, config);
-        });
-
-        container.appendChild(editIcon);
-    } else {
-        // Indicateur de lecture seule
-        const readOnlyIndicator = document.createElement("span");
-        readOnlyIndicator.className = "read-only-indicator";
-        readOnlyIndicator.textContent = "READ-ONLY";
-        readOnlyIndicator.innerHTML = `
-            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                <circle cx="12" cy="16" r="1"/>
-                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-            </svg>
-            READ-ONLY
-        `;
-        container.appendChild(readOnlyIndicator);
-    }
-
-    return container;
-}
-
-/**
- * Formater la valeur d'affichage
- */
-function formatDisplayValue(value, config) {
-    if (!value || value === null || value === 'null' || value === '') {
-        return '';
-    }
-
-    switch (config.type) {
-        case 'DateTime':
-            if (value.includes('/Date(')) {
-                const timestamp = parseInt(value.match(/\d+/)[0]);
-                return new Date(timestamp).toLocaleDateString();
-            }
-            return new Date(value).toLocaleDateString();
-        case 'Checkbox':
-            return value === true || value === 1 || value === '1' ? 'Yes' : 'No';
-        default:
-            return value.toString();
-    }
-}
-
-/**
- * Obtenir la valeur d'un input selon son type
- */
-function getInputValue(input) {
-    if (input.type === 'checkbox') {
-        return input.checked;
-    } else if (input.tagName === 'SELECT') {
-        return input.value;
-    } else if (input.querySelector && input.querySelector('input[type="checkbox"]')) {
-        // Pour les checkbox containers
-        return input.querySelector('input[type="checkbox"]').checked;
-    } else {
-        return input.value;
-    }
-}
-
-/**
- * Toggle edit mode for a specific field (LEGACY - à remplacer par switchToEditMode)
- * @param {string} fieldName - The field name to toggle
- */
-function toggleFieldEdit(fieldName) {
-  const field = document.querySelector(`[data-field-name="${fieldName}"]`);
-  if (!field) return;
-
-  const valueElement = field.querySelector('.field-value');
-  const inputElement = field.querySelector('.field-input');
-  const editIcon = field.querySelector('.field-edit-icon');
-
-  if (!valueElement || !inputElement) return;
-
-  // Check if currently in edit mode
-  const isInEditMode = inputElement.classList.contains('editing');
-
-  if (!isInEditMode) {
-    // Switch to edit mode
-    inputElement.classList.add('editing');
-    valueElement.style.display = 'none';
-    inputElement.style.display = 'block';
-    if (editIcon) editIcon.style.display = 'none';
-
-    // Set current value and focus
-    inputElement.value = window.selectedLeadData[fieldName] || '';
-    setTimeout(() => inputElement.focus(), 100); // Delay focus to ensure visibility
-
-    // Add event listener to save on blur/enter
-    const saveOnBlur = () => {
-      saveFieldValue(fieldName, inputElement.value);
-      exitEditMode();
-    };
-
-    const exitEditMode = () => {
-      inputElement.classList.remove('editing');
-      valueElement.style.display = 'block';
-      inputElement.style.display = 'none';
-      if (editIcon) editIcon.style.display = 'inline-block';
-    };
-
-    inputElement.addEventListener('blur', saveOnBlur, { once: true });
-    inputElement.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        saveOnBlur();
-      }
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        inputElement.value = window.selectedLeadData[fieldName] || '';
-        exitEditMode();
-      }
-    }, { once: true });
-
-  } else {
-    // Switch back to display mode
-    inputElement.classList.remove('editing');
-    valueElement.style.display = 'block';
-    inputElement.style.display = 'none';
-    if (editIcon) editIcon.style.display = 'inline-block';
-  }
-}
 
 
 /**
@@ -3486,7 +2893,7 @@ function clearFieldError(fieldName) {
 }
 
 function saveFieldValue(fieldName, value) {
-    console.log(`💾 Saving field ${fieldName}: "${value}"`);
+    console.log(` Saving field ${fieldName}: "${value}"`);
 
     // Validate field value first
     const validation = validateFieldValue(fieldName, value);
@@ -3581,7 +2988,7 @@ function loadSavedChanges() {
       const localData = localStorage.getItem(storageKey);
       if (localData) {
         savedData = JSON.parse(localData);
-        console.log('💾 Found saved data in localStorage');
+        console.log(' Found saved data in localStorage');
       }
     }
 
@@ -3667,193 +3074,6 @@ function clearSavedChanges() {
  * @param {string} value - Field value
  * @returns {boolean} Is valid
  */
-function validateField(fieldName, value) {
-  const errorElement = document.getElementById(`error-${fieldName}`);
-  const inputElement = document.querySelector(`input[name="${fieldName}"], textarea[name="${fieldName}"], select[name="${fieldName}"]`);
-
-  let isValid = true;
-  let errorMessage = '';
-  const trimmedValue = value ? value.trim() : '';
-
-  // Required field validation
-  const requiredFields = ['LastName', 'Company'];
-  if (requiredFields.includes(fieldName) && !trimmedValue) {
-    isValid = false;
-    errorMessage = `${formatFieldLabel(fieldName)} is required`;
-  }
-
-  // Helper function to check if field has meaningful content
-  const hasValidContent = (value) => {
-    if (!value) return false;
-    const trimmed = value.trim();
-    return trimmed && trimmed !== 'N/A' && trimmed !== 'null' && trimmed !== 'undefined' && trimmed !== '';
-  };
-
-  // Skip validation for empty/placeholder optional fields
-  if (!hasValidContent(value) && !requiredFields.includes(fieldName)) {
-    // Clear any previous errors for empty optional fields
-    if (errorElement) {
-      errorElement.classList.remove('show');
-      errorElement.textContent = '';
-    }
-    if (inputElement) {
-      inputElement.classList.remove('error');
-    }
-    return true;
-  }
-
-  // Field-specific validation
-  switch (fieldName) {
-    case 'Email':
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(trimmedValue)) {
-        isValid = false;
-        errorMessage = 'Please enter a valid email address (e.g., user@example.com)';
-      }
-      break;
-
-    case 'Phone':
-    case 'MobilePhone':
-    case 'Fax':
-      const phoneRegex = /^[\+]?[\d\s\-\(\)\.]{7,20}$/;
-      if (!phoneRegex.test(trimmedValue)) {
-        isValid = false;
-        errorMessage = 'Please enter a valid phone number (7-20 digits with optional formatting)';
-      }
-      break;
-
-    case 'Website':
-      try {
-        const url = trimmedValue.startsWith('http') ? trimmedValue : `https://${trimmedValue}`;
-        new URL(url);
-        // Additional check for valid domain format
-        if (!url.includes('.') || url.length < 8) {
-          throw new Error('Invalid domain');
-        }
-      } catch {
-        isValid = false;
-        errorMessage = 'Please enter a valid website URL (e.g., www.example.com)';
-      }
-      break;
-
-    case 'PostalCode':
-      const postalRegex = /^[A-Za-z0-9\s\-]{3,20}$/;
-      if (!postalRegex.test(trimmedValue)) {
-        isValid = false;
-        errorMessage = 'Please enter a valid postal code (3-20 characters)';
-      }
-      break;
-
-    case 'FirstName':
-    case 'LastName':
-    case 'MiddleName':
-      const nameRegex = /^[A-Za-z\s\'\-\.]{1,40}$/;
-      if (!nameRegex.test(trimmedValue)) {
-        isValid = false;
-        errorMessage = 'Names can only contain letters, spaces, apostrophes, hyphens, and periods';
-      }
-      break;
-
-    case 'Company':
-      if (trimmedValue.length < 2) {
-        isValid = false;
-        errorMessage = 'Company name must be at least 2 characters long';
-      } else if (trimmedValue.length > 255) {
-        isValid = false;
-        errorMessage = 'Company name cannot exceed 255 characters';
-      }
-      break;
-
-    case 'Title':
-      if (trimmedValue.length > 128) {
-        isValid = false;
-        errorMessage = 'Job title cannot exceed 128 characters';
-      }
-      break;
-
-    case 'Street':
-      if (trimmedValue.length > 255) {
-        isValid = false;
-        errorMessage = 'Street address cannot exceed 255 characters';
-      }
-      break;
-
-    case 'City':
-      const cityRegex = /^[A-Za-z\s\'\-\.]{1,40}$/;
-      if (!cityRegex.test(trimmedValue)) {
-        isValid = false;
-        errorMessage = 'City name can only contain letters, spaces, apostrophes, hyphens, and periods';
-      }
-      break;
-
-    case 'State':
-      if (trimmedValue.length > 80) {
-        isValid = false;
-        errorMessage = 'State/Province cannot exceed 80 characters';
-      }
-      break;
-
-    case 'Country':
-      const countryRegex = /^[A-Za-z\s\'\-\.]{1,80}$/;
-      if (!countryRegex.test(trimmedValue)) {
-        isValid = false;
-        errorMessage = 'Country name can only contain letters, spaces, apostrophes, hyphens, and periods';
-      }
-      break;
-
-    case 'CountryCode':
-      const countryCodeRegex = /^[A-Z]{2}$/;
-      if (!countryCodeRegex.test(trimmedValue.toUpperCase())) {
-        isValid = false;
-        errorMessage = 'Country code must be 2 uppercase letters (e.g., US, DE, GB)';
-      }
-      break;
-
-    case 'Department':
-    case 'SalesArea':
-      if (trimmedValue.length > 80) {
-        isValid = false;
-        errorMessage = `${formatFieldLabel(fieldName)} cannot exceed 80 characters`;
-      }
-      break;
-
-    case 'Description':
-      if (trimmedValue.length > 32000) {
-        isValid = false;
-        errorMessage = 'Description cannot exceed 32,000 characters';
-      }
-      break;
-
-    case 'Suffix':
-      const suffixRegex = /^[A-Za-z\.]{1,10}$/;
-      if (!suffixRegex.test(trimmedValue)) {
-        isValid = false;
-        errorMessage = 'Suffix can only contain letters and periods (e.g., Jr., Sr., PhD)';
-      }
-      break;
-  }
-
-  // Update UI based on validation
-  if (errorElement) {
-    if (isValid) {
-      errorElement.classList.remove('show');
-      errorElement.textContent = '';
-    } else {
-      errorElement.classList.add('show');
-      errorElement.textContent = errorMessage;
-    }
-  }
-
-  if (inputElement) {
-    if (isValid) {
-      inputElement.classList.remove('error');
-    } else {
-      inputElement.classList.add('error');
-    }
-  }
-
-  return isValid;
-}
 
 
 
@@ -5021,80 +4241,6 @@ async function saveCustomLabel() {
 }
 
 
-
-/**
- * Show error modal when a Salesforce field doesn't exist
- * @param {string} fieldName - The field name that doesn't exist in Salesforce
- */
-function showFieldErrorModal(fieldName) {
-    // Remove existing modal if any
-    const existingModal = document.getElementById('field-error-modal');
-    if (existingModal) {
-        existingModal.remove();
-    }
-
-    const modal = document.createElement('div');
-    modal.id = 'field-error-modal';
-    modal.className = 'config-modal-overlay';
-    modal.style.display = 'flex';
-
-    modal.innerHTML = `
-        <div class="config-modal-content" style="max-width: 600px;">
-            <div class="config-modal-header" style="background: #fee; border-bottom: 2px solid #fcc;">
-                <h3 style="color: #c00;">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 8px;">
-                        <circle cx="12" cy="12" r="10"/>
-                        <line x1="15" y1="9" x2="9" y2="15"/>
-                        <line x1="9" y1="9" x2="15" y2="15"/>
-                    </svg>
-                    Salesforce Field Not Found
-                </h3>
-                <button class="config-modal-close" onclick="document.getElementById('field-error-modal').remove()">&times;</button>
-            </div>
-            <div class="config-modal-body">
-                <p style="font-size: 16px; margin-bottom: 16px;">
-                    The field <code style="background: #fee; padding: 4px 8px; border-radius: 4px; color: #c00; font-weight: bold;">${fieldName}</code> does not exist in your Salesforce Lead object.
-                </p>
-
-                <div style="background: #fff3cd; padding: 16px; border-left: 4px solid #ffc107; border-radius: 4px; margin-top: 16px;">
-                    <strong style="display: flex; align-items: center; margin-bottom: 12px;">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 8px;">
-                            <circle cx="12" cy="12" r="10"/>
-                            <line x1="12" y1="16" x2="12" y2="12"/>
-                            <line x1="12" y1="8" x2="12.01" y2="8"/>
-                        </svg>
-                        Solutions:
-                    </strong>
-                    <ol style="margin: 0; padding-left: 20px; line-height: 1.8;">
-                        <li><strong>Create the field in Salesforce:</strong><br>
-                            Go to Setup → Object Manager → Lead → Fields & Relationships → New Field<br>
-                            Create a field named <code>${fieldName}</code>
-                        </li>
-                        <li><strong>Change the field mapping:</strong><br>
-                            Edit the field label to use an existing Salesforce field name
-                        </li>
-                        <li><strong>Disable the field:</strong><br>
-                            Mark the field as inactive so it won't be sent to Salesforce
-                        </li>
-                    </ol>
-                </div>
-            </div>
-            <div class="config-modal-footer">
-                <button class="btn-secondary" onclick="document.getElementById('field-error-modal').remove()">Close</button>
-            </div>
-        </div>
-    `;
-
-    document.body.appendChild(modal);
-
-    // Close on overlay click
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            modal.remove();
-        }
-    });
-}
-
 // Create edit label modal if it doesn't exist
 function createEditLabelModal(fieldName) {
     // Remove existing modal if any
@@ -5360,11 +4506,15 @@ function initializeCustomFieldsTab() {
     console.log('✅ Custom Fields tab initialized');
 }
 
-/**
- * Handle tab switching between All/Active/Inactive/Custom Fields
- */
+// Handle tab switching between All/Active/Inactive/Custom Fields
+ 
 function handleTabSwitch(event) {
     const filterValue = event.target.getAttribute('data-filter');
+
+    console.log(`🔄 Tab switched to: ${filterValue}`);
+
+    // Save filter to localStorage
+    localStorage.setItem('field-display-filter', filterValue);
 
     // Update active tab styling
     document.querySelectorAll('.filter-btn').forEach(btn => {
@@ -5397,7 +4547,7 @@ function handleTabSwitch(event) {
             fieldsSummary.textContent = `Showing ${customFields.length} custom field${customFields.length !== 1 ? 's' : ''}`;
         }
     } else {
-        // Show normal fields (existing functionality)
+        // Show normal fields (all/active/inactive)
         customFieldsContainer.style.display = 'none';
 
         // Restore normal view based on current view mode
@@ -5405,25 +4555,38 @@ function handleTabSwitch(event) {
         if (isCardView) {
             listViewContainer.style.display = 'none';
             cardViewContainer.style.display = 'grid';
+            emptyState.style.display = 'none';
+
+            // Regenerate card view with new filter
+            if (typeof generateCardView === 'function') {
+                generateCardView();
+            }
         } else {
             listViewContainer.style.display = 'block';
             cardViewContainer.style.display = 'none';
-        }
+            emptyState.style.display = 'none';
 
-        // Apply the filter (all/active/inactive)
-        if (typeof window.handleFieldFilterChange === 'function') {
-            window.handleFieldFilterChange({ target: { value: filterValue } });
+            // Regenerate list view with new filter
+            if (window.selectedLeadData) {
+                displayLeadData(window.selectedLeadData);
+            }
         }
     }
+
+    // Update statistics after filtering
+    if (typeof updateFieldStats === 'function') {
+        updateFieldStats();
+    }
+
+    // Update transfer button state
+    setTimeout(() => updateTransferButtonState(), 100);
 }
 
 
 
 // ========== CUSTOM FIELDS MANAGEMENT ==========
 
-/**
- * Show success toast notification
- */
+// Show success toast notification
 function showSuccessToast(message) {
     const toast = document.createElement('div');
     toast.className = 'fixed top-20 right-6 bg-white border-l-4 border-green-500 rounded-lg shadow-xl p-4 flex items-center gap-3 z-50 transform transition-all duration-300';
@@ -5504,10 +4667,15 @@ function renderCustomFieldsTable() {
                 ${field.value ? `<span class="text-sm text-gray-700">${escapeHtml(field.value)}</span>` : '<span class="text-sm text-gray-400 italic">From lead data</span>'}
             </td>
             <td class="px-4 py-3">
-                <label class="toggle-switch inline-block align-middle">
-                    <input type="checkbox" ${field.active ? 'checked' : ''} data-custom-field-id="${field.id}">
-                    <span class="toggle-slider"></span>
-                </label>
+                <div class="flex items-center gap-2">
+                    <label class="toggle-switch inline-block align-middle">
+                        <input type="checkbox" ${field.active ? 'checked' : ''} data-custom-field-id="${field.id}">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <span class="status-badge px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${field.active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}">
+                        ${field.active ? 'Active' : 'Inactive'}
+                    </span>
+                </div>
             </td>
             <td class="px-4 py-3">
                 <div class="flex gap-2">
@@ -5548,13 +4716,13 @@ function renderCustomFieldsTable() {
             // Update the status badge in the current row (without recreating the table)
             const fieldRow = toggle.closest('tr');
             if (fieldRow) {
-                const statusBadge = fieldRow.querySelector('td:nth-child(3) span');
+                const statusBadge = fieldRow.querySelector('.status-badge');
                 if (statusBadge) {
                     if (isChecked) {
-                        statusBadge.className = 'px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800';
+                        statusBadge.className = 'status-badge px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800';
                         statusBadge.textContent = 'Active';
                     } else {
-                        statusBadge.className = 'px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800';
+                        statusBadge.className = 'status-badge px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800';
                         statusBadge.textContent = 'Inactive';
                     }
                 }
@@ -5565,27 +4733,12 @@ function renderCustomFieldsTable() {
                 window.updateFieldStats();
             }
 
-            // Refresh ONLY the other views (NOT Custom Fields table to avoid infinite loop)
-            if (window.selectedLeadData) {
-                const isCardView = document.getElementById('cardViewBtn')?.classList.contains('active');
-                const currentTab = document.querySelector('.filter-btn.active')?.dataset.filter;
-
-                // Only refresh if we're NOT in the custom fields tab (avoid infinite loop)
-                if (currentTab !== 'custom') {
-                    if (isCardView) {
-                        if (typeof generateCardView === 'function') {
-                            generateCardView();
-                        }
-                    } else {
-                        if (typeof displayLeadData === 'function') {
-                            displayLeadData(window.selectedLeadData);
-                        }
-                    }
-                }
-            }
-
             // Update transfer button state
             setTimeout(() => updateTransferButtonState(), 100);
+
+            // DO NOT regenerate views when toggling custom fields
+            // The toggle and badge are already updated above
+            // Regenerating would destroy the DOM and reset the checkbox
         });
 
         editBtn.addEventListener('click', () => {
@@ -6134,14 +5287,10 @@ window.leadTransferController = {
   handleTransferButtonClick,
   showError,
   updateConnectionStatus,
-  validateField,
   validateBusinessLogic,
-  checkForDuplicates,
   // Enhanced field management functions
-  toggleFieldActive,
   toggleLabelEditMode,
   handleFieldFilterChange,
-  initializeEnhancedSystem,
   saveFieldMappingConfig,
   downloadConfiguration,
   // Local save functions
@@ -6149,95 +5298,10 @@ window.leadTransferController = {
   clearSavedChanges,
   // Direct edit functions
   isFieldDirectlyEditable,
-  toggleFieldEdit,
   saveFieldValue
 };
 
 
-async function fetchLatestDataBeforeEdit(fieldName, currentValue, config) {
-    try {
-        showLoadingIndicator(fieldName, 'Fetching latest data...');
-
-        const eventId = sessionStorage.getItem('selectedEventId');
-        if (!eventId) {
-            throw new Error('No EventId found');
-        }
-
-      
-        const apiBaseUrl = appConfig.apiBaseUrl;
-        const apiUrl = `${apiBaseUrl}/leads/${eventId}`;
-
-
-        const response = await fetch(apiUrl, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            }
-        });
-
-        if (!response.ok) {
-            throw new Error(`API call failed: ${response.status} ${response.statusText}`);
-        }
-
-        const latestData = await response.json();
-
-        // Mettre à jour la valeur avec les données fraîches
-        const latestValue = latestData[fieldName] || currentValue;
-
-        // Masquer l'indicateur de chargement
-        hideLoadingIndicator(fieldName);
-
-        // Maintenant, passer en mode édition avec les données fraîches
-        switchToEditMode(fieldName, latestValue, config);
-
-    } catch (error) {
-        console.error('❌ Error fetching latest data:', error);
-
-        // Masquer l'indicateur de chargement
-        hideLoadingIndicator(fieldName);
-
-        // Afficher une notification d'erreur
-        showErrorNotification(`Failed to fetch latest data: ${error.message}`);
-
-        // Continuer avec la valeur actuelle
-        switchToEditMode(fieldName, currentValue, config);
-    }
-}
-
-/**
- * Afficher un indicateur de chargement sur un champ
- */
-function showLoadingIndicator(fieldName, message = 'Loading...') {
-    const fieldElement = document.querySelector(`[data-field-name="${fieldName}"]`);
-    if (fieldElement) {
-        const existingIndicator = fieldElement.querySelector('.loading-indicator');
-        if (existingIndicator) {
-            existingIndicator.remove();
-        }
-
-        const indicator = document.createElement('div');
-        indicator.className = 'loading-indicator';
-        indicator.innerHTML = `
-            <div class="spinner"></div>
-            <span>${message}</span>
-        `;
-        fieldElement.appendChild(indicator);
-    }
-}
-
-/**
- * Masquer l'indicateur de chargement
- */
-function hideLoadingIndicator(fieldName) {
-    const fieldElement = document.querySelector(`[data-field-name="${fieldName}"]`);
-    if (fieldElement) {
-        const indicator = fieldElement.querySelector('.loading-indicator');
-        if (indicator) {
-            indicator.remove();
-        }
-    }
-}
 
 
 function showErrorNotification(message) {
@@ -6512,7 +5576,7 @@ function generateCardView() {
         const salesforceConfig = getSalesforceFieldConfig(fieldName);
         const isRequired = salesforceConfig?.required || false;
 
-        const card = createFieldCard(fieldName, fieldInfo.label || fieldName, fieldInfo.value || '', isActive, isRequired);
+        const card = createFieldCard(fieldName, fieldInfo.label || fieldName, fieldInfo.value || '', isActive, isRequired, isCustomField);
         cardContainer.appendChild(card);
         cardsGenerated++;
     });
@@ -6539,7 +5603,7 @@ function generateCardView() {
 /**
  * Create a field card element
  */
-function createFieldCard(fieldName, fieldLabel, fieldValue, isActive, isRequired) {
+function createFieldCard(fieldName, fieldLabel, fieldValue, isActive, isRequired, isCustomField = false) {
     const card = document.createElement('div');
     card.className = `field-card bg-white rounded-lg p-4 ${isActive ? 'active-field' : 'inactive-field'}`;
     card.dataset.fieldName = fieldName;
@@ -6605,7 +5669,30 @@ function createFieldCard(fieldName, fieldLabel, fieldValue, isActive, isRequired
             return;
         }
 
-        // Update card classes
+        // Check if this is a custom field - handle differently
+        if (isCustomField) {
+            // Find the custom field by Salesforce name and toggle it
+            const customFields = window.fieldMappingService?.getAllCustomFields() || [];
+            const customField = customFields.find(f => f.sfFieldName === fieldName);
+            if (customField && window.fieldMappingService) {
+                await window.fieldMappingService.toggleCustomField(customField.id);
+                console.log(`✅ Custom field ${fieldName} toggled to ${isChecked} from Card View`);
+
+                // Update card classes
+                card.classList.toggle('active-field', isChecked);
+                card.classList.toggle('inactive-field', !isChecked);
+
+                // Sync with ListView
+                syncToggleWithListView(fieldName, isChecked);
+
+                // Update stats and transfer button
+                updateFieldStats();
+                if (typeof updateTransferButtonState === 'function') updateTransferButtonState();
+            }
+            return;
+        }
+
+        // Update card classes (for standard fields)
         card.classList.toggle('active-field', isChecked);
         card.classList.toggle('inactive-field', !isChecked);
 
@@ -6772,7 +5859,7 @@ function saveFieldEdit(fieldName, newValue, isActive) {
         else if (window.selectedLeadData[fieldName] !== undefined) {
             window.selectedLeadData[fieldName] = newValue;
         }
-        console.log(`💾 Memory updated: ${fieldName} = "${newValue}", active: ${isActive}`);
+        console.log(` Memory updated: ${fieldName} = "${newValue}", active: ${isActive}`);
     }
 
     // 2. Update in FieldMappingService if exists
@@ -6808,13 +5895,15 @@ function saveFieldEdit(fieldName, newValue, isActive) {
             const toggle = listFieldElement.querySelector('input[type="checkbox"]');
             if (toggle && toggle.checked !== isActive) {
                 toggle.checked = isActive;
-                toggle.dispatchEvent(new Event('change', { bubbles: true }));
+                // Don't dispatch change event to avoid infinite loop with toggle listener
+                // toggle.dispatchEvent(new Event('change', { bubbles: true }));
             }
         }
 
-        if (currentView === 'card') {
-            generateCardView();
-        }
+        // Don't reload card view - it destroys toggle states
+        // if (currentView === 'card') {
+        //     generateCardView();
+        // }
         updateFieldStats();
     }
 
@@ -6882,10 +5971,6 @@ function showErrorModal(message) {
     };
 }
 
-/**
- * Set ALL fields active/inactive (regardless of current filter)
- */
-// setAllFieldsActive() removed - Bulk Actions feature removed from UI
 
 /**
  * Update field statistics
@@ -7126,9 +6211,12 @@ function setupFieldRowsObserver() {
 }
 
 // Auto-initialize UI components when DOM is ready
+console.log('🚀 Script loaded, readyState:', document.readyState);
 if (document.readyState === 'loading') {
+    console.log('⏳ Waiting for DOMContentLoaded...');
     document.addEventListener('DOMContentLoaded', initializeUIComponents);
 } else {
+    console.log('✅ DOM already ready, initializing now...');
     initializeUIComponents();
 }
 
@@ -7148,8 +6236,5 @@ export default {
   loadSavedChanges,
   clearSavedChanges,
   isFieldDirectlyEditable,
-  toggleFieldEdit,
-  saveFieldValue,
-  createDisplayWithEditIcon,
-  fetchLatestDataBeforeEdit
+  saveFieldValue
 };
