@@ -721,10 +721,6 @@ async function handleTransferButtonClick() {
       return;
     }
 
-    console.log(`✅ Collected ${fieldsList.length} active fields`);
-
-    // ========== PHASE 2: Validate Required Fields ==========
-    console.log('📋 Phase 2: Validating required fields...');
 
     // Validate LastName and Company - both required
     const hasLastName = leadData.LastName && leadData.LastName.trim() !== '';
@@ -1444,19 +1440,17 @@ function displayLeadData(data) {
     Object.keys(processedData).forEach((fieldName) => {
         const fieldInfo = processedData[fieldName];
 
-        // Exclure les champs système de l'affichage (ne peuvent pas être transférés à SF)
+       
         if (isSystemField(fieldName)) return;
 
-        // Exclure les métadonnées techniques
         if (fieldName === '__metadata' || fieldName === 'KontaktViewId') return;
 
-        // Appliquer le filtre - utilise la même logique que generateCardView
         const isActive = fieldInfo.active !== false;
         const isCustomField = fieldInfo.isCustomField === true;
 
-        if (filterValue === 'active' && !isActive) return;  // Affiche seulement les actifs
-        if (filterValue === 'inactive' && isActive) return;  // Affiche seulement les inactifs
-        if (filterValue === 'custom' && !isCustomField) return;  // Affiche seulement les custom fields
+        if (filterValue === 'active' && !isActive) return;  
+        if (filterValue === 'inactive' && isActive) return; 
+        if (filterValue === 'custom' && !isCustomField) return; 
 
         const fieldRow = createFieldTableRow(fieldName, fieldInfo);
         leadDataContainer.appendChild(fieldRow);
@@ -4003,30 +3997,19 @@ function handleTabSwitch(event) {
             listViewContainer.style.display = 'none';
             cardViewContainer.style.display = 'grid';
             emptyState.style.display = 'none';
-
-            // Regenerate card view with new filter
-            if (typeof generateCardView === 'function') {
-                generateCardView();
-            }
         } else {
             listViewContainer.style.display = 'block';
             cardViewContainer.style.display = 'none';
             emptyState.style.display = 'none';
-
-            // Regenerate list view with new filter
-            if (window.selectedLeadData) {
-                displayLeadData(window.selectedLeadData);
-            }
         }
+
+        // Apply filter to existing DOM without reloading
+        // applyFilterToAllViews already calls updateFieldStats() and updateTransferButtonState()
+        applyFilterToAllViews(filterValue);
     }
 
-    // Update statistics after filtering
-    if (typeof updateFieldStats === 'function') {
-        updateFieldStats();
-    }
-
-    // Update transfer button state
-    setTimeout(() => updateTransferButtonState(), 100);
+    // Note: No need to call updateFieldStats() or updateTransferButtonState() here
+    // as they are already called by applyFilterToAllViews() with proper debouncing
 }
 
 
