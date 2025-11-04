@@ -1,0 +1,141 @@
+{
+  "info": {
+    "name": "Salesforce Metadata Inspector",
+    "description": "Collection pour inspecter les métadonnées Salesforce (CountryCode, Country, Lead fields)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Get Full Lead Metadata",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/salesforce/metadata/lead",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "salesforce", "metadata", "lead"]
+        },
+        "description": "Retourne TOUTES les métadonnées du Lead object:\n- Liste complète des champs\n- Types de champs\n- Valeurs de picklist\n- Champs custom vs standard\n\nC'est exactement ce que retourne `conn.describe('Lead')`"
+      },
+      "response": []
+    },
+    {
+      "name": "2. Get CountryCode Picklist Values",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/api/salesforce/metadata/countrycodes",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "salesforce", "metadata", "countrycodes"]
+        },
+        "description": "Vue ciblée sur les champs Country/CountryCode:\n- Tous les codes ISO valides (DE, FR, GB, etc.)\n- Tous les noms de pays\n- Mapping automatique Country → CountryCode\n- Statistiques (actifs, inactifs)\n\nC'est ce qu'utilise le countryCodeValidator.js"
+      },
+      "response": []
+    },
+    {
+      "name": "3. Test Country Validation (Valid)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"CountryCode\": \"DE\",\n  \"Country\": \"Germany\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:3000/api/salesforce/metadata/test-country-validation",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "salesforce", "metadata", "test-country-validation"]
+        },
+        "description": "Teste la validation avec des données VALIDES.\nAttend: Pas de changements"
+      },
+      "response": []
+    },
+    {
+      "name": "4. Test Country Validation (DE1 Invalid)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"CountryCode\": \"DE1\",\n  \"Country\": \"Germany1\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:3000/api/salesforce/metadata/test-country-validation",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "salesforce", "metadata", "test-country-validation"]
+        },
+        "description": "Teste avec CountryCode invalide 'DE1'.\nAttend: Correction vers 'DE' et nettoyage de 'Germany1' → 'Germany'"
+      },
+      "response": []
+    },
+    {
+      "name": "5. Test Country Validation (Mismatch)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"CountryCode\": \"FR\",\n  \"Country\": \"Germany\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:3000/api/salesforce/metadata/test-country-validation",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "salesforce", "metadata", "test-country-validation"]
+        },
+        "description": "Teste un mismatch: CountryCode=FR mais Country=Germany.\nAttend: CountryCode supprimé"
+      },
+      "response": []
+    },
+    {
+      "name": "6. Test Country Validation (Invalid Code XX)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"CountryCode\": \"XX\",\n  \"Country\": \"Germany\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:3000/api/salesforce/metadata/test-country-validation",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "salesforce", "metadata", "test-country-validation"]
+        },
+        "description": "Teste avec un code invalide 'XX'.\nAttend: CountryCode supprimé"
+      },
+      "response": []
+    }
+  ]
+}

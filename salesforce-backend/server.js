@@ -12,6 +12,7 @@ const salesforceService = require('./salesforce');
 const { authMiddleware, setupOrgMiddleware } = require('./middleware/auth');
 const { transferLeadWithAutoFieldCreation } = require('./leadTransferService');
 const fieldConfigStorage = require('./fieldConfigStorage');
+const leadTransferStatusService = require('./leadTransferStatusService');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -2262,6 +2263,91 @@ app.post('/api/salesforce/field-config', async (req, res) => {
     } catch (error) {
         console.error('Failed to set field config:', error);
         res.status(500).json({ message: 'Failed to save field configuration', error: error.message });
+    }
+});
+
+// ========================================
+// LEAD TRANSFER STATUS ENDPOINTS
+// ========================================
+
+// Get transfer status for a specific lead
+app.get('/api/leads/transfer-status/:leadId', async (req, res) => {
+    try {
+        const orgId = getCurrentOrgId(req);
+        if (!orgId) {
+            return res.status(401).json({ message: 'Not connected to Salesforce' });
+        }
+
+        const { leadId } = req.params;
+        const status = await leadTransferStatusService.getLeadStatus(orgId, leadId);
+
+        if (!status) {
+            return res.json({ status: 'Pending' });
+        }
+
+        res.json(status);
+    } catch (error) {
+        console.error('Failed to get lead status:', error);
+        res.status(500).json({ message: 'Failed to get lead status', error: error.message });
+    }
+});
+
+// Get transfer statuses for multiple leads (batch)
+app.post('/api/leads/transfer-status/batch', async (req, res) => {
+    try {
+        const orgId = getCurrentOrgId(req);
+        if (!orgId) {
+            return res.status(401).json({ message: 'Not connected to Salesforce' });
+        }
+
+        const { leadIds } = req.body;
+
+        if (!Array.isArray(leadIds)) {
+            return res.status(400).json({ message: 'leadIds must be an array' });
+        }
+
+        const statuses = await leadTransferStatusService.getBatchStatuses(orgId, leadIds);
+
+        res.json(statuses);
+    } catch (error) {
+        console.error('Failed to get batch statuses:', error);
+        res.status(500).json({ message: 'Failed to get batch statuses', error: error.message });
+    }
+});
+
+// Set transfer status for a lead
+app.post('/api/leads/transfer-status', async (req, res) => {
+    try {
+        const orgId = getCurrentOrgId(req);
+        if (!orgId) {
+            return res.status(401).json({ message: 'Not connected to Salesforce' });
+        }
+
+        const { leadId, status, salesforceId, errorMessage } = req.body;
+
+        if (!leadId || !status) {
+            return res.status(400).json({ message: 'leadId and status are required' });
+        }
+
+        if (!['Success', 'Failed', 'Pending'].includes(status)) {
+            return res.status(400).json({ message: 'status must be Success, Failed, or Pending' });
+        }
+
+        const savedStatus = await leadTransferStatusService.setLeadStatus(orgId, leadId, {
+            status,
+            salesforceId,
+            errorMessage
+        });
+
+        res.json({
+            success: true,
+            message: 'Transfer status saved',
+            data: savedStatus
+        });
+
+    } catch (error) {
+        console.error('Failed to set lead status:', error);
+        res.status(500).json({ message: 'Failed to save transfer status', error: error.message });
     }
 });
 

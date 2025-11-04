@@ -3,6 +3,10 @@ import { appConfig } from "../config/salesforceConfig.js";
 import ApiService from "../services/apiService.js";
 import { formatDate } from "../utils/helper.js";
 
+// Configuration: Toggle rendering strategy
+// Set to true to use re-render approach (like testlistcard.html)
+// Set to false to use DOM filtering approach (preserves toggle states)
+const USE_RERENDER_STRATEGY = false;
 
 // Connection persistence manager
 class ConnectionPersistenceManager {
@@ -4831,9 +4835,11 @@ function initializeFilterDropdown() {
     console.log(`🔍 Filter initialized to: ${savedFilter}`);
 }
 
-// Apply filter to both List and Card views 
-function applyFilterToAllViews(filterValue) {
-    console.log(`🔄 Applying filter "${filterValue}" to all views`);
+// Apply filter to both List and Card views
+// Uses hybrid approach: re-renders when changing filters (like testlistcard.html)
+// but keeps incremental updates for individual toggles (better UX)
+function applyFilterToAllViews(filterValue, forceRerender = false) {
+    console.log(`🔄 Applying filter "${filterValue}" to all views (forceRerender: ${forceRerender})`);
 
     // Save filter
     localStorage.setItem('field-display-filter', filterValue);
@@ -4860,38 +4866,53 @@ function applyFilterToAllViews(filterValue) {
     }
     dropdown.value = filterValue;
 
-    // Apply filter to existing DOM elements WITHOUT reloading views
-    // This preserves toggle states and avoids unnecessary re-renders
-    if (currentView === 'list') {
-        // Filter list view rows by hiding/showing based on active state
-        const allRows = document.querySelectorAll('.lead-field, .field-row');
-        allRows.forEach(row => {
-            const toggle = row.querySelector('input[type="checkbox"]');
-            const isActive = toggle ? toggle.checked : true;
-
-            if (filterValue === 'all') {
-                row.style.display = '';
-            } else if (filterValue === 'active') {
-                row.style.display = isActive ? '' : 'none';
-            } else if (filterValue === 'inactive') {
-                row.style.display = isActive ? 'none' : '';
+    if (forceRerender) {
+        // OPTION A: Re-render approach (like testlistcard.html)
+        // Regenerates views based on filtered data
+        console.log('🔄 Re-rendering views with new filter...');
+        if (currentView === 'list') {
+            if (window.selectedLeadData && typeof displayLeadData === 'function') {
+                displayLeadData(window.selectedLeadData);
             }
-        });
+        } else {
+            if (typeof generateCardView === 'function') {
+                generateCardView();
+            }
+        }
     } else {
-        // Filter card view cards
-        const allCards = document.querySelectorAll('.field-card');
-        allCards.forEach(card => {
-            const toggle = card.querySelector('input[type="checkbox"]');
-            const isActive = toggle ? toggle.checked : true;
+        // OPTION B: DOM filtering approach (current - preserves toggles)
+        // Filters existing DOM without regenerating
+        if (currentView === 'list') {
+            // Filter list view rows by hiding/showing based on active state
+            const allRows = document.querySelectorAll('.lead-field, .field-row');
+            allRows.forEach(row => {
+                const toggle = row.querySelector('input[type="checkbox"]');
+                const isActive = toggle ? toggle.checked : true;
 
-            if (filterValue === 'all') {
-                card.style.display = '';
-            } else if (filterValue === 'active') {
-                card.style.display = isActive ? '' : 'none';
-            } else if (filterValue === 'inactive') {
-                card.style.display = isActive ? 'none' : '';
-            }
-        });
+                if (filterValue === 'all') {
+                    row.style.display = '';
+                } else if (filterValue === 'active') {
+                    row.style.display = isActive ? '' : 'none';
+                } else if (filterValue === 'inactive') {
+                    row.style.display = isActive ? 'none' : '';
+                }
+            });
+        } else {
+            // Filter card view cards
+            const allCards = document.querySelectorAll('.field-card');
+            allCards.forEach(card => {
+                const toggle = card.querySelector('input[type="checkbox"]');
+                const isActive = toggle ? toggle.checked : true;
+
+                if (filterValue === 'all') {
+                    card.style.display = '';
+                } else if (filterValue === 'active') {
+                    card.style.display = isActive ? '' : 'none';
+                } else if (filterValue === 'inactive') {
+                    card.style.display = isActive ? 'none' : '';
+                }
+            });
+        }
     }
 
     // Update summary text
@@ -4935,7 +4956,8 @@ function setupFilterButtons() {
     filterButtons.forEach(btn => {
         btn.addEventListener('click', () => {
             const filterValue = btn.dataset.filter;
-            applyFilterToAllViews(filterValue);
+            // Use configured rendering strategy
+            applyFilterToAllViews(filterValue, USE_RERENDER_STRATEGY);
         });
     });
 }

@@ -37,13 +37,12 @@ async function fetchAttachmentData() {
 
 
 function navigateBack() {
-  // Get the source page from sessionStorage if available
+  
   const sourcePage = sessionStorage.getItem('attachmentSource');
   
   if (sourcePage === 'LeadReport') {
     window.location.href = 'displayLsLeadReport.html';
   } else {
-    // Default to Lead page if no source or unknown source
     window.location.href = 'displayLsLead.html';
   }
 }
