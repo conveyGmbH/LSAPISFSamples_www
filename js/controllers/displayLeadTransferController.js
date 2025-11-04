@@ -1841,43 +1841,17 @@ function createFieldTableRow(fieldName, fieldInfo) {
 
 // Configuration Salesforce étendue pour Lead + LeadReport
 
+/**
+ * Get Salesforce field configuration (simplified)
+ * Only returns if field is required - all fields must already exist in Salesforce
+ */
 function getSalesforceFieldConfig(fieldName) {
-    if (fieldName.match(/^(Question|Answers|Text)\d{2}$/)) {
-        if (fieldName.startsWith('Question') || fieldName.startsWith('Answers')) {
-            return { type: 'Text', required: false, maxLength: 255 };
-        } else {
-            return { type: 'LongTextArea', required: false };
-        }
-    }
-    
-    // Configuration standard pour Lead
-    const configs = {
-        'Salutation': { type: 'Picklist', required: false },
-        'FirstName': { type: 'Text', required: false, maxLength: 40 },
-        'LastName': { type: 'Text', required: true, maxLength: 80 },
-        'Company': { type: 'Text', required: true, maxLength: 255 },
-        'Email': { type: 'Email', required: false },
-        'Phone': { type: 'Phone', required: false },
-        'MobilePhone': { type: 'Phone', required: false },
-        'Fax': { type: 'Phone', required: false },
-        'Website': { type: 'Url', required: false },
-        'Title': { type: 'Text', required: false, maxLength: 128 },
-        'Description': { type: 'LongTextArea', required: false },
-        'Industry': { type: 'Text', required: false, maxLength: 40 }, // MODIFICATION CLIENT: Changé de Picklist à Text pour accepter toutes les valeurs
-        'Department': { type: 'Text', required: false, maxLength: 80 },
-        'Street': { type: 'TextArea', required: false },
-        'City': { type: 'Text', required: false, maxLength: 40 },
-        'State': { type: 'Text', required: false, maxLength: 80 },
-        'Country': { type: 'Text', required: false, maxLength: 80 },
-        'PostalCode': { type: 'Text', required: false, maxLength: 20 },
-        'CountryCode': { type: 'Picklist', required: false },
-        'IsReviewed': { type: 'Checkbox', required: false },
-        'SalesArea': { type: 'Text', required: false, maxLength: 255 },
-        'Suffix': { type: 'Text', required: false, maxLength: 40 },
-        'MiddleName': { type: 'Text', required: false, maxLength: 40 }
+    // Only LastName and Company are required in Salesforce Lead
+    const requiredFields = ['LastName', 'Company'];
+
+    return {
+        required: requiredFields.includes(fieldName)
     };
-    
-    return configs[fieldName] || { type: 'Text', required: false };
 }
 
 
