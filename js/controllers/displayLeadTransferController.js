@@ -5418,15 +5418,38 @@ function applyFilterToAllViews(filterValue) {
     }
     dropdown.value = filterValue;
 
-    // Apply filter based on current view
+    // Apply filter to existing DOM elements WITHOUT reloading views
+    // This preserves toggle states and avoids unnecessary re-renders
     if (currentView === 'list') {
-        // Re-render list view with filter
-        if (window.selectedLeadData && typeof displayLeadData === 'function') {
-            displayLeadData(window.selectedLeadData);
-        }
+        // Filter list view rows by hiding/showing based on active state
+        const allRows = document.querySelectorAll('.lead-field, .field-row');
+        allRows.forEach(row => {
+            const toggle = row.querySelector('input[type="checkbox"]');
+            const isActive = toggle ? toggle.checked : true;
+
+            if (filterValue === 'all') {
+                row.style.display = '';
+            } else if (filterValue === 'active') {
+                row.style.display = isActive ? '' : 'none';
+            } else if (filterValue === 'inactive') {
+                row.style.display = isActive ? 'none' : '';
+            }
+        });
     } else {
-        // Regenerate card view with filter
-        generateCardView();
+        // Filter card view cards
+        const allCards = document.querySelectorAll('.field-card');
+        allCards.forEach(card => {
+            const toggle = card.querySelector('input[type="checkbox"]');
+            const isActive = toggle ? toggle.checked : true;
+
+            if (filterValue === 'all') {
+                card.style.display = '';
+            } else if (filterValue === 'active') {
+                card.style.display = isActive ? '' : 'none';
+            } else if (filterValue === 'inactive') {
+                card.style.display = isActive ? 'none' : '';
+            }
+        });
     }
 
     // Update summary text
