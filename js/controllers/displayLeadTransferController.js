@@ -1433,7 +1433,6 @@ function displayLeadData(data) {
 
     // Filtrer et afficher les champs selon leur statut - IMPORTANT: lire depuis localStorage
     const filterValue = localStorage.getItem('field-display-filter') || 'all';
-    console.log(`📋 displayLeadData() applying filter: ${filterValue}`);
 
     let rowsGenerated = 0;
 
@@ -2195,48 +2194,6 @@ function formatFieldLabel(fieldName) {
 /**
  * Show edit action buttons
  */
-
-/**
- * Determine if a field should be directly editable based on its value
- * @param {string} fieldName - The field name
- * @param {*} fieldValue - The field value
- * @returns {boolean} True if field should be directly editable
- */
-function isFieldDirectlyEditable(fieldName, fieldValue) {
-  // Read-only system fields that users should never edit
-  const readOnlyFields = [
-    'Id', 'CreatedDate', 'LastModifiedDate', 'CreatedById', 'LastModifiedById',
-    'RequestBarcode', 'AttachmentIdList', 'DeviceRecordId', 'DeviceId',
-    'EventId', 'SystemModstamp'
-  ];
-
-  if (readOnlyFields.includes(fieldName)) {
-    return false; // Never editable
-  }
-
-  // Empty, null, or N/A fields are directly editable
-  if (!fieldValue ||
-      fieldValue === null ||
-      fieldValue === 'null' ||
-      fieldValue === 'N/A' ||
-      fieldValue === '' ||
-      fieldValue === 'undefined') {
-    return true;
-  }
-
-  // Fields that should always be editable regardless of value
-  const alwaysEditableFields = ['Description', 'Title', 'Department', 'Industry'];
-  if (alwaysEditableFields.includes(fieldName)) {
-    return true;
-  }
-
-  return false;
-}
-
-
-
-
-
 
 /**
  * Validate field value based on field type and requirements
@@ -3270,48 +3227,6 @@ function toggleLabelEditMode() {
 }
 
 
-// Toggle field active/inactive status
-async function toggleFieldActive(fieldName, isActive) {
-    console.log(`Toggling field ${fieldName} to ${isActive ? 'active' : 'inactive'}`);
-
-    if (!window.fieldMappingService) {
-        console.error('Field mapping service not available');
-        return;
-    }
-
-    try {
-        // Update the field configuration with API sync
-        await window.fieldMappingService.setFieldConfig(fieldName, { active: isActive });
-
-        // Update the UI element
-        const fieldElement = document.querySelector(`[data-field-name="${fieldName}"]`);
-        if (fieldElement) {
-            fieldElement.classList.toggle('field-inactive', !isActive);
-
-            const statusText = fieldElement.querySelector('.field-status');
-            if (statusText) {
-                statusText.textContent = isActive ? "Active" : "Inactive";
-            }
-        }
-
-        // Update statistics
-        if (typeof window.updateFieldStats === 'function') {
-            window.updateFieldStats();
-        } else {
-            updateFieldStats();
-        }
-
-        // Show success message
-        const fieldLabel = window.fieldMappingService.formatFieldLabel(fieldName);
-        showSuccess(`Field "${fieldLabel}" ${isActive ? 'activated' : 'deactivated'} and synced`);
-
-    } catch (error) {
-        console.error('Failed to toggle field:', error);
-        showError('Failed to update field status: ' + error.message);
-    }
-}
-
-
 
 // Handle field filter changes
 function handleFieldFilterChange(event) {
@@ -3944,7 +3859,6 @@ function initializeCustomFieldsTab() {
         addCustomFieldBtn.addEventListener('click', openAddCustomFieldModal);
     }
 
-    console.log('✅ Custom Fields tab initialized');
 }
 
 // Handle tab switching between All/Active/Inactive/Custom Fields
@@ -4004,12 +3918,16 @@ function handleTabSwitch(event) {
         }
 
         // Apply filter to existing DOM without reloading
-        // applyFilterToAllViews already calls updateFieldStats() and updateTransferButtonState()
         applyFilterToAllViews(filterValue);
     }
 
-    // Note: No need to call updateFieldStats() or updateTransferButtonState() here
-    // as they are already called by applyFilterToAllViews() with proper debouncing
+    // Update statistics after filtering
+    if (typeof updateFieldStats === 'function') {
+        updateFieldStats();
+    }
+
+    // Update transfer button state
+    setTimeout(() => updateTransferButtonState(), 100);
 }
 
 
