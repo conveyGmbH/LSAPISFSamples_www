@@ -1778,10 +1778,10 @@ function createFieldTableRow(fieldName, fieldInfo) {
         statusBadge.className = `px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${isChecked ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`;
         statusBadge.textContent = isChecked ? 'Active' : 'Inactive';
 
-        row.style.display = 'none';
-        row.offsetHeight;
-        row.style.display = '';
-
+        // Don't force reflow - it causes unnecessary visual glitches
+        // row.style.display = 'none';
+        // row.offsetHeight;
+        // row.style.display = '';
 
         // Sync with CardView if exists
         syncToggleWithCardView(fieldName, isChecked);
