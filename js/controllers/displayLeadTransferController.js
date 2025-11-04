@@ -721,6 +721,10 @@ async function handleTransferButtonClick() {
       return;
     }
 
+    console.log(`✅ Collected ${fieldsList.length} active fields`);
+
+    // ========== PHASE 2: Validate Required Fields ==========
+    console.log('📋 Phase 2: Validating required fields...');
 
     // Validate LastName and Company - both required
     const hasLastName = leadData.LastName && leadData.LastName.trim() !== '';
@@ -1385,7 +1389,6 @@ function showBackendOfflineMessage() {
 
 // Display lead data in the UI
 function displayLeadData(data) {
-
     const leadDataContainer = document.getElementById("leadData");
     const emptyState = document.getElementById("empty-state");
 
@@ -1433,23 +1436,26 @@ function displayLeadData(data) {
 
     // Filtrer et afficher les champs selon leur statut - IMPORTANT: lire depuis localStorage
     const filterValue = localStorage.getItem('field-display-filter') || 'all';
+    console.log(`📋 displayLeadData() applying filter: ${filterValue}`);
 
     let rowsGenerated = 0;
 
     Object.keys(processedData).forEach((fieldName) => {
         const fieldInfo = processedData[fieldName];
 
-       
+        // Exclure les champs système de l'affichage (ne peuvent pas être transférés à SF)
         if (isSystemField(fieldName)) return;
 
+        // Exclure les métadonnées techniques
         if (fieldName === '__metadata' || fieldName === 'KontaktViewId') return;
 
+        // Appliquer le filtre - utilise la même logique que generateCardView
         const isActive = fieldInfo.active !== false;
         const isCustomField = fieldInfo.isCustomField === true;
 
-        if (filterValue === 'active' && !isActive) return;  
-        if (filterValue === 'inactive' && isActive) return; 
-        if (filterValue === 'custom' && !isCustomField) return; 
+        if (filterValue === 'active' && !isActive) return;  // Affiche seulement les actifs
+        if (filterValue === 'inactive' && isActive) return;  // Affiche seulement les inactifs
+        if (filterValue === 'custom' && !isCustomField) return;  // Affiche seulement les custom fields
 
         const fieldRow = createFieldTableRow(fieldName, fieldInfo);
         leadDataContainer.appendChild(fieldRow);
@@ -2194,6 +2200,48 @@ function formatFieldLabel(fieldName) {
 /**
  * Show edit action buttons
  */
+
+/**
+ * Determine if a field should be directly editable based on its value
+ * @param {string} fieldName - The field name
+ * @param {*} fieldValue - The field value
+ * @returns {boolean} True if field should be directly editable
+ */
+function isFieldDirectlyEditable(fieldName, fieldValue) {
+  // Read-only system fields that users should never edit
+  const readOnlyFields = [
+    'Id', 'CreatedDate', 'LastModifiedDate', 'CreatedById', 'LastModifiedById',
+    'RequestBarcode', 'AttachmentIdList', 'DeviceRecordId', 'DeviceId',
+    'EventId', 'SystemModstamp'
+  ];
+
+  if (readOnlyFields.includes(fieldName)) {
+    return false; // Never editable
+  }
+
+  // Empty, null, or N/A fields are directly editable
+  if (!fieldValue ||
+      fieldValue === null ||
+      fieldValue === 'null' ||
+      fieldValue === 'N/A' ||
+      fieldValue === '' ||
+      fieldValue === 'undefined') {
+    return true;
+  }
+
+  // Fields that should always be editable regardless of value
+  const alwaysEditableFields = ['Description', 'Title', 'Department', 'Industry'];
+  if (alwaysEditableFields.includes(fieldName)) {
+    return true;
+  }
+
+  return false;
+}
+
+
+
+
+
 
 /**
  * Validate field value based on field type and requirements
@@ -3227,6 +3275,48 @@ function toggleLabelEditMode() {
 }
 
 
+// Toggle field active/inactive status
+async function toggleFieldActive(fieldName, isActive) {
+    console.log(`Toggling field ${fieldName} to ${isActive ? 'active' : 'inactive'}`);
+
+    if (!window.fieldMappingService) {
+        console.error('Field mapping service not available');
+        return;
+    }
+
+    try {
+        // Update the field configuration with API sync
+        await window.fieldMappingService.setFieldConfig(fieldName, { active: isActive });
+
+        // Update the UI element
+        const fieldElement = document.querySelector(`[data-field-name="${fieldName}"]`);
+        if (fieldElement) {
+            fieldElement.classList.toggle('field-inactive', !isActive);
+
+            const statusText = fieldElement.querySelector('.field-status');
+            if (statusText) {
+                statusText.textContent = isActive ? "Active" : "Inactive";
+            }
+        }
+
+        // Update statistics
+        if (typeof window.updateFieldStats === 'function') {
+            window.updateFieldStats();
+        } else {
+            updateFieldStats();
+        }
+
+        // Show success message
+        const fieldLabel = window.fieldMappingService.formatFieldLabel(fieldName);
+        showSuccess(`Field "${fieldLabel}" ${isActive ? 'activated' : 'deactivated'} and synced`);
+
+    } catch (error) {
+        console.error('Failed to toggle field:', error);
+        showError('Failed to update field status: ' + error.message);
+    }
+}
+
+
 
 // Handle field filter changes
 function handleFieldFilterChange(event) {
@@ -3859,6 +3949,7 @@ function initializeCustomFieldsTab() {
         addCustomFieldBtn.addEventListener('click', openAddCustomFieldModal);
     }
 
+    console.log('✅ Custom Fields tab initialized');
 }
 
 // Handle tab switching between All/Active/Inactive/Custom Fields
@@ -3911,14 +4002,21 @@ function handleTabSwitch(event) {
             listViewContainer.style.display = 'none';
             cardViewContainer.style.display = 'grid';
             emptyState.style.display = 'none';
+
+            // Regenerate card view with new filter
+            if (typeof generateCardView === 'function') {
+                generateCardView();
+            }
         } else {
             listViewContainer.style.display = 'block';
             cardViewContainer.style.display = 'none';
             emptyState.style.display = 'none';
-        }
 
-        // Apply filter to existing DOM without reloading
-        applyFilterToAllViews(filterValue);
+            // Regenerate list view with new filter
+            if (window.selectedLeadData) {
+                displayLeadData(window.selectedLeadData);
+            }
+        }
     }
 
     // Update statistics after filtering
@@ -4864,11 +4962,9 @@ function setupViewToggle() {
         listContainer.style.display = 'block';
         cardContainer.style.display = 'none';
 
-        // Apply current filter to list view
+        // Apply current filter without regenerating the view
         const currentFilter = localStorage.getItem('field-display-filter') || 'all';
-        if (window.selectedLeadData && typeof displayLeadData === 'function') {
-            displayLeadData(window.selectedLeadData);
-        }
+        applyFilterToAllViews(currentFilter);
         console.log('📋 Switched to ListView with filter:', currentFilter);
     });
 
@@ -4879,9 +4975,10 @@ function setupViewToggle() {
         listContainer.style.display = 'none';
         cardContainer.style.display = 'grid';
 
-        // Apply current filter to card view
-        generateCardView();
-        console.log('🎴 Switched to CardView with filter:', localStorage.getItem('field-display-filter') || 'all');
+        // Apply current filter without regenerating the view
+        const currentFilter = localStorage.getItem('field-display-filter') || 'all';
+        applyFilterToAllViews(currentFilter);
+        console.log('🎴 Switched to CardView with filter:', currentFilter);
     });
 }
 
@@ -5587,7 +5684,7 @@ if (document.readyState === 'loading') {
     console.log('⏳ Waiting for DOMContentLoaded...');
     document.addEventListener('DOMContentLoaded', initializeUIComponents);
 } else {
-    console.log('✅ DOM already ready, initializing now...');
+    
     initializeUIComponents();
 }
 
