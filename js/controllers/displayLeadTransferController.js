@@ -1633,10 +1633,6 @@ function createFieldTableRow(fieldName, fieldInfo) {
             if (customField && window.fieldMappingService) {
                 await window.fieldMappingService.toggleCustomField(customField.id);
                 console.log(`✅ Custom field ${fieldName} toggled to ${isChecked}`);
-
-                // DO NOT refresh the Custom Fields tab here - let the custom fields table
-                // manage its own toggle handler to avoid infinite loop
-                // The custom fields table has its own toggle listener in renderCustomFieldsTable()
             }
             return;
         }
@@ -4933,7 +4929,7 @@ function setupFilterButtons() {
 
     // Restore last filter from localStorage and apply it
     const savedFilter = localStorage.getItem('field-display-filter') || 'all';
-    setTimeout(() => applyFilterToAllViews(savedFilter), 100);
+    // setTimeout(() => applyFilterToAllViews(savedFilter), 100);
 
     // Add click listeners to all filter buttons
     filterButtons.forEach(btn => {
@@ -4986,6 +4982,9 @@ function setupViewToggle() {
  * Generate Card View from lead data with filter applied
  */
 function generateCardView() {
+    console.error('🚨🚨🚨 generateCardView() CALLED! Stack trace:');
+    console.trace();
+
     const cardContainer = document.getElementById('card-view-container');
     if (!cardContainer || !window.selectedLeadData) {
         console.warn('⚠️ CardView: container ou data manquant');
@@ -5338,42 +5337,42 @@ function saveFieldEdit(fieldName, newValue, isActive) {
         });
     }
 
-    // 3. Re-render the entire display with current filter
-    // This ensures the edited value appears correctly in all views
-    if (window.selectedLeadData && typeof displayLeadData === 'function') {
-        const currentFilter = localStorage.getItem('field-display-filter') || 'all';
-        displayLeadData(window.selectedLeadData);
-        // Restore filter after re-render
-        localStorage.setItem('field-display-filter', currentFilter);
+    // 3. Update DOM directly without reloading (preserves toggle states)
+    // Update List View
+    const listFieldElement = document.querySelector(`.lead-field[data-field-name="${fieldName}"], .field-row[data-field-name="${fieldName}"]`);
+    if (listFieldElement) {
+        // Update value
+        const valueSpan = listFieldElement.querySelector('.field-value');
+        if (valueSpan) valueSpan.textContent = newValue;
 
-        // Regenerate CardView if in card mode
-        setTimeout(() => {
-            if (currentView === 'card') {
-                generateCardView();
-            }
-            updateFieldStats();
-        }, 100);
-    } else {
-        // Fallback: Update DOM directly if displayLeadData not available
-        const listFieldElement = document.querySelector(`.lead-field[data-field-name="${fieldName}"], .field-row[data-field-name="${fieldName}"]`);
-        if (listFieldElement) {
-            const valueSpan = listFieldElement.querySelector('.field-value');
-            if (valueSpan) valueSpan.textContent = newValue;
-
-            const toggle = listFieldElement.querySelector('input[type="checkbox"]');
-            if (toggle && toggle.checked !== isActive) {
-                toggle.checked = isActive;
-                // Don't dispatch change event to avoid infinite loop with toggle listener
-                // toggle.dispatchEvent(new Event('change', { bubbles: true }));
-            }
+        // Update toggle
+        const toggle = listFieldElement.querySelector('input[type="checkbox"]');
+        if (toggle && toggle.checked !== isActive) {
+            toggle.checked = isActive;
         }
 
-        // Don't reload card view - it destroys toggle states
-        // if (currentView === 'card') {
-        //     generateCardView();
-        // }
-        updateFieldStats();
+        // Update row styling
+        if (isActive) {
+            listFieldElement.classList.remove('opacity-50', 'bg-gray-100', 'inactive');
+            listFieldElement.classList.add('active');
+        } else {
+            listFieldElement.classList.add('opacity-50', 'bg-gray-100', 'inactive');
+            listFieldElement.classList.remove('active');
+        }
+
+        // Update status badge
+        const statusBadge = listFieldElement.querySelector('.px-2.inline-flex');
+        if (statusBadge) {
+            statusBadge.className = `px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`;
+            statusBadge.textContent = isActive ? 'Active' : 'Inactive';
+        }
     }
+
+    // Synchronize with CardView
+    syncToggleWithCardView(fieldName, isActive);
+
+    // Update statistics
+    updateFieldStats();
 
     // 4. Update transfer button state
     if (typeof updateTransferButtonState === 'function') {
