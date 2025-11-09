@@ -126,9 +126,9 @@ app.use(session(config.session));
 // Static files
 app.use(express.static(path.join(__dirname, '../')));
 
-// ============================================================================
+// ==============================================
 // SALESFORCE CONNECTION MANAGER
-// ============================================================================
+// ==============================================
 
 const connections = new Map(); // orgId -> connection data
 
