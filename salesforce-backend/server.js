@@ -1913,32 +1913,23 @@ app.post('/api/salesforce/leads', async (req, res) => {
 
         console.log('📝 Creating lead with data:', leadData);
 
-        // Get active fields for this client
-        const activeFields = fieldConfigStorage.getActiveFields(orgId);
-        console.log(`📋 Client has ${activeFields.length} active fields configured`);
-
-        // Filter lead data to only include active custom fields
+        // Process lead data - frontend already filtered active fields
+        // Backend should not filter again to avoid desynchronization
         const processedLeadData = {};
-        const customFieldPattern = /^(Question|Answers|Text)\d{2}(__c)?$/;
 
         Object.keys(leadData).forEach(field => {
             const value = leadData[field];
-            const baseFieldName = field.replace(/__c$/, '');
 
-            // Check if it's a custom field
-            if (customFieldPattern.test(field)) {
-                // Only include if it's in the active fields list
-                const isActive = activeFields.includes(field) || activeFields.includes(baseFieldName);
+            // Include all fields sent by frontend (already filtered)
+            // Only exclude if explicitly null/undefined for non-Question/Answers/Text fields
+            const isQuestionAnswerTextField = /^(Question|Answers|Text)\d{2}(__c)?$/.test(field);
 
-                if (isActive) {
-                    // Include even if value is null (allows clearing values in Salesforce)
-                    processedLeadData[field] = value !== undefined ? value : null;
-                    console.log(`✅ Including active field: ${field} = ${value}`);
-                } else {
-                    console.log(`⏭️  Skipping inactive field: ${field}`);
-                }
+            if (isQuestionAnswerTextField) {
+                // Include Question/Answers/Text fields even if null (allows clearing in Salesforce)
+                processedLeadData[field] = value !== undefined ? value : null;
+                console.log(`✅ Including field: ${field} = ${value}`);
             } else {
-                // For non-custom fields, only include if not null/undefined
+                // For standard fields, only include if not null/undefined
                 if (value !== null && value !== undefined) {
                     processedLeadData[field] = value;
                 }
@@ -1963,14 +1954,33 @@ app.post('/api/salesforce/leads', async (req, res) => {
 
         let unknownFields = [];
         if (validLeadFields) {
-            // Filter out unknown fields
+            // Get all fields that don't exist in Salesforce
             unknownFields = Object.keys(validatedLeadData).filter(field => !validLeadFields.has(field));
+
             if (unknownFields.length > 0) {
-                unknownFields.forEach(field => {
-                    delete validatedLeadData[field];
+                console.error(`❌ Field(s) not found in Salesforce: ${unknownFields.join(', ')}`);
+
+                // Build detailed error message with helpful guidance
+                const errorMessage = [
+                    `The following fields do not exist in Salesforce: ${unknownFields.join(', ')}`,
+                    '',
+                    'Please ensure field names match exactly as they appear in Salesforce.',
+                    '',
+                    'Important notes:',
+                    '• Field names are case-sensitive',
+                    '• Custom fields must end with __c (e.g., MyField__c)',
+                    '• Spaces in field names are not allowed (use underscores instead)',
+                    '• Standard field names must match exactly (e.g., "Department" not "Department New")',
+                    '',
+                    'Documentation: https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/custom_fields.htm'
+                ].join('\n');
+
+                return res.status(400).json({
+                    success: false,
+                    message: errorMessage,
+                    missingFields: unknownFields,
+                    error: 'MISSING_FIELDS'
                 });
-                validationResults.warnings.push(`Removed unknown Lead fields: ${unknownFields.join(', ')}`);
-                console.log(`Removed unknown Lead fields: ${unknownFields.join(', ')}`);
             }
         } else {
             console.warn('Skipping Lead field filtering due to metadata fetch failure');
@@ -2011,54 +2021,6 @@ app.post('/api/salesforce/leads', async (req, res) => {
                 console.log(`⚠️ Invalid state moved to Street field: ${validatedLeadData.Street}`);
             } else {
                 validatedLeadData.State = validStates[0].toUpperCase();
-            }
-        }
-
-        // Validate and fix Country/CountryCode
-        // Valid ISO country codes for Salesforce (most common ones)
-        const validCountryCodes = ['DE', 'FR', 'GB', 'US', 'CA', 'AU', 'CH', 'AT', 'IT', 'ES', 'NL', 'BE', 'SE', 'DK', 'NO', 'FI', 'PL', 'CZ', 'PT', 'IE', 'GR', 'LU', 'JP', 'CN', 'IN', 'BR', 'MX', 'AR'];
-
-        if (validatedLeadData.CountryCode) {
-            const code = validatedLeadData.CountryCode.toUpperCase().substring(0, 2);
-            if (!validCountryCodes.includes(code)) {
-                console.log(`⚠️ Invalid CountryCode removed: ${validatedLeadData.CountryCode}`);
-                delete validatedLeadData.CountryCode;
-            } else {
-                validatedLeadData.CountryCode = code;
-            }
-        }
-
-        // If Country field has been modified (e.g., "Germany1"), clean it
-        if (validatedLeadData.Country) {
-            // Remove numbers and extra characters from country name
-            const cleanCountry = validatedLeadData.Country.replace(/[0-9]+/g, '').trim();
-            if (cleanCountry !== validatedLeadData.Country) {
-                console.log(`⚠️ Cleaned Country field: "${validatedLeadData.Country}" → "${cleanCountry}"`);
-                validatedLeadData.Country = cleanCountry;
-            }
-        }
-
-        // If CountryCode exists but Country doesn't match, remove CountryCode to avoid mismatch
-        if (validatedLeadData.CountryCode && validatedLeadData.Country) {
-            const countryCodeMap = {
-                'DE': ['Germany', 'Deutschland'],
-                'FR': ['France'],
-                'GB': ['United Kingdom', 'UK', 'Great Britain'],
-                'US': ['United States', 'USA', 'America'],
-                'CA': ['Canada'],
-                'CH': ['Switzerland', 'Schweiz'],
-                'AT': ['Austria', 'Österreich'],
-                // Add more as needed
-            };
-
-            const expectedCountries = countryCodeMap[validatedLeadData.CountryCode] || [];
-            const countryMatches = expectedCountries.some(c =>
-                validatedLeadData.Country.toLowerCase().includes(c.toLowerCase())
-            );
-
-            if (!countryMatches) {
-                console.log(`⚠️ Country/CountryCode mismatch - removing CountryCode: ${validatedLeadData.Country} / ${validatedLeadData.CountryCode}`);
-                delete validatedLeadData.CountryCode;
             }
         }
 
@@ -2148,6 +2110,15 @@ app.post('/api/salesforce/leads', async (req, res) => {
             }
         }
 
+        // Save transfer status
+        const leadIdFromSource = req.body.leadId || leadData.KontaktViewId || leadId;
+        await leadTransferStatusService.setLeadStatus(orgId, leadIdFromSource, {
+            status: 'Success',
+            salesforceId: leadId,
+            errorMessage: null
+        });
+        console.log(`✅ Transfer status saved: ${leadIdFromSource} -> Success`);
+
         // Prepare response
         const response = {
             success: true,
@@ -2168,6 +2139,30 @@ app.post('/api/salesforce/leads', async (req, res) => {
 
     } catch (error) {
         console.error('❌ Lead transfer failed:', error);
+
+        // Save failed status
+        try {
+            const orgId = getCurrentOrgId(req);
+            const leadData = req.body.leadData || {};
+            const leadIdFromSource = req.body.leadId || leadData.KontaktViewId;
+
+            if (leadIdFromSource && orgId) {
+                let errorMessage = error.message || 'Unknown error';
+                if (error.errors && Array.isArray(error.errors)) {
+                    errorMessage += ': ' + error.errors.map(e => e.message || JSON.stringify(e)).join('; ');
+                }
+
+                await leadTransferStatusService.setLeadStatus(orgId, leadIdFromSource, {
+                    status: 'Failed',
+                    salesforceId: null,
+                    errorMessage: errorMessage
+                });
+                console.log(`❌ Transfer status saved: ${leadIdFromSource} -> Failed`);
+            }
+        } catch (statusError) {
+            console.error('Failed to save error status:', statusError);
+        }
+
         // Include detailed error info if available
         let errorMessage = error.message || 'Unknown error';
         if (error.errors && Array.isArray(error.errors)) {
@@ -2175,7 +2170,7 @@ app.post('/api/salesforce/leads', async (req, res) => {
         }
         res.status(500).json({
             success: false,
-            message: 'Failed to transfer lead to Salesforce',
+            message: errorMessage,  // Send detailed error message to frontend
             error: errorMessage
         });
     }
@@ -2270,7 +2265,7 @@ app.post('/api/salesforce/field-config', async (req, res) => {
 // LEAD TRANSFER STATUS ENDPOINTS
 // ========================================
 
-// Get transfer status for a specific lead
+// Get transfer status for a specific lead (with Salesforce verification)
 app.get('/api/leads/transfer-status/:leadId', async (req, res) => {
     try {
         const orgId = getCurrentOrgId(req);
@@ -2279,20 +2274,19 @@ app.get('/api/leads/transfer-status/:leadId', async (req, res) => {
         }
 
         const { leadId } = req.params;
-        const status = await leadTransferStatusService.getLeadStatus(orgId, leadId);
+        const conn = getConnection(orgId);
 
-        if (!status) {
-            return res.json({ status: 'Pending' });
-        }
+        // Get enhanced status with Salesforce verification
+        const enhancedStatus = await leadTransferStatusService.getEnhancedLeadStatus(conn, orgId, leadId);
 
-        res.json(status);
+        res.json(enhancedStatus);
     } catch (error) {
         console.error('Failed to get lead status:', error);
         res.status(500).json({ message: 'Failed to get lead status', error: error.message });
     }
 });
 
-// Get transfer statuses for multiple leads (batch)
+// Get transfer statuses for multiple leads (batch with Salesforce verification)
 app.post('/api/leads/transfer-status/batch', async (req, res) => {
     try {
         const orgId = getCurrentOrgId(req);
@@ -2306,9 +2300,15 @@ app.post('/api/leads/transfer-status/batch', async (req, res) => {
             return res.status(400).json({ message: 'leadIds must be an array' });
         }
 
-        const statuses = await leadTransferStatusService.getBatchStatuses(orgId, leadIds);
+        const conn = getConnection(orgId);
+        const enhancedStatuses = {};
 
-        res.json(statuses);
+        // Get enhanced status for each lead
+        for (const leadId of leadIds) {
+            enhancedStatuses[leadId] = await leadTransferStatusService.getEnhancedLeadStatus(conn, orgId, leadId);
+        }
+
+        res.json(enhancedStatuses);
     } catch (error) {
         console.error('Failed to get batch statuses:', error);
         res.status(500).json({ message: 'Failed to get batch statuses', error: error.message });
@@ -2354,7 +2354,7 @@ app.post('/api/leads/transfer-status', async (req, res) => {
 // Health check
 app.get('/api/health', (req, res) => {
     res.json({
-        status: 'healthy',
+        status: 'healthy server run',
         timestamp: new Date().toISOString(),
         connections: connections.size
     });
@@ -2581,14 +2581,14 @@ app.get('/api/lead-field-updates/:eventId', async (req, res) => {
 });
 
 // POST save lead field updates for a specific EventId
-app.post('/api/lead-field-updates', async (req, res) => {
+app.post('/v1/test', async (req, res) => {
     try {
         const { eventId, fieldUpdates } = req.body;
 
         if (!eventId) {
             return res.status(400).json({
                 success: false,
-                message: 'EventId is required'
+                message: 'EventId is required 111'
             });
         }
 

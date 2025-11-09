@@ -1,17 +1,6 @@
-// Lead Transfer Service with Auto Field Creation
-// This service handles the complete lead transfer process:
-// 1. Identify non-null custom fields from lead data
-// 2. Check which fields exist in Salesforce
-// 3. Create missing fields automatically
-// 4. Transfer the lead
 
-/**
- * Extract custom field names from lead data
- * Only includes Question, Answers, and Text fields with non-null values AND active status
- * @param {Object} leadData - The lead data object
- * @param {Array} activeFields - Array of active field names (optional)
- * @returns {Array} Array of custom field names (e.g., ['Question01__c', 'Answers01__c'])
- */
+
+
 function extractCustomFieldsFromLeadData(leadData, activeFields = null) {
     const customFields = [];
     const customFieldPattern = /^(Question|Answers|Text)\d{2}(__c)?$/;

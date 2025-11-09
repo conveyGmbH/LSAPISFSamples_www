@@ -181,7 +181,7 @@ function showFieldCreationConfirmationModal(missingFields, labels, totalFields) 
  */
 function showErrorModal(title, message) {
     const modal = document.createElement('div');
-    modal.className = 'transfer-loading-modal';
+    modal.className = 'transfer-error-modal';
     modal.style.cssText = `
         position: fixed;
         top: 0;
@@ -240,7 +240,8 @@ function showErrorModal(title, message) {
  */
 function showSuccessModal(title, message) {
     const modal = document.createElement('div');
-    modal.className = 'transfer-loading-modal';
+    modal.className = 'transfer-success-modal';
+    modal.id = 'persistent-success-modal';  // Give it a unique ID
     modal.style.cssText = `
         position: fixed;
         top: 0;
@@ -251,7 +252,7 @@ function showSuccessModal(title, message) {
         display: flex;
         align-items: center;
         justify-content: center;
-        z-index: 10000;
+        z-index: 999999;
         padding: 20px;
     `;
 
@@ -270,7 +271,8 @@ function showSuccessModal(title, message) {
             <div style="padding: 24px;">
                 <p style="margin: 0; color: #374151; font-size: 14px; white-space: pre-wrap; line-height: 1.5;">${message}</p>
             </div>
-            <div style="padding: 16px 24px; border-top: 1px solid #e5e7eb; background: #f9fafb; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; display: flex; justify-content: flex-end;">
+            <div style="padding: 16px 24px; border-top: 1px solid #e5e7eb; background: #f9fafb; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; display: flex; justify-content: space-between; align-items: center;">
+                <span id="auto-close-countdown" style="color: #6b7280; font-size: 13px;"></span>
                 <button id="close-success-modal" style="padding: 10px 20px; border: none; background: #059669; color: white; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 14px; transition: background 0.2s;">
                     Close
                 </button>
@@ -281,7 +283,32 @@ function showSuccessModal(title, message) {
     document.body.appendChild(modal);
 
     const closeBtn = modal.querySelector('#close-success-modal');
-    closeBtn.addEventListener('click', () => modal.remove());
+    const countdownSpan = modal.querySelector('#auto-close-countdown');
+
+    // Auto-close after 15 seconds with countdown (increased to prevent premature close)
+    let secondsLeft = 15;
+    countdownSpan.textContent = `Auto-closing in ${secondsLeft}s...`;
+
+    const countdownInterval = setInterval(() => {
+        secondsLeft--;
+        if (secondsLeft > 0) {
+            countdownSpan.textContent = `Auto-closing in ${secondsLeft}s...`;
+        } else {
+            clearInterval(countdownInterval);
+            console.log('🔔 Success modal auto-closing after 15 seconds');
+            modal.remove();
+        }
+    }, 1000);
+
+    console.log('✅ Success modal created with 15 second timer');
+
+    // Manual close - clear the auto-close timer
+    const closeModal = () => {
+        clearInterval(countdownInterval);
+        modal.remove();
+    };
+
+    closeBtn.addEventListener('click', closeModal);
     closeBtn.addEventListener('mouseenter', () => {
         closeBtn.style.background = '#047857';
     });
@@ -290,7 +317,7 @@ function showSuccessModal(title, message) {
     });
 
     modal.addEventListener('click', (e) => {
-        if (e.target === modal) modal.remove();
+        if (e.target === modal) closeModal();
     });
 }
 

@@ -3,6 +3,7 @@ import {escapeODataValue, formatDateForOData, formatDate, setupPagination } from
 
 const columnConfig = {
   LS_Lead: {
+    "Status": "150px",  // New Status column
     "Id": "500px",
     "CreatedDate": "200px",
     "LastModifiedDate": "200px",
@@ -58,6 +59,57 @@ let lastSortedColumn = null;
 let lastSortDirection = 'asc';
 let selectedRowItem = null;
 
+/**
+ * Get transfer status for a lead from localStorage
+ * @param {string} leadId - The lead ID to check
+ * @returns {object|null} Transfer status object or null if not transferred
+ */
+/**
+ * Get transfer status from backend with Salesforce verification
+ * @param {string} leadId - The lead ID to check
+ * @returns {Promise<Object|null>} Enhanced status object or null
+ */
+async function getTransferStatus(leadId) {
+  if (!leadId) return null;
+
+  try {
+    const BACKEND_API_URL = window.location.hostname === 'localhost'
+      ? 'http://localhost:3000'
+      : 'https://lsapisfbackenddev-gnfbema5gcaxdahz.germanywestcentral-01.azurewebsites.net';
+
+    const orgId = localStorage.getItem('orgId') || 'default';
+
+    const response = await fetch(`${BACKEND_API_URL}/api/leads/transfer-status/${leadId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Org-Id': orgId
+      },
+      credentials: 'include'
+    });
+
+    if (!response.ok) {
+      console.error('Failed to get transfer status:', response.statusText);
+      return null;
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching transfer status:', error);
+    return null;
+  }
+}
+
+/**
+ * Check if a lead has been transferred to Salesforce
+ * @param {string} leadId - The lead ID to check
+ * @returns {Promise<boolean>} True if transferred, false otherwise
+ */
+async function isLeadTransferred(leadId) {
+  const status = await getTransferStatus(leadId);
+  return status !== null && status.status !== 'NOT_TRANSFERRED';
+}
+
 // Function to fetch LS_Lead data
 async function fetchLsLeadData() {
   const eventId = sessionStorage.getItem('selectedEventId');
@@ -86,6 +138,26 @@ async function fetchLsLeadData() {
 
   initSearch();
 }
+
+async function refreshTransferStatuses() {
+  try {
+    const BACKEND_API_URL = window.location.hostname === 'localhost'
+      ? 'http://localhost:3000'
+      : 'https://lsapisfbackenddev-gnfbema5gcaxdahz.germanywestcentral-01.azurewebsites.net';
+
+    const orgId = localStorage.getItem('orgId') || 'default';
+    await fetch(`${BACKEND_API_URL}/api/leads/transfer-status/sync`, {
+      method: 'GET',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json', 'X-Org-Id': orgId }
+    });
+  } catch (e) {
+    console.warn('Status sync failed:', e);
+  }
+}
+
+
+
 
 
 function enhanceTableResponsiveness() {
@@ -332,13 +404,16 @@ function displayData(data) {
 
   noDataMessage.textContent = '';
 
-  const headers = Object.keys(data[0]).filter(header => 
+  const headers = Object.keys(data[0]).filter(header =>
     header !== '__metadata' && header !== 'KontaktViewId'
   );
 
+  // Inject "Status" column at the beginning
+  const headersWithStatus = ['Status', ...headers];
+
   const headerRow = document.createElement('tr');
-  
-  headers.forEach((header, index) => {
+
+  headersWithStatus.forEach((header, index) => {
     const th = document.createElement('th');
 
     const width = getColumnWidth(header, 'LS_Lead');
@@ -371,7 +446,7 @@ function displayData(data) {
   data.forEach(item => {
     const row = document.createElement('tr');
 
-    headers.forEach(header => {
+    headersWithStatus.forEach(header => {
       const td = document.createElement('td');
 
       const width = getColumnWidth(header, 'LS_Lead');
@@ -383,18 +458,50 @@ function displayData(data) {
         td.classList.add('active');
       }
 
-      if (header.includes('Date') || header === 'SystemModstamp') {
+      // Handle Status column specially - load async
+      if (header === 'Status') {
+        const leadId = item.Id;
+
+        // Create loading placeholder
+        const badge = document.createElement('span');
+        badge.style.cssText = 'display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; background-color: #e5e7eb; color: #6b7280;';
+        badge.textContent = '⏳ Loading...';
+        badge.setAttribute('data-lead-id', leadId);
+        td.appendChild(badge);
+
+        // Load status asynchronously
+        getTransferStatus(leadId).then(status => {
+          if (status && status.icon) {
+            badge.style.backgroundColor = status.color;
+            badge.style.color = 'white';
+            badge.textContent = `${status.icon} ${status.label}`;
+            badge.title = status.details || status.label;
+            badge.style.cursor = 'help';
+          } else {
+            // Fallback for old format or no status
+            badge.style.backgroundColor = '#6b7280';
+            badge.style.color = 'white';
+            badge.textContent = '⏺ Not yet transferred';
+          }
+        }).catch(error => {
+          console.error('Error loading status for', leadId, error);
+          badge.style.backgroundColor = '#6b7280';
+          badge.textContent = '⏺ Not yet transferred';
+        });
+      } else if (header.includes('Date') || header === 'SystemModstamp') {
         td.textContent = formatDate(item[header]);
       } else {
         td.textContent = item[header] || 'N/A';
       }
       row.appendChild(td);
     });
-    
+
     tableBody.appendChild(row);
   });
-  
+
   initializeRowToggle();
+
+  refreshTransferStatuses();
 }
 
 function getItemFromRow(row) {

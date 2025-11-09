@@ -4,7 +4,7 @@ class FieldMappingService {
         this.fieldConfig = this.loadConfig();
         this.customLabels = {};
         this.customFieldNames = {};
-        this.customFields = []; // 🆕 Custom fields created by client
+        this.customFields = []; 
         this.credentials = sessionStorage.getItem('credentials');
         this.currentEventId = null;
 
@@ -50,7 +50,7 @@ class FieldMappingService {
                     }
 
                     const url = `https://${this.serverName}/${this.apiName}/${endpoint}`;
-                    console.log("API Request:", method, url);
+
                     const response = await fetch(url, config);
 
                     if (!response.ok) {
@@ -68,7 +68,6 @@ class FieldMappingService {
 
                     // Handle successful responses
                     const text = await response.text();
-                    console.log(`API Response (${response.status}):`, text.substring(0, 200) + (text.length > 200 ? '...' : ''));
 
                     if (!text.trim()) {
                         return { success: true };
@@ -161,7 +160,6 @@ setFieldConfigLocal(fieldName, config) {
     // Load field mappings from API
     async loadFieldMappingsFromAPI(eventId) {
     if (!eventId) {
-        console.log('❌ No event ID provided, skipping database load');
         return;
     }
 
@@ -478,27 +476,27 @@ async updateRecord(recordId, configData) {
 }
 
 
-// Get current event ID
-getCurrentEventId() {
-    if (!this.currentEventId) {
-        // Try to get from sessionStorage if not set
-        const sessionEventId = sessionStorage.getItem('selectedEventId');
-        if (sessionEventId) {
-            this.currentEventId = sessionEventId;
-            console.log('Event ID recovered from session storage:', sessionEventId);
+    // Get current event ID
+    getCurrentEventId() {
+        if (!this.currentEventId) {
+            // Try to get from sessionStorage if not set
+            const sessionEventId = sessionStorage.getItem('selectedEventId');
+            if (sessionEventId) {
+                this.currentEventId = sessionEventId;
+                console.log('Event ID recovered from session storage:', sessionEventId);
+            }
         }
+        return this.currentEventId;
     }
-    return this.currentEventId;
-}
 
-/**
- * Set current event ID
- * @param {string} eventId - Event ID to set
- */
-setCurrentEventId(eventId) {
-    this.currentEventId = eventId;
-    console.log('Event ID set to:', eventId);
-}
+    /**
+     * Set current event ID
+     * @param {string} eventId - Event ID to set
+     */
+    setCurrentEventId(eventId) {
+        this.currentEventId = eventId;
+        console.log('Event ID set to:', eventId);
+    }
 
 
 
@@ -531,7 +529,7 @@ setCurrentEventId(eventId) {
         localStorage.setItem('salesforce_custom_labels', JSON.stringify(this.customLabels));
     }
 
-    // Obtenir la configuration d'un champ
+    // Get configuration for a specific field
     getFieldConfig(fieldName) {
         if (!this.fieldConfig.config || !this.fieldConfig.config.fields) {
             return null;
@@ -539,7 +537,7 @@ setCurrentEventId(eventId) {
         return this.fieldConfig.config.fields.find(field => field.fieldName === fieldName);
     }
 
-    // Définir la configuration d'un champ
+    // Set configuration for a specific field
     async setFieldConfig(fieldName, config) {
         if (!this.fieldConfig.config) {
             this.fieldConfig.config = { fields: [] };
@@ -585,14 +583,17 @@ setCurrentEventId(eventId) {
             console.log(`⏭️  Skipping database save for ${fieldName} - loading from backend`);
         }
 
-        //Also save locally as backup
-
+        // Also save locally as backup
         this.saveConfig();
-        console.log(`Field config set for ${fieldName}:`, fieldConfig);
 
         // Sync active fields with backend
-        await this.syncWithBackend();
+        // await this.syncWithBackend();
+        this.syncWithBackend().catch(error => {
+        console.error('Background sync failed (non-critical):', error);
+    });
     }
+
+ 
 
     async setCustomLabel(fieldName, label) {
     this.customLabels[fieldName] = label;
@@ -780,36 +781,34 @@ async bulkSaveToDatabase() {
 
             let salesforceFieldName = originalField;
 
-            // Auto-add __c suffix for Question/Answers/Text fields if not already present
-            // Question01 -> Question01__c, Answers01 -> Answers01__c, Text01 -> Text01__c
-            if (/^(Question|Answers|Text)\d{2}$/.test(originalField) && !originalField.endsWith('__c')) {
-                salesforceFieldName = `${originalField}__c`;
-                console.log(`Auto-added __c suffix: ${originalField} → ${salesforceFieldName}`);
-            } else {
-                const customLabel = this.customLabels[originalField];
-                const defaultLabel = this.formatFieldLabel(originalField);
+            // Use custom label if set (user must set exact SF field name)
+            const customLabel = this.customLabels[originalField];
+            const defaultLabel = this.formatFieldLabel(originalField);
 
-                const isValidSalesforceFieldName = (name) => {
-                    if (!name || name.trim() === '') return false;
-                    return /^[a-zA-Z][a-zA-Z0-9_]*(__c)?$/.test(name.trim());
-                };
+            const isValidSalesforceFieldName = (name) => {
+                if (!name || name.trim() === '') return false;
+                return /^[a-zA-Z][a-zA-Z0-9_]*(__c)?$/.test(name.trim());
+            };
 
-                if (customLabel && customLabel.trim() !== '' && customLabel !== defaultLabel) {
-                    const trimmedLabel = customLabel.trim();
+            if (customLabel && customLabel.trim() !== '' && customLabel !== defaultLabel) {
+                const trimmedLabel = customLabel.trim();
 
-                    if (isValidSalesforceFieldName(trimmedLabel)) {
-                        salesforceFieldName = trimmedLabel;
-                    } else {
-                        salesforceFieldName = originalField;
-                    }
-                }
-                else if (this.customFieldNames[originalField]) {
-                    salesforceFieldName = this.customFieldNames[originalField];
-                }
-                else {
-                    console.log(`Using original field name: ${originalField}`);
+                if (isValidSalesforceFieldName(trimmedLabel)) {
+                    salesforceFieldName = trimmedLabel;
+                    console.log(`Using custom label: ${originalField} → ${salesforceFieldName}`);
+                } else {
+                    console.warn(`⚠️ Invalid custom label "${trimmedLabel}" for "${originalField}", using original name`);
+                    salesforceFieldName = originalField;
                 }
             }
+            else if (this.customFieldNames[originalField]) {
+                salesforceFieldName = this.customFieldNames[originalField];
+                console.log(`Using custom field name: ${originalField} → ${salesforceFieldName}`);
+            }
+            else {
+                console.log(`Using original field name: ${originalField}`);
+            }
+
             mappedData[salesforceFieldName] = value;
         }
 
@@ -923,10 +922,29 @@ async bulkSaveToDatabase() {
                 }
             }
 
-            // Apply custom labels if present
+            // Apply custom labels if present - but clean invalid ones first
             if (config.customLabels) {
-                this.customLabels = { ...this.customLabels, ...config.customLabels };
+                const cleanedLabels = {};
+                let hadInvalidLabels = false;
+
+                // Filter out labels with spaces (invalid Salesforce field names)
+                for (const [apiName, sfName] of Object.entries(config.customLabels)) {
+                    if (/\s/.test(sfName)) {
+                        console.warn(`⚠️ Removing invalid custom label "${apiName}" → "${sfName}" (contains spaces)`);
+                        hadInvalidLabels = true;
+                    } else {
+                        cleanedLabels[apiName] = sfName;
+                    }
+                }
+
+                this.customLabels = { ...this.customLabels, ...cleanedLabels };
                 this.saveConfig();
+
+                // If we cleaned any invalid labels, save back to backend
+                if (hadInvalidLabels) {
+                    console.log('🧹 Cleaned invalid custom labels, saving to backend...');
+                    await this.saveFieldMappingsToAPI('bulk_save', 'cleanup');
+                }
             }
 
             // Re-enable auto-sync after load completes
@@ -952,6 +970,12 @@ async bulkSaveToDatabase() {
             return;
         }
 
+        // Skip sync if we're in transfer mode (prevents interruption during transfer)
+        if (this._isTransferInProgress) {
+            console.log('⏭️  Skipping sync - transfer in progress');
+            return;
+        }
+
         // Debounce to avoid too many calls
         if (this.syncTimeout) {
             clearTimeout(this.syncTimeout);
@@ -959,18 +983,27 @@ async bulkSaveToDatabase() {
 
         this.syncTimeout = setTimeout(async () => {
             try {
+                console.log('🔄 Starting background sync with backend...');
                 await this.saveActiveFieldsToBackend();
+                console.log('✅ Background sync completed');
             } catch (error) {
                 console.error('Failed to sync with backend:', error);
             }
-        }, 1000); // Wait 1 second after last change
+        }, 1000);
+    }
+
+    /**
+     * Disable syncing during transfer to prevent interruptions
+     */
+    setTransferMode(isActive) {
+        this._isTransferInProgress = isActive;
+        console.log(`${isActive ? '🔒' : '🔓'} Transfer mode: ${isActive ? 'ENABLED' : 'DISABLED'}`);
     }
 
     // ========== CUSTOM FIELDS MANAGEMENT (Client-created fields) ==========
 
-    /**
-     * Load custom fields from localStorage
-     */
+    // Load custom fields from localStorage
+
     loadCustomFields() {
         try {
             const saved = localStorage.getItem('salesforce_custom_fields');
