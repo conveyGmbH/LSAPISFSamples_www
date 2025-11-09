@@ -160,79 +160,7 @@ async function refreshTransferStatuses() {
 
 
 
-function enhanceTableResponsiveness() {
-  const tableBody = document.querySelector('.table__body');
-  if (!tableBody) return;
-  
-  const table = tableBody.querySelector('table');
-  if (!table) return;
-  
-  const isMobile = window.innerWidth <= 768;
-  
-  if (isMobile) {
-    // On mobile, ensure horizontal scrolling works properly
-    table.style.width = 'max-content';
-    table.style.minWidth = 'max-content';
-    tableBody.style.overflowX = 'auto';
-    tableBody.style.maxWidth = '100%';
-    
-    // Adjust cell sizes for better mobile viewing
-    const allCells = table.querySelectorAll('th, td');
-    allCells.forEach(cell => {
-      cell.style.padding = '8px 10px';
-    });
-    
-    tableBody.style.width = 'calc(100% - 16px)';
-    tableBody.style.margin = '8px';
-  } else {
-    // Desktop view
-    table.style.width = '100%';
-    table.style.minWidth = '100%';
-    tableBody.style.overflowX = 'auto';
-    
-    // Reset cell sizes
-    const allCells = table.querySelectorAll('th, td');
-    allCells.forEach(cell => {
-      cell.style.maxWidth = '';
-      cell.style.padding = '';
-    });
-    
-    // Apply configured column widths
-    applyColumnWidths();
-  }
-}
 
- // Fix for applyColumnWidths function: add missing currentEntity declaration
- function applyColumnWidths() {
-  const tableHead = document.querySelector('thead');
-  const tableBody = document.querySelector('tbody');
-  if (!tableHead || !tableBody) return;
-  
-  // Add fallback for currentEntity since it's not defined
-  const currentEntity = 'LS_Lead'; 
-  
-  const config = columnConfig[currentEntity] || {};
-  
-  const headers = tableHead.querySelectorAll('th');
-  
-  headers.forEach((header, index) => {
-    const headerText = header.textContent.trim().replace(/[↑↓]/g, '');
-    const width = config[headerText];
-    
-    if (width) {
-      header.style.width = width;
-      
-      // Apply same width to all cells in this column
-      const cells = tableBody.querySelectorAll(`tr td:nth-child(${index + 1})`);
-      cells.forEach(cell => {
-        cell.style.width = width;
-      });
-    }
-  });
-}
-
-
- // Fix for the buttonGroup reference error in addTransferButton
  function addTransferButton() {
   // Check if the button already exists to avoid duplicates
   if (document.getElementById('transferButton')) return;
