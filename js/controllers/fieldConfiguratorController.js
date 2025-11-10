@@ -1,4 +1,4 @@
-// fieldConfiguratorController_v2.js - Simplified Field Configuration with Checkboxes
+// fieldConfiguratorController_v3.js - Dynamic Field Configuration from API
 // FieldMappingService is loaded globally via script tag
 
 // Required fields (cannot be disabled)
@@ -8,41 +8,23 @@ const REQUIRED_FIELDS = ['LastName', 'Company'];
 const DEFAULT_ACTIVE_FIELDS = [
     'FirstName', 'LastName', 'Email', 'Company', 'Phone', 'MobilePhone',
     'Street', 'City', 'PostalCode', 'State', 'Country',
-    'Title', 'Industry', 'LeadSource', 'Status', 'Description'
+    'Title', 'Industry', 'Description'
 ];
 
-// All Salesforce Lead standard fields
-const SALESFORCE_LEAD_FIELDS = [
-    'ActionCadenceAssigneeId', 'ActionCadenceId', 'ActionCadenceState',
-    'ActiveTrackerCount', 'ActivityMetricId', 'ActivityMetricRollupId',
-    'Address', 'AnnualRevenue', 'City', 'CleanStatus', 'Company',
-    'CompanyDunsNumber', 'ConvertedAccountId', 'ConvertedContactId',
-    'ConvertedDate', 'ConvertedOpportunityId', 'ConnectionReceivedId',
-    'ConnectionSentId', 'Country', 'CountryCode', 'CurrencyIsoCode',
-    'DandBCompanyId', 'Description', 'Division', 'Email',
-    'EmailBouncedDate', 'EmailBouncedReason', 'ExportStatus', 'Fax',
-    'FirstCallDateTime', 'FirstEmailDateTime', 'FirstName',
-    'GeocodeAccuracy', 'GenderIdentity', 'HasOptedOutOfEmail',
-    'HasOptedOutOfFax', 'IndividualId', 'Industry', 'IsConverted',
-    'IsDeleted', 'IsPriorityRecord', 'IsUnreadByOwner', 'Jigsaw',
-    'JigsawContactId', 'LastActivityDate', 'LastName', 'LastReferencedDate',
-    'LastViewedDate', 'Latitude', 'LeadSource', 'Longitude',
-    'MasterRecordId', 'MiddleName', 'MobilePhone', 'Name',
-    'NumberOfEmployees', 'OwnerId', 'PartnerAccountId', 'Phone',
-    'PhotoUrl', 'PostalCode', 'Pronouns', 'Rating', 'RecordTypeId',
-    'Salutation', 'ScheduledResumeDateTime', 'ScoreIntelligenceId',
-    'State', 'StateCode', 'Status', 'Street', 'Suffix', 'Title', 'Website'
-];
+// No fields are excluded - show everything from the API
+// The user will decide which fields to use
 
 // Global variables
 let fieldMappingService = null;
-let allFields = [];
+let allFields = []; // API fields
+let customFields = []; // User-created custom fields
 let currentFilter = 'all';
 let searchQuery = '';
+let apiEndpoint = 'LS_Lead'; // Default endpoint
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('🚀 Field Configurator V2 initializing...');
+    console.log('🚀 Field Configurator V3 initializing...');
 
     try {
         // Initialize Field Mapping Service
@@ -53,11 +35,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         const eventId = urlParams.get('eventId') || sessionStorage.getItem('selectedEventId');
         const leadSource = urlParams.get('source') || sessionStorage.getItem('selectedLeadSource') || 'lead';
 
+        // Determine API endpoint based on source
+        apiEndpoint = leadSource === 'leadReport' ? 'LS_LeadReport' : 'LS_Lead';
+
         if (eventId) {
             fieldMappingService.setCurrentEventId(eventId);
             sessionStorage.setItem('selectedEventId', eventId);
             sessionStorage.setItem('selectedLeadSource', leadSource);
-            console.log(`📋 Event ID: ${eventId}, Source: ${leadSource}`);
+            console.log(`📋 Event ID: ${eventId}, Source: ${leadSource}, Endpoint: ${apiEndpoint}`);
 
             // Update event info
             const eventInfo = document.getElementById('event-info');
@@ -66,8 +51,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
 
-        // Load fields
-        await loadAllFields();
+        // Load fields dynamically from API
+        await loadFieldsFromAPI(eventId);
+
+        // Load custom fields from FieldMappingService
+        await loadCustomFields();
+
         renderFields();
         setupEventListeners();
 
@@ -80,34 +69,136 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 /**
- * Load all available fields
+ * Load fields dynamically from API
  */
-async function loadAllFields() {
+async function loadFieldsFromAPI(eventId) {
     allFields = [];
 
-    for (const fieldName of SALESFORCE_LEAD_FIELDS) {
-        const fieldConfig = fieldMappingService.getFieldConfig(fieldName);
-        const isRequired = REQUIRED_FIELDS.includes(fieldName);
+    try {
+        // Get credentials from session
+        const credentials = sessionStorage.getItem('credentials');
+        const serverName = sessionStorage.getItem('serverName') || 'lstest.convey.de';
+        const apiName = sessionStorage.getItem('apiName') || 'apisftest';
 
-        // Check if field has a saved config, otherwise use default active list
-        let isActive = isRequired; // Required fields always active
-        if (!isRequired) {
-            if (fieldConfig && fieldConfig.hasOwnProperty('active')) {
-                isActive = fieldConfig.active;
-            } else {
-                // Use default active fields on first load
-                isActive = DEFAULT_ACTIVE_FIELDS.includes(fieldName);
-            }
+        if (!credentials) {
+            throw new Error('No credentials found');
         }
 
-        allFields.push({
-            name: fieldName,
-            active: isActive,
-            required: isRequired
-        });
-    }
+        // Build API endpoint - get first record to extract field names
+        let endpoint = `${apiEndpoint}?$format=json&$top=1`;
 
-    console.log(`📊 Loaded ${allFields.length} fields (${allFields.filter(f => f.active).length} active)`);
+        // Add event filter if available
+        if (eventId) {
+            endpoint += `&$filter=EventId eq '${encodeURIComponent(eventId)}'`;
+        }
+
+        // Build full URL (without /odata/)
+        const url = `https://${serverName}/${apiName}/${endpoint}`;
+
+        console.log(`📡 Fetching fields from: ${url}`);
+
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'Authorization': `Basic ${credentials}`
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        const results = data.d?.results || [];
+
+        if (results.length === 0) {
+            console.warn('⚠️ No data found in API');
+            showNotification('No data found in the API. Cannot load fields.', 'error');
+            return;
+        }
+
+        // Extract field names from first record
+        const firstRecord = results[0];
+        // Show ALL fields from the API - no exclusions
+        const availableFields = Object.keys(firstRecord);
+
+        console.log(`📊 Found ${availableFields.length} available fields from API`);
+
+        // Create field objects (all fields from API, no categorization)
+        for (const fieldName of availableFields) {
+            const fieldConfig = fieldMappingService.getFieldConfig(fieldName);
+            const isRequired = REQUIRED_FIELDS.includes(fieldName);
+
+            // Check if field has a saved config, otherwise use default active list
+            let isActive = isRequired; // Required fields always active
+            if (!isRequired) {
+                if (fieldConfig && fieldConfig.hasOwnProperty('active')) {
+                    isActive = fieldConfig.active;
+                } else {
+                    // Use default active fields on first load
+                    isActive = DEFAULT_ACTIVE_FIELDS.includes(fieldName);
+                }
+            }
+
+            allFields.push({
+                name: fieldName,
+                active: isActive,
+                required: isRequired,
+                isApiField: true // Mark as API field (not user-created custom field)
+            });
+        }
+
+        // Sort fields: required first, then active, then alphabetically
+        allFields.sort((a, b) => {
+            if (a.required && !b.required) return -1;
+            if (!a.required && b.required) return 1;
+            if (a.active && !b.active) return -1;
+            if (!a.active && b.active) return 1;
+            return a.name.localeCompare(b.name);
+        });
+
+        console.log(`✅ Loaded ${allFields.length} fields from API (${allFields.filter(f => f.active).length} active)`);
+
+    } catch (error) {
+        console.error('❌ Failed to load fields from API:', error);
+        showNotification('Failed to load fields from API: ' + error.message, 'error');
+        throw error;
+    }
+}
+
+/**
+ * Load custom fields created by user
+ */
+async function loadCustomFields() {
+    try {
+        if (!fieldMappingService || !fieldMappingService.getAllCustomFields) {
+            console.warn('⚠️ FieldMappingService.getAllCustomFields not available');
+            return;
+        }
+
+        const loadedCustomFields = fieldMappingService.getAllCustomFields();
+        customFields = loadedCustomFields.map(field => ({
+            id: field.id,
+            name: field.sfFieldName,
+            value: field.value || '',
+            active: field.active !== false,
+            isCustomField: true
+        }));
+
+        console.log(`✅ Loaded ${customFields.length} custom fields`);
+
+    } catch (error) {
+        console.error('❌ Failed to load custom fields:', error);
+    }
+}
+
+/**
+ * Get all fields (API fields + custom fields) for rendering
+ */
+function getAllFieldsForRendering() {
+    // Combine API fields and custom fields
+    return [...allFields, ...customFields];
 }
 
 /**
@@ -115,12 +206,22 @@ async function loadAllFields() {
  */
 function renderFields() {
     const container = document.getElementById('fieldsContainer');
+    const addCustomFieldBtn = document.getElementById('addCustomFieldBtn');
+
+    // Get all fields (API + custom)
+    const allFieldsCombined = getAllFieldsForRendering();
+
+    // Show/hide "Add Custom Field" button based on filter
+    if (addCustomFieldBtn) {
+        addCustomFieldBtn.style.display = currentFilter === 'custom' ? 'flex' : 'none';
+    }
 
     // Filter fields
-    let filteredFields = allFields.filter(field => {
+    let filteredFields = allFieldsCombined.filter(field => {
         if (currentFilter === 'active' && !field.active) return false;
         if (currentFilter === 'inactive' && field.active) return false;
         if (currentFilter === 'required' && !field.required) return false;
+        if (currentFilter === 'custom' && !field.isCustomField) return false;
 
         if (searchQuery) {
             const query = searchQuery.toLowerCase();
@@ -144,33 +245,44 @@ function renderFields() {
     } else {
         container.className = 'fields-grid';
         container.innerHTML = filteredFields.map(field => `
-            <label class="field-item ${field.active ? 'active' : ''} ${field.required ? 'required' : ''}"
-                   data-field="${field.name}">
+            <label class="field-item ${field.active ? 'active' : ''} ${field.required ? 'required' : ''} ${field.isCustomField ? 'user-custom-field' : ''}"
+                   data-field="${field.name}"
+                   data-is-custom="${field.isCustomField || false}">
                 <input type="checkbox"
                        class="field-checkbox"
                        ${field.active ? 'checked' : ''}
                        ${field.required ? 'disabled' : ''}
-                       onchange="toggleField('${field.name}', this.checked)" />
+                       onchange="toggleField('${field.name}', this.checked, ${field.isCustomField || false})" />
                 <div class="field-info">
                     <div class="field-name">
                         ${field.name}
                         ${field.required ? '<span class="required-badge">REQUIRED</span>' : ''}
+                        ${field.isCustomField ? '<span class="user-custom-badge">CUSTOM</span>' : ''}
                     </div>
+                    ${field.isCustomField && field.value ? `<div class="field-value-preview">${field.value}</div>` : ''}
                 </div>
+                ${field.isCustomField ? `<button class="delete-custom-field" onclick="deleteCustomField(event, '${field.id}')" title="Delete custom field"><i class="fas fa-trash"></i></button>` : ''}
             </label>
         `).join('');
     }
 }
 
 /**
- * Toggle field active status
+ * Toggle field active status (in memory only, no DB save)
  */
-window.toggleField = async function(fieldName, checked) {
-    const field = allFields.find(f => f.name === fieldName);
+window.toggleField = function(fieldName, checked, isCustomField = false) {
+    let field;
+
+    if (isCustomField) {
+        field = customFields.find(f => f.name === fieldName);
+    } else {
+        field = allFields.find(f => f.name === fieldName);
+    }
+
     if (!field || field.required) return;
 
+    // Update in memory only
     field.active = checked;
-    await fieldMappingService.setFieldConfig(fieldName, { active: checked });
 
     // Update the field item styling
     const fieldItem = document.querySelector(`[data-field="${fieldName}"]`);
@@ -183,35 +295,33 @@ window.toggleField = async function(fieldName, checked) {
     }
 
     updateStatistics();
-    console.log(`✅ Field ${fieldName} ${checked ? 'activated' : 'deactivated'}`);
+    console.log(`✅ Field ${fieldName} ${checked ? 'activated' : 'deactivated'} (not saved yet)`);
 };
 
 /**
- * Select all fields
+ * Select all fields (in memory only, no DB save)
  */
-window.selectAllFields = async function() {
+window.selectAllFields = function() {
     for (const field of allFields) {
         if (!field.required && !field.active) {
             field.active = true;
-            await fieldMappingService.setFieldConfig(field.name, { active: true });
         }
     }
     renderFields();
-    showNotification('All fields selected', 'success');
+    showNotification('All fields selected (not saved yet)', 'success');
 };
 
 /**
- * Deselect all fields (except required)
+ * Deselect all fields (except required) (in memory only, no DB save)
  */
-window.deselectAllFields = async function() {
+window.deselectAllFields = function() {
     for (const field of allFields) {
         if (!field.required && field.active) {
             field.active = false;
-            await fieldMappingService.setFieldConfig(field.name, { active: false });
         }
     }
     renderFields();
-    showNotification('All optional fields deselected', 'success');
+    showNotification('All optional fields deselected (not saved yet)', 'success');
 };
 
 /**
@@ -221,11 +331,51 @@ window.saveAndContinue = async function() {
     try {
         console.log('💾 Saving configuration...');
 
+        // Update field configurations in memory WITHOUT triggering individual API saves
+        // We'll do one bulk save at the end
+        for (const field of allFields) {
+            // Find existing field config
+            const existingIndex = fieldMappingService.fieldConfig.config.fields.findIndex(
+                f => f.fieldName === field.name
+            );
+
+            const fieldConfigData = {
+                fieldName: field.name,
+                active: field.active
+            };
+
+            if (existingIndex >= 0) {
+                // Update existing config
+                fieldMappingService.fieldConfig.config.fields[existingIndex] = {
+                    ...fieldMappingService.fieldConfig.config.fields[existingIndex],
+                    ...fieldConfigData
+                };
+            } else {
+                // Add new config
+                fieldMappingService.fieldConfig.config.fields.push(fieldConfigData);
+            }
+        }
+
+        // Update custom fields active state in memory
+        for (const field of customFields) {
+            const customField = fieldMappingService.getAllCustomFields().find(f => f.id === field.id);
+            if (customField) {
+                customField.active = field.active;
+            }
+        }
+
+        // Save local config
+        fieldMappingService.saveConfig();
+
+        // Now save all configurations to database in ONE bulk operation
         const success = await fieldMappingService.bulkSaveToDatabase();
 
         if (success) {
             showNotification('Configuration saved successfully!', 'success');
-            console.log('✅ Configuration saved');
+
+            const allFieldsCombined = getAllFieldsForRendering();
+            const activeCount = allFieldsCombined.filter(f => f.active).length;
+            console.log(`✅ Configuration saved: ${activeCount} active fields (${allFields.filter(f => f.active).length} API + ${customFields.filter(f => f.active).length} custom)`);
 
             const leadSource = sessionStorage.getItem('selectedLeadSource') || 'lead';
             const targetPage = leadSource === 'leadReport' ? 'displayLsLeadReport.html' : 'displayLsLead.html';
@@ -254,14 +404,130 @@ window.goBack = function() {
  * Update statistics
  */
 function updateStatistics() {
-    const total = allFields.length;
-    const active = allFields.filter(f => f.active).length;
+    const allFieldsCombined = getAllFieldsForRendering();
+    const total = allFieldsCombined.length;
+    const active = allFieldsCombined.filter(f => f.active).length;
     const inactive = total - active;
+    const custom = customFields.length;
 
     document.getElementById('totalFieldsCount').textContent = total;
     document.getElementById('activeFieldsCount').textContent = active;
     document.getElementById('inactiveFieldsCount').textContent = inactive;
+    document.getElementById('customFieldsCount').textContent = custom;
 }
+
+/**
+ * Open modal to add custom field
+ */
+window.openAddCustomFieldModal = function() {
+    const modal = document.getElementById('customFieldModal');
+    if (modal) {
+        modal.style.display = 'flex';
+        // Clear previous values
+        document.getElementById('customFieldName').value = '';
+        document.getElementById('customFieldValue').value = '';
+    }
+};
+
+/**
+ * Close custom field modal
+ */
+window.closeCustomFieldModal = function() {
+    const modal = document.getElementById('customFieldModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+};
+
+/**
+ * Save custom field
+ */
+window.saveCustomField = async function() {
+    const fieldName = document.getElementById('customFieldName').value.trim();
+    const fieldValue = document.getElementById('customFieldValue').value.trim();
+
+    if (!fieldName) {
+        showNotification('Field name is required', 'error');
+        return;
+    }
+
+    // Validate field name (no spaces, no special characters except underscore)
+    if (!/^[a-zA-Z][a-zA-Z0-9_]*$/.test(fieldName)) {
+        showNotification('Invalid field name. Use only letters, numbers, and underscores. Must start with a letter.', 'error');
+        return;
+    }
+
+    // Check if field name already exists
+    const allFieldsCombined = getAllFieldsForRendering();
+    if (allFieldsCombined.some(f => f.name === fieldName || f.name === `${fieldName}__c`)) {
+        showNotification('A field with this name already exists', 'error');
+        return;
+    }
+
+    try {
+        // Add __c suffix if not present
+        const sfFieldName = fieldName.endsWith('__c') ? fieldName : `${fieldName}__c`;
+
+        // Save to FieldMappingService
+        if (fieldMappingService && fieldMappingService.addCustomField) {
+            const newField = await fieldMappingService.addCustomField({
+                sfFieldName: sfFieldName,
+                value: fieldValue,
+                active: true
+            });
+
+            // Add to local customFields array
+            customFields.push({
+                id: newField.id,
+                name: sfFieldName,
+                value: fieldValue,
+                active: true,
+                isCustomField: true
+            });
+
+            showNotification('Custom field added successfully!', 'success');
+            closeCustomFieldModal();
+            renderFields();
+        } else {
+            throw new Error('FieldMappingService.addCustomField not available');
+        }
+
+    } catch (error) {
+        console.error('❌ Failed to add custom field:', error);
+        showNotification('Failed to add custom field: ' + error.message, 'error');
+    }
+};
+
+/**
+ * Delete custom field
+ */
+window.deleteCustomField = async function(event, fieldId) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (!confirm('Are you sure you want to delete this custom field?')) {
+        return;
+    }
+
+    try {
+        // Remove from FieldMappingService
+        if (fieldMappingService && fieldMappingService.deleteCustomField) {
+            await fieldMappingService.deleteCustomField(fieldId);
+
+            // Remove from local array
+            customFields = customFields.filter(f => f.id !== fieldId);
+
+            showNotification('Custom field deleted successfully', 'success');
+            renderFields();
+        } else {
+            throw new Error('FieldMappingService.deleteCustomField not available');
+        }
+
+    } catch (error) {
+        console.error('❌ Failed to delete custom field:', error);
+        showNotification('Failed to delete custom field: ' + error.message, 'error');
+    }
+};
 
 /**
  * Setup event listeners
@@ -309,3 +575,4 @@ function showNotification(message, type = 'success') {
         setTimeout(() => notification.remove(), 300);
     }, 3000);
 }
+
