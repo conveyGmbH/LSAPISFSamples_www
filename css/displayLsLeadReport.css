@@ -1,0 +1,725 @@
+/* Config */
+:root {
+    --primary-color: #d9613f;
+    --background-color: rgb(215, 229, 241);
+    --secondary-color: #2d3446;
+    --text-color: #2d3446;
+    --accent-color: #d9613f;
+    --border-color: rgba(45, 52, 70, 0.2);
+    --hover-color: rgba(217, 97, 63, 0.1);
+    --white: #ffffff;
+    --purple: #6c00bd;
+    --gray: #6c757d;
+    --light-gray: #ccc;
+}
+
+/* Reset */
+*,
+*::before,
+*::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    min-height: 100vh;
+    height: 100vh; 
+    display: flex;
+    flex-direction: column;
+    background-color: #f1f1f1;
+    align-items: center;
+    overflow: hidden;
+    font-family: "Open Sans", -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, serif;
+}
+
+/* Header Content */
+.main-header {
+    width: 100%;
+    background-color: var(--primary-color);
+    padding: 10px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 8px rgba(217, 97, 63, 0.3);
+    z-index: 10;
+}
+
+.logo img {
+    height: 40px;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+}
+
+.logout-button {
+    background-color: var(--white);
+    color: var(--primary-color);
+    border: none;
+    padding: 0.6rem 1.2rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 5px 0;
+}
+
+.logout-button:hover {
+    background-color: rgba(255, 255, 255, 0.9);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+}
+
+.sub-header {
+    padding: 15px 20px;
+    z-index: 9;
+    width: 100%;
+    text-align: center;
+}
+
+.head-line {
+    margin-bottom: 10px;
+}
+
+.sub-header h3 {
+    margin-top: 0;
+    font-size: 16px;
+}
+
+.sub-header a {
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+.sub-header a:hover {
+    text-decoration: underline;
+}
+
+/* Main Area */
+main.table {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    background-color: #fff5;
+    backdrop-filter: blur(7px);
+    box-shadow: 0 .4rem .8rem #0005;
+    border-radius: .8rem;
+    /* margin: 1rem; */
+    overflow: hidden;
+    max-height: calc(100vh - 150px); 
+    width: 98%;
+    position: relative; 
+}
+
+/* Table Header */
+.table__header {
+    width: 100%;
+    background-color: var(--light-gray);
+    padding: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    z-index: 8;
+}
+
+/* View Selector */
+/* .view-selector select {
+    appearance: none; 
+    background-color: #f1f1f1;
+    border: 1px solid #e0e0e0;
+    padding: 0.75rem 2.5rem 0.75rem 1rem;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23d9613f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    min-width: 180px;
+    width: 100%;
+    cursor: pointer;
+}
+
+.view-selector select:focus {
+    border-color: var(--primary-color);
+    outline: none;   
+} */
+
+/* Action Buttons */
+.actions {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 0;
+}
+
+.action-button {
+    background-color: var(--primary-color);
+    color: var(--white);
+    border: none;
+    padding: 0 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 48px;
+}
+  
+.action-button:disabled {
+    background-color: var(--light-gray);
+    cursor: not-allowed;
+}
+  
+.action-button:hover:not(:disabled) {
+    background-color: #c55535;
+}
+
+/* Search Field */
+.table__header .input-group {
+    width: 300px;
+    height: 40px;
+    background-color: var(--white);
+    padding: 0 1rem;
+    border-radius: 20px;
+    border: 1px solid #e0e0e0;
+    display: flex;
+    align-items: center;
+    transition: all 0.3s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.table__header .input-group input {
+    width: 100%;
+    padding: 0 .5rem 0 .3rem;
+    background-color: transparent;
+    border: none;
+    outline: none;
+}
+
+/* Table Body */
+.table__body {
+    width: 100%;
+    flex: 1;
+    background-color: #fffb;
+    overflow: auto; 
+    margin: .8rem auto;
+    position: relative;
+}
+
+.table__body::-webkit-scrollbar {
+    width: 0.5rem;
+    height: 0.5rem;
+}
+
+.table__body::-webkit-scrollbar-thumb {
+    border-radius: .5rem;
+    background-color: #0004;
+    visibility: hidden;
+}
+
+.table__body:hover::-webkit-scrollbar-thumb { 
+    visibility: visible;
+    background-color: var(--primary-color);
+}
+
+.table__body table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed; 
+    margin: 0 .6rem;
+}
+
+/* Table Elements */
+table, th, td {
+    border-collapse: collapse;
+    padding: 1rem;
+    text-align: left;
+    word-break: break-word; 
+}
+
+thead th {
+    position: sticky;
+    top: 0;
+    background-color: var(--background-color);
+    color: var(--primary-color);
+    cursor: pointer;
+    z-index: 5;
+}
+
+tbody tr:nth-child(even) {
+    background-color: #0000000b;
+}
+
+tbody tr.hide {
+    opacity: 0;
+    transform: translateX(100%);
+}
+
+tbody tr:hover {
+    background-color: var(--primary-color) !important;
+    color: var(--white);
+    transition: none;
+    cursor: pointer;
+}
+
+tr.selected {
+    background-color: var(--primary-color) !important;
+    color: var(--white);
+    transition: none;
+}
+
+/* Sorting Styles */
+thead th.active {
+    color: var(--purple) !important;
+    font-weight: bold;
+    border-bottom: 2px solid var(--purple);
+}
+
+tbody td.active {
+    color: var(--purple);
+    font-weight: 500;
+}
+
+.icon-arrow {
+    margin-left: 8px;
+    font-size: 12px;
+    color: #666;
+    transition: transform 0.2s ease;
+    display: inline-block;
+    width: 1rem;
+    height: 1rem;
+}
+
+thead th:hover {
+    color: var(--purple);
+}
+
+thead th:hover .icon-arrow {
+    color: var(--purple);
+}
+
+thead th.active span.icon-arrow {
+    background-color: var(--purple);
+    color: #fff;
+    border-radius: 50%;
+    text-align: center;
+}
+
+thead th.asc span.icon-arrow {
+    transform: rotate(180deg);
+}
+
+thead th.desc span.icon-arrow {
+    transform: rotate(0deg);
+}
+
+/* Pagination */
+.pagination {
+    width: 100%;
+    padding: 1rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #fff5;
+    position: sticky;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 6;
+    border-top: 1px solid #ddd;
+    min-height: 60px;
+}
+
+.pagination-button {
+    padding: 8px 20px;
+    background-color: var(--primary-color);
+    color: var(--white);
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.pagination-button:disabled {
+    background-color: var(--light-gray);
+    cursor: not-allowed;
+}
+
+.pagination-button:hover:not(:disabled) {
+    background-color: #c55535;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+}
+
+/* Error Message */
+.error-message {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #f44336;
+    color: white;
+    padding: 15px 20px;
+    border-radius: 4px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    display: none;
+    z-index: 1000;
+}
+
+#noDataMessage {
+    padding: 2rem;
+    text-align: center;
+    color: #555;
+    font-style: italic;
+}
+
+/* Filter Container Styles */
+.filter-container, .filter-inputs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    padding: 16px;
+    background-color: #f1f1f5;
+    border-radius: 8px;
+    margin: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    width: calc(100% - 24px);
+    align-items: flex-end;
+}
+
+/* Floating Input Styles */
+.input-group-float {
+    position: relative;
+    flex: 1;
+}
+
+/* Specific field widths */
+.input-group-float[id*="Id"] {
+    min-width: 300px;
+}
+
+.input-group-float[id*="FirstName"],
+.input-group-float[id*="LastName"] {
+    min-width: 240px;
+}
+
+.input-group-float[id*="Company"] {
+    min-width: 320px;
+}
+
+.input-group-float[id*="Email"] {
+    min-width: 300px;
+}
+
+/* Input Base Styling */
+.input-group-float input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 16px;
+    background-color: white;
+    transition: border-color 0.2s ease;
+    box-sizing: border-box;
+    height: 48px;
+    outline: none;
+}
+
+/* Floating Label Styling */
+.input-group-float label {
+    position: absolute;
+    top: 50%;
+    left: 10px;
+    transform: translateY(-50%);
+    background-color: white;
+    padding: 0 5px;
+    color: #666;
+    font-size: 16px;
+    transition: all 0.2s ease;
+    pointer-events: none;
+    z-index: 2;
+}
+
+/* Move label up when input is focused or has content */
+.input-group-float input:focus + label,
+.input-group-float input:not(:placeholder-shown) + label {
+    top: 0;
+    font-size: 12px;
+    color: var(--primary-color);
+    background-color: white;
+}
+
+/* Focus states for inputs */
+.input-group-float input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(217, 97, 63, 0.2);
+}
+
+/* Date Input Specific Styling */
+.input-group-float input[type="date"] {
+    padding-right: 30px;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+}
+
+/* Make sure date inputs don't show placeholder text */
+.input-group-float input[type="date"]::-webkit-datetime-edit-text,
+.input-group-float input[type="date"]::-webkit-datetime-edit-month-field,
+.input-group-float input[type="date"]::-webkit-datetime-edit-day-field,
+.input-group-float input[type="date"]::-webkit-datetime-edit-year-field {
+    color: transparent;
+}
+
+/* Show date text when input has a value or is focused */
+.input-group-float input[type="date"]:focus::-webkit-datetime-edit-text,
+.input-group-float input[type="date"]:focus::-webkit-datetime-edit-month-field,
+.input-group-float input[type="date"]:focus::-webkit-datetime-edit-day-field,
+.input-group-float input[type="date"]:focus::-webkit-datetime-edit-year-field,
+.input-group-float input[type="date"]:not(:placeholder-shown)::-webkit-datetime-edit-text,
+.input-group-float input[type="date"]:not(:placeholder-shown)::-webkit-datetime-edit-month-field,
+.input-group-float input[type="date"]:not(:placeholder-shown)::-webkit-datetime-edit-day-field,
+.input-group-float input[type="date"]:not(:placeholder-shown)::-webkit-datetime-edit-year-field {
+    color: initial;
+}
+
+/* Calendar icon positioning */
+.input-group-float input[type="date"]::-webkit-calendar-picker-indicator {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+}
+
+/* Filter Buttons Container */
+.filter-buttons {
+    display: flex;
+    gap: 10px;
+    margin-left: auto;
+    align-self: flex-end;
+    margin-top: 8px;
+}
+
+/* Filter Button Styling */
+.filter-button, .apply-button, .reset-button, .apply-filter, .reset-filter {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 0 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    min-width: 120px;
+    height: 48px;
+    white-space: nowrap;
+}
+
+/* Reset Button Styling */
+.reset-button, .reset-filter {
+    background-color: #6c757d;
+}
+
+/* Button Hover States */
+.filter-button:hover:not(:disabled),
+.apply-button:hover:not(:disabled), 
+.reset-button:hover:not(:disabled),
+.apply-filter:hover:not(:disabled),
+.reset-filter:hover:not(:disabled) {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+
+/* Disabled Button Styling */
+.reset-button:disabled,
+.reset-filter:disabled {
+    background-color: #ccc !important;
+    color: #888;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+    opacity: 0.7;
+}
+
+
+/* Input Field Width Adjustments */
+.input-group-float {
+    position: relative;
+   
+    flex: 1;
+    min-width: 300px; /* Set minimum width for all input containers */
+  }
+  
+  /* Keep the specific field width overrides, but ensure they're at least 300px */
+  .input-group-float[id*="Id"],
+  .input-group-float[id*="FirstName"],
+  .input-group-float[id*="LastName"],
+  .input-group-float[id*="Company"],
+  .input-group-float[id*="Email"] {
+    min-width: 300px;
+  }
+  
+  /* Ensure form inputs are also at least 300px wide */
+  .input-group-float input,
+  .filter-input {
+    width: 100%;
+    min-width: 300px;
+  }
+  
+  /* Make date inputs also 300px minimum */
+  .input-group-float input[type="date"] {
+    width: 100%;
+    min-width: 300px;
+  }
+  
+  /* Responsive handling - on mobile, inputs take full width */
+  @media (max-width: 768px) {
+    .input-group-float,
+    .input-group-float input,
+    .input-group-float input[type="date"],
+    .filter-input {
+      width: 100%;
+      min-width: 100%;
+    }
+  }
+
+
+/* Responsive Styles */
+@media (max-width: 768px) {
+    body {
+        overflow-y: auto;
+        height: auto;
+    }
+    
+    main.table {
+        margin: 8px;
+        width: calc(100% - 16px);
+        max-height: none;
+        overflow: visible;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .table__header {
+        flex-direction: column;
+        padding: 12px;
+        gap: 12px;
+    }
+    
+    .table__header .actions {
+        width: 100%;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    
+    .table__header .action-button {
+        /* flex: 1; */
+        min-width: 120px;
+    }
+    
+    .filter-container, .filter-inputs {
+        flex-direction: column;
+        padding: 12px;
+        margin: 8px;
+        width: calc(100% - 16px);
+        gap: 12px;
+    }
+    
+    .input-group-float {
+        width: 100%;
+        min-width: 100% !important; /* Override specific field widths */
+    }
+    
+    .input-group-float input,
+    .input-group-float input[type="date"] {
+        width: 100%;
+    }
+    
+    .filter-buttons {
+        width: 100%;
+        margin-left: 0;
+        flex-direction: row;
+        justify-content: space-between;
+        margin-top: 16px;
+    }
+    
+    .filter-button,
+    .apply-button, 
+    .reset-button,
+    .apply-filter,
+    .reset-filter {
+        /* flex: 1; */
+        min-width: 0;
+    }
+    
+    /* Table display on mobile */
+    .table__body {
+        overflow-x: auto;
+        margin: 8px 0;
+        width: 100%;
+        flex: 1;
+    }
+    
+    .table__body table {
+        min-width: max-content;
+        margin: 0;
+    }
+    
+    table, th, td {
+        padding: 8px 10px;
+    }
+    
+    th, td {
+        font-size: 16px;
+    }
+    
+    /* Keep pagination at the bottom */
+    .pagination {
+        position: sticky;
+        bottom: 0;
+        margin-top: auto;
+        background-color: white;
+    }
+}
+
+/* For very small screens */
+@media (max-width: 480px) {
+    .table__header .actions {
+        flex-direction: column;
+    }
+    
+    .action-button {
+        width: 100%;
+    }
+    
+    .filter-buttons {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .filter-button,
+    .apply-button, 
+    .reset-button,
+    .apply-filter,
+    .reset-filter {
+        width: 100%;
+    }
+}
+
+
+
+
+
+

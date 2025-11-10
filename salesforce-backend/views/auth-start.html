@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connect to Salesforce</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: #f5f5f5;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+            padding: 30px;
+        }
+
+        .card h1 {
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            background: white;
+            cursor: pointer;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: #0176d3;
+        }
+
+        .btn-connect {
+            width: 100%;
+            padding: 12px;
+            background: #0176d3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-connect:hover {
+            background: #0b5cab;
+        }
+
+        .info-text {
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>Connect to Salesforce</h1>
+
+        <form id="authForm">
+            <div class="form-group">
+                <label for="environment">Environment:</label>
+                <select id="environment" name="environment">
+                    <option value="production">Production (login.salesforce.com)</option>
+                    <option value="sandbox">Sandbox (test.salesforce.com)</option>
+                </select>
+            </div>
+
+            <button type="submit" class="btn-connect">
+                Continue
+            </button>
+
+            <p class="info-text">
+                You will be redirected to Salesforce to authorize access.
+            </p>
+        </form>
+    </div>
+
+    <script>
+        document.getElementById('authForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const environment = document.getElementById('environment').value;
+            const loginUrl = environment === 'sandbox'
+                ? 'https://test.salesforce.com'
+                : 'https://login.salesforce.com';
+
+            // Get orgId from URL params
+            const urlParams = new URLSearchParams(window.location.search);
+            const orgId = urlParams.get('orgId') || 'default';
+
+            // Redirect to backend OAuth endpoint with loginUrl
+            window.location.href = `/auth/salesforce/redirect?orgId=${encodeURIComponent(orgId)}&loginUrl=${encodeURIComponent(loginUrl)}`;
+        });
+    </script>
+</body>
+</html>

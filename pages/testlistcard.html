@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestion des Utilisateurs</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #3b82f6;
+            --success: #10b981;
+            --danger: #ef4444;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-800: #1f2937;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f9fafb;
+            color: var(--gray-800);
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--gray-200);
+        }
+        
+        h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--gray-800);
+        }
+        
+        .view-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .view-btn {
+            padding: 8px 16px;
+            background: white;
+            border: 1px solid var(--gray-300);
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .view-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+        
+        .filter-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .filter-btn {
+            padding: 6px 12px;
+            background: white;
+            border: 1px solid var(--gray-300);
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        .filter-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+        
+        .stats {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            flex: 1;
+            background: white;
+            padding: 16px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            font-size: 14px;
+            color: var(--gray-600);
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--gray-600);
+        }
+        
+        /* Vue liste */
+        .list-view {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .table-header {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr 100px;
+            padding: 16px 20px;
+            background: var(--gray-100);
+            font-weight: 600;
+            border-bottom: 1px solid var(--gray-200);
+        }
+        
+        .table-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr 100px;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--gray-200);
+            align-items: center;
+        }
+        
+        .table-row:hover {
+            background: var(--gray-100);
+        }
+        
+        .table-row.inactive {
+            opacity: 0.6;
+            background: var(--gray-100);
+        }
+        
+        /* Vue carte */
+        .card-view {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        
+        .user-card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            padding: 20px;
+            transition: transform 0.2s;
+        }
+        
+        .user-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .user-card.inactive {
+            opacity: 0.6;
+            background: var(--gray-100);
+        }
+        
+        .user-name {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .user-email {
+            color: var(--gray-600);
+            margin-bottom: 8px;
+        }
+        
+        .user-phone {
+            color: var(--gray-600);
+            margin-bottom: 8px;
+        }
+        
+        .user-company {
+            font-weight: 500;
+            margin-bottom: 15px;
+        }
+        
+        /* Toggle switch */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+        
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--gray-300);
+            transition: .4s;
+            border-radius: 24px;
+        }
+        
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .toggle-slider {
+            background-color: var(--success);
+        }
+        
+        input:checked + .toggle-slider:before {
+            transform: translateX(20px);
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .status-active {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .status-inactive {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .table-header, .table-row {
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
+            }
+            
+            .table-header > div:nth-child(3),
+            .table-header > div:nth-child(4),
+            .table-row > div:nth-child(3),
+            .table-row > div:nth-child(4) {
+                display: none;
+            }
+            
+            .card-view {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Gestion des Utilisateurs</h1>
+            <div class="view-controls">
+                <button id="listViewBtn" class="view-btn active">
+                    <i class="fas fa-list"></i> Vue Liste
+                </button>
+                <button id="cardViewBtn" class="view-btn">
+                    <i class="fas fa-grip"></i> Vue Carte
+                </button>
+            </div>
+        </header>
+        
+        <div class="filter-controls">
+            <button class="filter-btn active" data-filter="all">Tous</button>
+            <button class="filter-btn" data-filter="active">Actifs</button>
+            <button class="filter-btn" data-filter="inactive">Inactifs</button>
+        </div>
+        
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-value" id="totalUsers">0</div>
+                <div class="stat-label">Utilisateurs totaux</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="activeUsers">0</div>
+                <div class="stat-label">Utilisateurs actifs</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="inactiveUsers">0</div>
+                <div class="stat-label">Utilisateurs inactifs</div>
+            </div>
+        </div>
+        
+        <div id="listViewContainer" class="list-view">
+            <div class="table-header">
+                <div>Nom</div>
+                <div>Email</div>
+                <div>Téléphone</div>
+                <div>Entreprise</div>
+                <div>Statut</div>
+            </div>
+            <div id="listView" class="loading">
+                <i class="fas fa-spinner fa-spin"></i> Chargement des utilisateurs...
+            </div>
+        </div>
+        
+        <div id="cardViewContainer" class="card-view" style="display: none;"></div>
+    </div>
+
+    <script>
+        // État global
+        let users = [];
+        let activeFilter = 'all';
+        let currentView = 'list';
+        
+        // Éléments DOM
+        const listViewBtn = document.getElementById('listViewBtn');
+        const cardViewBtn = document.getElementById('cardViewBtn');
+        const listViewContainer = document.getElementById('listViewContainer');
+        const cardViewContainer = document.getElementById('cardViewContainer');
+        const listView = document.getElementById('listView');
+        const cardView = document.getElementById('cardViewContainer');
+        const filterButtons = document.querySelectorAll('.filter-btn');
+        const totalUsersEl = document.getElementById('totalUsers');
+        const activeUsersEl = document.getElementById('activeUsers');
+        const inactiveUsersEl = document.getElementById('inactiveUsers');
+        
+        // Initialisation
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadUsersFromAPI();
+            setupEventListeners();
+            updateStats();
+        });
+        
+        // Charger les utilisateurs depuis l'API
+        async function loadUsersFromAPI() {
+            try {
+                listView.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Chargement des utilisateurs...</div>';
+                
+                const response = await fetch('https://jsonplaceholder.typicode.com/users');
+                
+                if (!response.ok) {
+                    throw new Error(`Erreur HTTP: ${response.status}`);
+                }
+                
+                const apiUsers = await response.json();
+                
+                // Transformer les données de l'API et ajouter l'état actif/inactif
+                users = apiUsers.map(user => ({
+                    id: user.id,
+                    name: user.name,
+                    username: user.username,
+                    email: user.email,
+                    phone: user.phone,
+                    website: user.website,
+                    address: {
+                        street: user.address.street,
+                        suite: user.address.suite,
+                        city: user.address.city,
+                        zipcode: user.address.zipcode
+                    },
+                    company: {
+                        name: user.company.name,
+                        catchPhrase: user.company.catchPhrase,
+                        bs: user.company.bs
+                    },
+                    active: true // Par défaut tous actifs
+                }));
+                
+                renderUsers();
+                
+            } catch (error) {
+                console.error('Erreur lors du chargement des utilisateurs:', error);
+                listView.innerHTML = `<div class="loading" style="color: var(--danger);">
+                    <i class="fas fa-exclamation-triangle"></i> Erreur de chargement: ${error.message}
+                </div>`;
+            }
+        }
+        
+        // Configuration des événements
+        function setupEventListeners() {
+            // Boutons de vue
+            listViewBtn.addEventListener('click', () => switchView('list'));
+            cardViewBtn.addEventListener('click', () => switchView('card'));
+            
+            // Boutons de filtre
+            filterButtons.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const filter = e.target.dataset.filter;
+                    applyFilter(filter);
+                });
+            });
+        }
+        
+        // Changer la vue (liste/carte)
+        function switchView(view) {
+            currentView = view;
+            
+            if (view === 'list') {
+                listViewBtn.classList.add('active');
+                cardViewBtn.classList.remove('active');
+                listViewContainer.style.display = 'block';
+                cardViewContainer.style.display = 'none';
+            } else {
+                listViewBtn.classList.remove('active');
+                cardViewBtn.classList.add('active');
+                listViewContainer.style.display = 'none';
+                cardViewContainer.style.display = 'grid';
+            }
+            
+            renderUsers();
+        }
+        
+        // Appliquer un filtre
+        function applyFilter(filter) {
+            activeFilter = filter;
+            
+            // Mettre à jour les boutons de filtre
+            filterButtons.forEach(btn => {
+                if (btn.dataset.filter === filter) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+            
+            renderUsers();
+        }
+        
+        // Afficher les utilisateurs selon la vue et le filtre actuels
+        function renderUsers() {
+            // Filtrer les utilisateurs selon le filtre actif
+            const filteredUsers = users.filter(user => {
+                if (activeFilter === 'all') return true;
+                if (activeFilter === 'active') return user.active;
+                if (activeFilter === 'inactive') return !user.active;
+                return true;
+            });
+            
+            if (currentView === 'list') {
+                renderListView(filteredUsers);
+            } else {
+                renderCardView(filteredUsers);
+            }
+            
+            updateStats();
+        }
+        
+        // Afficher la vue liste
+        function renderListView(usersToRender) {
+            if (usersToRender.length === 0) {
+                listView.innerHTML = '<div class="table-row" style="text-align: center; padding: 40px; grid-column: 1/-1;">Aucun utilisateur trouvé</div>';
+                return;
+            }
+            
+            let html = '';
+            usersToRender.forEach(user => {
+                html += `
+                    <div class="table-row ${user.active ? '' : 'inactive'}">
+                        <div>
+                            <div class="user-name">${escapeHtml(user.name)}</div>
+                            <div class="user-username">@${escapeHtml(user.username)}</div>
+                        </div>
+                        <div>${escapeHtml(user.email)}</div>
+                        <div>${escapeHtml(user.phone)}</div>
+                        <div>${escapeHtml(user.company.name)}</div>
+                        <div>
+                            <span class="status-badge ${user.active ? 'status-active' : 'status-inactive'}">
+                                ${user.active ? 'Actif' : 'Inactif'}
+                            </span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" ${user.active ? 'checked' : ''} data-user-id="${user.id}">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            listView.innerHTML = html;
+            
+            // Ajouter les événements aux toggles
+            document.querySelectorAll('#listView .toggle-switch input').forEach(toggle => {
+                toggle.addEventListener('change', (e) => {
+                    const userId = parseInt(e.target.dataset.userId);
+                    toggleUser(userId, e.target.checked);
+                });
+            });
+        }
+        
+        // Afficher la vue carte
+        function renderCardView(usersToRender) {
+            if (usersToRender.length === 0) {
+                cardView.innerHTML = '<div style="text-align: center; padding: 40px; grid-column: 1/-1;">Aucun utilisateur trouvé</div>';
+                return;
+            }
+            
+            let html = '';
+            usersToRender.forEach(user => {
+                html += `
+                    <div class="user-card ${user.active ? '' : 'inactive'}">
+                        <div class="user-name">
+                            ${escapeHtml(user.name)}
+                            <label class="toggle-switch">
+                                <input type="checkbox" ${user.active ? 'checked' : ''} data-user-id="${user.id}">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="user-email">${escapeHtml(user.email)}</div>
+                        <div class="user-phone">${escapeHtml(user.phone)}</div>
+                        <div class="user-company">${escapeHtml(user.company.name)}</div>
+                        <div class="user-address">${escapeHtml(user.address.street)}, ${escapeHtml(user.address.city)}</div>
+                        <div style="margin-top: 15px;">
+                            <span class="status-badge ${user.active ? 'status-active' : 'status-inactive'}">
+                                ${user.active ? 'Actif' : 'Inactif'}
+                            </span>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            cardView.innerHTML = html;
+            
+            // Ajouter les événements aux toggles
+            document.querySelectorAll('#cardViewContainer .toggle-switch input').forEach(toggle => {
+                toggle.addEventListener('change', (e) => {
+                    const userId = parseInt(e.target.dataset.userId);
+                    toggleUser(userId, e.target.checked);
+                });
+            });
+        }
+        
+        // Basculer l'état d'un utilisateur
+        function toggleUser(userId, isActive) {
+            const user = users.find(u => u.id === userId);
+            if (user) {
+                user.active = isActive;
+                renderUsers();
+            }
+        }
+        
+        // Mettre à jour les statistiques
+        function updateStats() {
+            const total = users.length;
+            const active = users.filter(user => user.active).length;
+            const inactive = total - active;
+            
+            totalUsersEl.textContent = total;
+            activeUsersEl.textContent = active;
+            inactiveUsersEl.textContent = inactive;
+        }
+        
+        // Échapper le HTML pour la sécurité
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>

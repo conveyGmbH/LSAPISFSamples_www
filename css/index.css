@@ -1,0 +1,142 @@
+﻿
+@import url('global.css');
+
+
+body {
+    min-height: 100vh;
+    height: 100vh; 
+    display: flex;
+    flex-direction: column;
+    background-color: #f1f1f1;
+    align-items: center;
+    overflow: hidden;
+    font-family: "Open Sans", -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, serif;
+  }
+
+/* Main Container */
+main {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column; 
+}
+
+.login-container {
+    max-width: 380px;    
+    animation: fadeIn 0.5s ease-in;
+}
+
+.card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.card h2 {
+    color: var(--secondary-color);
+    margin-bottom: 2rem;
+    font-size: 1.5rem;
+    text-align: center;
+}
+
+.card input {
+    width: 100%;
+    padding: 0.675rem;
+    margin-bottom: 1.25rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+}
+
+.card input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(1, 118, 211, 0.1);
+}
+
+.card button {
+    background: var(--primary-color);
+    color: white;
+    padding: 1rem;
+    width: 100%;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.card button:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+
+.error-message {
+    color: #d93025;
+    padding: 0.75rem;
+    background: #fce8e6;
+    border-radius: 4px;
+    margin-top: 1.5rem;
+    display: none;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Animation de secousse pour la carte */
+@keyframes shake {
+    0% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    50% { transform: translateX(5px); }
+    75% { transform: translateX(-5px); }
+    100% { transform: translateX(0); }
+}
+
+.error-shake {
+    animation: shake 0.5s;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    main {
+        padding: 1rem;
+    }
+
+    .card {
+        padding: 1.5rem;
+    }
+
+    .header {
+        padding: 0.3rem 1rem;
+    }
+
+    .sub-header {
+        padding: 1rem;
+    }
+}
+
+
+
+
+
+
+
+
+

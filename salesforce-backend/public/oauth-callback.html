@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Salesforce OAuth Callback</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #333;
+            overflow: hidden;
+        }
+
+        /* Animated background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+            background-size: 400% 400%;
+            animation: gradientShift 15s ease infinite;
+            opacity: 0.8;
+            z-index: -1;
+        }
+
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .container {
+            max-width: 480px;
+            width: 90%;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 40px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            animation: slideIn 0.6s ease-out;
+        }
+
+        .container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+            pointer-events: none;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(30px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        /* Loading State */
+        .loading-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 24px;
+            background: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .loading-icon svg {
+            width: 40px;
+            height: 40px;
+            color: white;
+        }
+
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid rgba(59, 130, 246, 0.2);
+            border-radius: 50%;
+            border-left-color: #3B82F6;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        /* Success State */
+        .success-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 24px;
+            background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: successPulse 0.6s ease-out;
+            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+        }
+
+        .success-icon svg {
+            width: 40px;
+            height: 40px;
+            color: white;
+        }
+
+        @keyframes successPulse {
+            0% {
+                transform: scale(0.8);
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+            }
+            50% {
+                transform: scale(1.1);
+                box-shadow: 0 0 0 20px rgba(16, 185, 129, 0);
+            }
+            100% {
+                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+            }
+        }
+
+        /* Error State */
+        .error-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 24px;
+            background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: errorShake 0.6s ease-out;
+        }
+
+        .error-icon svg {
+            width: 40px;
+            height: 40px;
+            color: white;
+        }
+
+        @keyframes errorShake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        h2 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            color: #1F2937;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .success h2 {
+            color: #059669;
+        }
+
+        .error h2 {
+            color: #DC2626;
+        }
+
+        p {
+            color: #6B7280;
+            margin-bottom: 12px;
+            line-height: 1.6;
+            font-size: 16px;
+        }
+
+        .success p {
+            color: #047857;
+        }
+
+        .error p {
+            color: #B91C1C;
+        }
+
+        /* Animated checkmark */
+        .checkmark {
+            stroke-dasharray: 100;
+            stroke-dashoffset: 100;
+            animation: drawCheck 0.8s ease-in-out 0.3s forwards;
+        }
+
+        @keyframes drawCheck {
+            to {
+                stroke-dashoffset: 0;
+            }
+        }
+
+        /* Loading spinner */
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.8;
+                transform: scale(1.05);
+            }
+        }
+
+        /* Environment indicator */
+        .environment-indicator {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(248, 215, 218, 0.9);
+            color: #721c24;
+            padding: 8px 16px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            display: none;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Progress bar */
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: rgba(59, 130, 246, 0.2);
+            border-radius: 2px;
+            margin: 24px 0;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3B82F6, #1D4ED8);
+            border-radius: 2px;
+            transform: translateX(-100%);
+            animation: progressFill 2s ease-in-out forwards;
+        }
+
+        @keyframes progressFill {
+            to {
+                transform: translateX(0);
+            }
+        }
+
+        /* Responsive design */
+        @media (max-width: 480px) {
+            .container {
+                padding: 32px 24px;
+                margin: 20px;
+            }
+
+            h2 {
+                font-size: 24px;
+            }
+
+            p {
+                font-size: 14px;
+            }
+
+            .loading-icon,
+            .success-icon,
+            .error-icon {
+                width: 64px;
+                height: 64px;
+            }
+
+            .loading-icon svg,
+            .success-icon svg,
+            .error-icon svg {
+                width: 32px;
+                height: 32px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="container" class="container">
+        <div id="loading">
+            <div class="loading-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                    <path d="M2 17l10 5 10-5"/>
+                    <path d="M2 12l10 5 10-5"/>
+                </svg>
+            </div>
+            <h2>Connecting to Salesforce...</h2>
+            <p>Please wait while we securely process your authentication.</p>
+            <div class="progress-bar">
+                <div class="progress-fill"></div>
+            </div>
+        </div>
+
+        <div id="success" style="display: none;" class="success">
+            <div class="success-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                    <path class="checkmark" d="M20 6L9 17l-5-5"/>
+                </svg>
+            </div>
+            <h2>🎉 Successfully Connected!</h2>
+            <p>You are now securely connected to Salesforce.</p>
+            <p>This window will close automatically in a few seconds...</p>
+        </div>
+
+        <div id="error" style="display: none;" class="error">
+            <div class="error-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="15" y1="9" x2="9" y2="15"/>
+                    <line x1="9" y1="9" x2="15" y2="15"/>
+                </svg>
+            </div>
+            <h2>❌ Authentication Failed</h2>
+            <p id="errorMessage">An error occurred while connecting to Salesforce.</p>
+            <p>Please close this window and try again.</p>
+        </div>
+    </div>
+
+    <div id="environmentIndicator" class="environment-indicator"></div>
+
+    <script>
+        // Identify whether we are in local development
+        const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        const currentEnvironment = isLocalDev ? 'Development' : 'Production';
+        
+        // Show the environment indicator only in development
+        if (isLocalDev) {
+            const envIndicator = document.getElementById('environmentIndicator');
+            envIndicator.textContent = 'LOCAL DEV MODE';
+            envIndicator.style.display = 'block';
+        }
+        
+        // Determine the target origin for postMessage based on environment
+        function getTargetOrigin() {
+            return isLocalDev 
+                ? 'http://localhost:5504'
+                : 'https://lsapisfsamples.convey.de';
+        }
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log(`Running in ${currentEnvironment} environment`);
+            console.log('Current URL:', window.location.href);
+            console.log('URL hash:', window.location.hash);
+            console.log('URL search:', window.location.search);
+
+            try {
+                // First check for query parameters (authorization code flow)
+                const urlParams = new URLSearchParams(window.location.search);
+                const queryParams = {};
+                for (const [key, value] of urlParams) {
+                    queryParams[key] = value;
+                }
+
+                console.log('Parameters from query string:', queryParams);
+
+                // Handle authorization code flow success (query parameters)
+                if (queryParams.success || queryParams.access_token) {
+                    console.log('Processing authorization code flow success');
+                    processSuccess(queryParams);
+                    return;
+                }
+
+                // Handle errors from query parameters
+                if (queryParams.error) {
+                    console.error('Error from query parameters:', queryParams.error);
+                    showError(`Error: ${queryParams.error_description || queryParams.error}`);
+                    return;
+                }
+
+                // Handle implicit flow (with access_token in hash) - fallback
+                if (window.location.hash) {
+                    const params = {};
+                    window.location.hash.substring(1).split('&').forEach(param => {
+                        const [key, value] = param.split('=');
+                        params[key] = decodeURIComponent(value);
+                    });
+
+                    console.log('Parameters extracted from hash (implicit flow):', params);
+
+                    if (params.access_token) {
+                        console.log('Processing implicit flow tokens');
+                        processSuccess(params);
+                    } else if (params.error) {
+                        showError(`Error: ${params.error_description || params.error}`);
+                    } else {
+                        showError('Missing authentication information in the response.');
+                    }
+                } else if (window.location.search) {
+                    // Authorization code flow - redirect to backend
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const code = urlParams.get('code');
+                    const error = urlParams.get('error');
+
+                    if (code) {
+                        console.log('Authorization code received, redirecting to backend for token exchange');
+                        // Just show the current page as it will be handled by backend
+                        // The backend will process this URL and return with success params
+                        return;
+                    } else if (error) {
+                        showError(`Error: ${urlParams.get('error_description') || error}`);
+                    } else {
+                        showError('No authentication parameters found in the URL.');
+                    }
+                } else {
+                    showError('No authentication parameters found in the URL.');
+                }
+            } catch (error) {
+                console.error('Error processing OAuth redirect:', error);
+                showError(`Processing error: ${error.message}`);
+            }
+        });
+
+        function processSuccess(params) {
+            console.log('Processing authentication success with params:', params);
+
+            // Show success UI
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('success').style.display = 'block';
+
+            if (window.opener) {
+                const targetOrigin = getTargetOrigin();
+                console.log(`Sending success message to parent window at origin: ${targetOrigin}`);
+
+                try {
+                    window.opener.postMessage({
+                        success: true,
+                        access_token: params.access_token,
+                        instance_url: params.instance_url,
+                        token_type: params.token_type,
+                        issued_at: params.issued_at,
+                        id: params.id,
+                        sessionId: params.sessionId,
+                        environment: currentEnvironment
+                    }, targetOrigin);
+                    console.log('Success message sent successfully');
+                } catch (postError) {
+                    console.error('Error sending message to parent:', postError);
+                    // Fallback to wildcard origin
+                    try {
+                        console.log('Trying with wildcard origin...');
+                        window.opener.postMessage({
+                            success: true,
+                            access_token: params.access_token,
+                            instance_url: params.instance_url,
+                            token_type: params.token_type,
+                            issued_at: params.issued_at,
+                            id: params.id,
+                            sessionId: params.sessionId,
+                            environment: currentEnvironment,
+                            note: 'Sent with wildcard origin as fallback'
+                        }, '*');
+                        console.log('Fallback message sent successfully');
+                    } catch (wildcardError) {
+                        console.error('Wildcard origin also failed:', wildcardError);
+                        showError('Communication with parent window failed.');
+                        return;
+                    }
+                }
+
+                // Store data in localStorage as backup
+                try {
+                    localStorage.setItem('SF_ACCESS_TOKEN', params.access_token);
+                    localStorage.setItem('SF_INSTANCE_URL', params.instance_url);
+                    localStorage.setItem('SF_TOKEN_ISSUED_AT', params.issued_at || Date.now().toString());
+                    if (params.sessionId) {
+                        localStorage.setItem('SF_SESSION_ID', params.sessionId);
+                    }
+                    console.log('Tokens stored in localStorage as backup');
+                } catch (storageError) {
+                    console.warn('Could not store in localStorage:', storageError);
+                }
+
+                setTimeout(() => {
+                    console.log('Closing popup window');
+                    window.close();
+                }, 2000);
+            } else {
+                console.log('No opener window found, redirecting...');
+                // No opener: store in localStorage and redirect
+                try {
+                    localStorage.setItem('SF_ACCESS_TOKEN', params.access_token);
+                    localStorage.setItem('SF_INSTANCE_URL', params.instance_url);
+                    localStorage.setItem('SF_TOKEN_ISSUED_AT', params.issued_at || Date.now().toString());
+                    if (params.sessionId) {
+                        localStorage.setItem('SF_SESSION_ID', params.sessionId);
+                    }
+
+                    const returnUrl = isLocalDev
+                        ? 'http://localhost:5504/displayLeadTransfer.html?auth=success'
+                        : 'https://lsapisfsamples.convey.de/displayLeadTransfer.html?auth=success';
+
+                    console.log('Redirecting to:', returnUrl);
+                    window.location.href = returnUrl;
+                } catch (storageError) {
+                    console.error('Storage error:', storageError);
+                    showError('Failed to store authentication data: ' + storageError.message);
+                }
+            }
+        }
+
+        function showError(message) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('error').style.display = 'block';
+            document.getElementById('errorMessage').textContent = message;
+
+            if (window.opener) {
+                try {
+                    const targetOrigin = getTargetOrigin();
+                    window.opener.postMessage({ 
+                        error: message,
+                        environment: currentEnvironment
+                    }, targetOrigin);
+                } catch (e) {
+                    try {
+                        window.opener.postMessage({ 
+                            error: message,
+                            environment: currentEnvironment,
+                            note: 'Sent with wildcard origin as fallback'
+                        }, '*');
+                    } catch (wildcardError) {
+                        console.error('Failed to send error to parent window:', wildcardError);
+                    }
+                }
+
+                setTimeout(() => window.close(), 5000);
+            }
+        }
+    </script>
+</body>
+</html>
