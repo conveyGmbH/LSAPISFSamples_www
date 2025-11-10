@@ -1,6 +1,5 @@
 import ApiService from "../services/apiService.js";
 import {formatDate, setupPagination, formatDateForOData, escapeODataValue} from "../utils/helper.js";
-import { fieldMappingService } from '../services/mapping/FieldMappingService.js';
 
 const serverName = sessionStorage.getItem("serverName");
 const apiName = sessionStorage.getItem("apiName");
@@ -734,8 +733,8 @@ function displayData(data, append = false) {
   );
 
   // Get active fields from FieldMappingService
-  const activeFieldNames = fieldMappingService.getActiveFieldNames();
-  const activeCustomFields = fieldMappingService.getAllCustomFields().filter(f => f.active !== false);
+  const activeFieldNames = window.fieldMappingService?.getActiveFieldNames() || [];
+  const activeCustomFields = window.fieldMappingService?.getAllCustomFields().filter(f => f.active !== false) || [];
 
   // Filter to show only active fields
   const headers = allHeaders.filter(header => {

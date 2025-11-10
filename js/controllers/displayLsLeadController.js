@@ -1,6 +1,5 @@
 import ApiService from '../services/apiService.js';
 import {escapeODataValue, formatDateForOData, formatDate, setupPagination } from '../utils/helper.js';
-import { fieldMappingService } from '../services/mapping/FieldMappingService.js';
 
 const columnConfig = {
   LS_Lead: {
@@ -348,8 +347,8 @@ function displayData(data) {
   );
 
   // Get active fields from FieldMappingService
-  const activeFieldNames = fieldMappingService.getActiveFieldNames();
-  const activeCustomFields = fieldMappingService.getAllCustomFields().filter(f => f.active !== false);
+  const activeFieldNames = window.fieldMappingService?.getActiveFieldNames() || [];
+  const activeCustomFields = window.fieldMappingService?.getAllCustomFields().filter(f => f.active !== false) || [];
 
   // Filter to show only active fields
   const headers = allHeaders.filter(header => {

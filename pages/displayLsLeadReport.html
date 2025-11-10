@@ -86,6 +86,13 @@
 
         <div id="errorMessage" class="error-message"></div>
 
+        <script src="/js/services/mapping/FieldMappingService.js"></script>
+        <script>
+            // Initialize global FieldMappingService instance if not already created
+            if (!window.fieldMappingService) {
+                window.fieldMappingService = new window.FieldMappingService();
+            }
+        </script>
         <script src="../js/controllers/headerController.js" type="module" defer></script>
         <script src="../js/controllers/postman-integration.js" type="module" defer></script>
         <script src="../js/controllers/displayLsLeadRepportController.js" type="module" defer></script>
