@@ -1,5 +1,6 @@
 import ApiService from '../services/apiService.js';
 import {escapeODataValue, formatDateForOData, formatDate, setupPagination } from '../utils/helper.js';
+import { fieldMappingService } from '../services/mapping/FieldMappingService.js';
 
 const columnConfig = {
   LS_Lead: {
@@ -218,7 +219,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 
-// Function to get the configured width of a column
+// Function to get the configured width of a column (dynamic if not in config)
 function getColumnWidth(header, entity) {
 
   // Check if there is a configuration for this entity and column
@@ -226,7 +227,16 @@ function getColumnWidth(header, entity) {
     return columnConfig[entity][header];
   }
 
-  return null;
+  // Return dynamic width for fields not in config (e.g., custom fields)
+  // Status gets smaller width, most other fields get medium width
+  if (header === 'Status') return '150px';
+  if (header.includes('Id')) return '500px';
+  if (header.includes('Date') || header === 'SystemModstamp') return '200px';
+  if (header.includes('Description') || header.includes('Message')) return '600px';
+  if (header.includes('Attachment')) return '800px';
+
+  // Default width for custom fields and unknown fields
+  return '300px';
 }
 
 
@@ -332,12 +342,30 @@ function displayData(data) {
 
   noDataMessage.textContent = '';
 
-  const headers = Object.keys(data[0]).filter(header =>
+  // Get all available fields from the data
+  const allHeaders = Object.keys(data[0]).filter(header =>
     header !== '__metadata' && header !== 'KontaktViewId'
   );
 
+  // Get active fields from FieldMappingService
+  const activeFieldNames = fieldMappingService.getActiveFieldNames();
+  const activeCustomFields = fieldMappingService.getAllCustomFields().filter(f => f.active !== false);
+
+  // Filter to show only active fields
+  const headers = allHeaders.filter(header => {
+    // Always show required fields
+    if (header === 'LastName' || header === 'Company') return true;
+    // Check if field is in active configuration
+    return activeFieldNames.includes(header);
+  });
+
   // Inject "Status" column at the beginning
   const headersWithStatus = ['Status', ...headers];
+
+  // Add custom fields at the end
+  activeCustomFields.forEach(customField => {
+    headersWithStatus.push(customField.sfFieldName);
+  });
 
   const headerRow = document.createElement('tr');
 
@@ -419,7 +447,16 @@ function displayData(data) {
       } else if (header.includes('Date') || header === 'SystemModstamp') {
         td.textContent = formatDate(item[header]);
       } else {
-        td.textContent = item[header] || 'N/A';
+        // Check if this is a custom field
+        const customField = activeCustomFields.find(f => f.sfFieldName === header);
+        if (customField) {
+          // Display the custom field's default value
+          td.textContent = customField.value || 'N/A';
+          td.style.fontStyle = 'italic';
+          td.style.color = '#8b5cf6';
+        } else {
+          td.textContent = item[header] || 'N/A';
+        }
       }
       row.appendChild(td);
     });
