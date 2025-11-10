@@ -29,51 +29,77 @@ js/
     └── fakeDataGenerator.js                  # Génération de données fictives réalistes
 ```
 
-### Flux Utilisateur
+### Flux Utilisateur (Architecture Corrigée)
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                     CONFIGURATION (Une fois)                     │
+│                 ÉTAPE 1: Sélection Event                         │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
-    1. User clique sur "Configure Fields" dans displayLeadTransfer.html
-                              │
-                              ▼
-    2. Ouverture de fieldConfigurator.html
-       - Affiche TOUS les champs disponibles (30+)
-       - Toggle actif/inactif pour chaque champ
-       - Champs requis (LastName, Company) toujours actifs
-                              │
-                              ▼
-    3. User sélectionne les champs désirés (ex: 10 sur 30)
-                              │
-                              ▼
-    4. Click "Save Configuration"
-       - Sauvegarde dans LS_FieldMappings (API)
-       - Configuration liée à l'EventId
+    1. User ouvre display.html (Liste des Events)
+       - Sélectionne un Event (ex: API Test)
+       - Click "View Leads" ou "View Lead Reports"
 
 ┌─────────────────────────────────────────────────────────────────┐
-│                     TRANSFERT (Chaque fois)                      │
+│        ÉTAPE 2: Configuration des Champs (Avant les leads)      │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
-    5. User clique sur EventId pour transférer
+    2. Redirection automatique vers fieldConfigurator.html
+       - URL: fieldConfigurator.html?eventId=xxx&source=lead
+       - Affiche TOUS les champs Salesforce disponibles (50+)
+       - Toggles actif/inactif pour chaque champ
+       - Champs requis (LastName, Company) toujours actifs
+       - Recherche et filtres disponibles
                               │
                               ▼
-    6. Modal de Prévisualisation s'ouvre
-       - Affiche les 10 champs configurés
+    3. User sélectionne les champs désirés (ex: 10 sur 50)
+       - FirstName, LastName, Email, Company, Phone, etc.
+                              │
+                              ▼
+    4. Click "Save & Continue to Leads"
+       - Sauvegarde dans LS_FieldMappings (base de données)
+       - Configuration liée à l'EventId
+       - Redirection automatique vers displayLsLead.html ou displayLsLeadReport.html
+
+┌─────────────────────────────────────────────────────────────────┐
+│            ÉTAPE 3: Visualisation des Leads Filtrés              │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+    5. Page displayLsLead.html (ou displayLsLeadReport.html)
+       - Affiche SEULEMENT les 10 champs configurés
+       - Liste des contacts filtrée
+       - User peut modifier les valeurs si nécessaire
+                              │
+                              ▼
+    6. User sélectionne un contact et click "Transfer to Salesforce"
+
+┌─────────────────────────────────────────────────────────────────┐
+│              ÉTAPE 4: Transfert vers Salesforce                  │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+    7. Redirection vers displayLeadTransfer.html
+       - Affiche les champs configurés avec leurs valeurs
+       - Bouton "Configure Fields" disponible pour reconfigurer
+                              │
+                              ▼
+    8. User click "Transfer Lead"
+       - Modal de prévisualisation s'ouvre (optionnel)
+       - Affiche les champs qui seront transférés
        - Indique les champs vides
-       - Option "Configure Fields" pour modifier
                               │
                               ▼
-    7. Si champs requis vides → Avertissement
+    9. Si champs requis vides → Avertissement
        "Ces champs seront auto-remplis avec des données réalistes"
                               │
                               ▼
-    8. User clique "Confirm Transfer"
-       - Génération automatique de fake data si nécessaire
-       - Transfert vers Salesforce avec SEULEMENT les champs configurés
+    10. User confirme le transfert
+        - Génération automatique de fake data si nécessaire
+        - Transfert vers Salesforce avec SEULEMENT les champs configurés
+        - ✅ Succès!
 ```
 
 ---
