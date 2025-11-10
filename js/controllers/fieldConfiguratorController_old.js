@@ -1,17 +1,10 @@
-// fieldConfiguratorController_v2.js - Simplified Field Configuration with Checkboxes
+// fieldConfiguratorController.js - Field Configuration Management
 // FieldMappingService is loaded globally via script tag
 
-// Required fields (cannot be disabled)
+// Salesforce required fields (cannot be disabled)
 const REQUIRED_FIELDS = ['LastName', 'Company'];
 
-// Default active fields (commonly used)
-const DEFAULT_ACTIVE_FIELDS = [
-    'FirstName', 'LastName', 'Email', 'Company', 'Phone', 'MobilePhone',
-    'Street', 'City', 'PostalCode', 'State', 'Country',
-    'Title', 'Industry', 'LeadSource', 'Status', 'Description'
-];
-
-// All Salesforce Lead standard fields
+// All available Salesforce Lead fields
 const SALESFORCE_LEAD_FIELDS = [
     'ActionCadenceAssigneeId', 'ActionCadenceId', 'ActionCadenceState',
     'ActiveTrackerCount', 'ActivityMetricId', 'ActivityMetricRollupId',
@@ -34,6 +27,15 @@ const SALESFORCE_LEAD_FIELDS = [
     'State', 'StateCode', 'Status', 'Street', 'Suffix', 'Title', 'Website'
 ];
 
+// Field categories for better organization
+const FIELD_CATEGORIES = {
+    'Personal Info': ['FirstName', 'LastName', 'MiddleName', 'Salutation', 'Suffix', 'Email', 'Phone', 'MobilePhone', 'Fax'],
+    'Company Info': ['Company', 'Title', 'Industry', 'NumberOfEmployees', 'AnnualRevenue', 'Website', 'Division'],
+    'Address': ['Street', 'City', 'State', 'StateCode', 'PostalCode', 'Country', 'CountryCode', 'Address', 'Latitude', 'Longitude'],
+    'Lead Management': ['Status', 'Rating', 'LeadSource', 'OwnerId', 'Description'],
+    'Custom Fields': [] // Will be populated with Question01, Answer01, Text01, etc.
+};
+
 // Global variables
 let fieldMappingService = null;
 let allFields = [];
@@ -42,11 +44,11 @@ let searchQuery = '';
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('🚀 Field Configurator V2 initializing...');
+    console.log('🚀 Field Configurator initializing...');
 
     try {
         // Initialize Field Mapping Service
-        fieldMappingService = new window.FieldMappingService();
+        fieldMappingService = new FieldMappingService();
 
         // Get event ID from URL parameters or session
         const urlParams = new URLSearchParams(window.location.search);
@@ -57,57 +59,112 @@ document.addEventListener('DOMContentLoaded', async () => {
             fieldMappingService.setCurrentEventId(eventId);
             sessionStorage.setItem('selectedEventId', eventId);
             sessionStorage.setItem('selectedLeadSource', leadSource);
-            console.log(`📋 Event ID: ${eventId}, Source: ${leadSource}`);
+            console.log(`📋 Loaded configuration for Event ID: ${eventId}, Source: ${leadSource}`);
 
-            // Update event info
+            // Update event info in UI
             const eventInfo = document.getElementById('event-info');
             if (eventInfo) {
-                eventInfo.textContent = `Configure which fields will be transferred to Salesforce for Event ${eventId}. Required fields (LastName, Company) are always included.`;
+                eventInfo.textContent = `Configure which fields will be transferred to Salesforce for Event ${eventId} (${leadSource}). Required fields (LastName, Company) are always included.`;
             }
+        } else {
+            console.warn('⚠️ No event ID available');
+            showNotification('No event selected. Please select an event first.', 'error');
         }
 
-        // Load fields
-        await loadAllFields();
+        // Get lead data to find custom fields
+        const leadDataStr = sessionStorage.getItem('selectedLeadData');
+        const leadData = leadDataStr ? JSON.parse(leadDataStr) : null;
+
+        // Initialize field mapping service with lead data
+        if (leadData && eventId) {
+            await fieldMappingService.initializeFields(leadData, eventId);
+        }
+
+        // Load all fields
+        await loadAllFields(leadData);
+
+        // Render fields
         renderFields();
+
+        // Setup event listeners
         setupEventListeners();
 
         console.log('✅ Field Configurator loaded successfully');
 
     } catch (error) {
-        console.error('❌ Failed to initialize:', error);
+        console.error('❌ Failed to initialize Field Configurator:', error);
         showNotification('Failed to load field configuration', 'error');
     }
 });
 
 /**
- * Load all available fields
+ * Load all available fields from lead data and Salesforce standard fields
  */
-async function loadAllFields() {
+async function loadAllFields(leadData) {
     allFields = [];
 
-    for (const fieldName of SALESFORCE_LEAD_FIELDS) {
+    // Start with Salesforce standard fields
+    const standardFields = [...SALESFORCE_LEAD_FIELDS];
+
+    // Add custom fields from lead data (Question01, Answer01, Text01, etc.)
+    const customFieldPattern = /^(Question|Answers|Text)\d{2}$/;
+    if (leadData) {
+        Object.keys(leadData).forEach(fieldName => {
+            if (customFieldPattern.test(fieldName)) {
+                if (!standardFields.includes(fieldName)) {
+                    standardFields.push(fieldName);
+                }
+            }
+        });
+    }
+
+    // Create field objects
+    for (const fieldName of standardFields) {
         const fieldConfig = fieldMappingService.getFieldConfig(fieldName);
         const isRequired = REQUIRED_FIELDS.includes(fieldName);
-
-        // Check if field has a saved config, otherwise use default active list
-        let isActive = isRequired; // Required fields always active
-        if (!isRequired) {
-            if (fieldConfig && fieldConfig.hasOwnProperty('active')) {
-                isActive = fieldConfig.active;
-            } else {
-                // Use default active fields on first load
-                isActive = DEFAULT_ACTIVE_FIELDS.includes(fieldName);
-            }
-        }
+        const isActive = fieldConfig ? fieldConfig.active !== false : true;
 
         allFields.push({
             name: fieldName,
-            active: isActive,
-            required: isRequired
+            label: formatFieldLabel(fieldName),
+            active: isRequired ? true : isActive,
+            required: isRequired,
+            category: getFieldCategory(fieldName)
         });
     }
 
     console.log(`📊 Loaded ${allFields.length} fields (${allFields.filter(f => f.active).length} active)`);
+}
+
+/**
+ * Get category for a field
+ */
+function getFieldCategory(fieldName) {
+    for (const [category, fields] of Object.entries(FIELD_CATEGORIES)) {
+        if (fields.includes(fieldName)) {
+            return category;
+        }
+    }
+
+    // Check if it's a custom field
+    if (/^(Question|Answers|Text)\d{2}$/.test(fieldName)) {
+        return 'Custom Fields';
+    }
+
+    return 'Other';
+}
+
+/**
+ * Format field label for display
+ */
+function formatFieldLabel(fieldName) {
+    // Check for custom label first
+    if (fieldMappingService && fieldMappingService.customLabels[fieldName]) {
+        return fieldMappingService.customLabels[fieldName];
+    }
+
+    // Default formatting: add spaces before capital letters
+    return fieldName.replace(/([A-Z])/g, ' $1').trim();
 }
 
 /**
@@ -116,15 +173,18 @@ async function loadAllFields() {
 function renderFields() {
     const container = document.getElementById('fieldsContainer');
 
-    // Filter fields
+    // Filter fields based on current filter and search
     let filteredFields = allFields.filter(field => {
+        // Apply filter
         if (currentFilter === 'active' && !field.active) return false;
         if (currentFilter === 'inactive' && field.active) return false;
         if (currentFilter === 'required' && !field.required) return false;
 
+        // Apply search
         if (searchQuery) {
             const query = searchQuery.toLowerCase();
-            return field.name.toLowerCase().includes(query);
+            return field.name.toLowerCase().includes(query) ||
+                   field.label.toLowerCase().includes(query);
         }
 
         return true;
@@ -133,31 +193,32 @@ function renderFields() {
     // Update statistics
     updateStatistics();
 
-    // Render
+    // Render fields
     if (filteredFields.length === 0) {
         container.innerHTML = `
-            <div class="loading">
-                <div style="font-size: 18px; font-weight: 600; margin-bottom: 8px; color: #718096;">No fields found</div>
-                <div style="color: #a0aec0;">Try adjusting your search or filter</div>
+            <div class="empty-state">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                <div style="font-size: 18px; font-weight: 600; margin-bottom: 8px;">No fields found</div>
+                <div>Try adjusting your search or filter</div>
             </div>
         `;
     } else {
         container.className = 'fields-grid';
         container.innerHTML = filteredFields.map(field => `
-            <label class="field-item ${field.active ? 'active' : ''} ${field.required ? 'required' : ''}"
-                   data-field="${field.name}">
-                <input type="checkbox"
-                       class="field-checkbox"
-                       ${field.active ? 'checked' : ''}
-                       ${field.required ? 'disabled' : ''}
-                       onchange="toggleField('${field.name}', this.checked)" />
+            <div class="field-item ${field.active ? 'active' : ''} ${field.required ? 'required' : ''}"
+                 data-field="${field.name}">
                 <div class="field-info">
                     <div class="field-name">
                         ${field.name}
                         ${field.required ? '<span class="required-badge">REQUIRED</span>' : ''}
                     </div>
+                    <div class="field-label">${field.label}</div>
                 </div>
-            </label>
+                <div class="toggle-switch ${field.active ? 'active' : ''} ${field.required ? 'required' : ''}"
+                     onclick="${field.required ? '' : 'toggleField(\'' + field.name + '\')'}"></div>
+            </div>
         `).join('');
     }
 }
@@ -165,25 +226,20 @@ function renderFields() {
 /**
  * Toggle field active status
  */
-window.toggleField = async function(fieldName, checked) {
+window.toggleField = async function(fieldName) {
     const field = allFields.find(f => f.name === fieldName);
     if (!field || field.required) return;
 
-    field.active = checked;
-    await fieldMappingService.setFieldConfig(fieldName, { active: checked });
+    // Toggle status
+    field.active = !field.active;
 
-    // Update the field item styling
-    const fieldItem = document.querySelector(`[data-field="${fieldName}"]`);
-    if (fieldItem) {
-        if (checked) {
-            fieldItem.classList.add('active');
-        } else {
-            fieldItem.classList.remove('active');
-        }
-    }
+    // Update field mapping service
+    await fieldMappingService.setFieldConfig(fieldName, { active: field.active });
 
-    updateStatistics();
-    console.log(`✅ Field ${fieldName} ${checked ? 'activated' : 'deactivated'}`);
+    // Re-render
+    renderFields();
+
+    console.log(`✅ Field ${fieldName} ${field.active ? 'activated' : 'deactivated'}`);
 };
 
 /**
@@ -191,7 +247,7 @@ window.toggleField = async function(fieldName, checked) {
  */
 window.selectAllFields = async function() {
     for (const field of allFields) {
-        if (!field.required && !field.active) {
+        if (!field.required) {
             field.active = true;
             await fieldMappingService.setFieldConfig(field.name, { active: true });
         }
@@ -205,7 +261,7 @@ window.selectAllFields = async function() {
  */
 window.deselectAllFields = async function() {
     for (const field of allFields) {
-        if (!field.required && field.active) {
+        if (!field.required) {
             field.active = false;
             await fieldMappingService.setFieldConfig(field.name, { active: false });
         }
@@ -215,39 +271,26 @@ window.deselectAllFields = async function() {
 };
 
 /**
- * Save configuration and continue
+ * Save configuration
  */
-window.saveAndContinue = async function() {
+window.saveConfiguration = async function() {
     try {
-        console.log('💾 Saving configuration...');
+        console.log('💾 Saving field configuration...');
 
+        // Save to database
         const success = await fieldMappingService.bulkSaveToDatabase();
 
         if (success) {
             showNotification('Configuration saved successfully!', 'success');
-            console.log('✅ Configuration saved');
-
-            const leadSource = sessionStorage.getItem('selectedLeadSource') || 'lead';
-            const targetPage = leadSource === 'leadReport' ? 'displayLsLeadReport.html' : 'displayLsLead.html';
-
-            setTimeout(() => {
-                window.location.href = targetPage;
-            }, 1000);
+            console.log('✅ Configuration saved to database');
         } else {
             throw new Error('Failed to save configuration');
         }
 
     } catch (error) {
-        console.error('❌ Failed to save:', error);
+        console.error('❌ Failed to save configuration:', error);
         showNotification('Failed to save configuration: ' + error.message, 'error');
     }
-};
-
-/**
- * Navigate back
- */
-window.goBack = function() {
-    window.location.href = 'display.html';
 };
 
 /**
@@ -278,13 +321,55 @@ function setupEventListeners() {
     const filterTabs = document.querySelectorAll('.filter-tab');
     filterTabs.forEach(tab => {
         tab.addEventListener('click', () => {
+            // Update active tab
             filterTabs.forEach(t => t.classList.remove('active'));
             tab.classList.add('active');
+
+            // Update filter
             currentFilter = tab.dataset.filter;
             renderFields();
         });
     });
 }
+
+/**
+ * Save configuration and continue to leads page
+ */
+window.saveAndContinue = async function() {
+    try {
+        console.log('💾 Saving configuration and continuing to leads...');
+
+        // Save to database
+        const success = await fieldMappingService.bulkSaveToDatabase();
+
+        if (success) {
+            showNotification('Configuration saved successfully!', 'success');
+            console.log('✅ Configuration saved to database');
+
+            // Determine which page to redirect to based on lead source
+            const leadSource = sessionStorage.getItem('selectedLeadSource') || 'lead';
+            const targetPage = leadSource === 'leadReport' ? 'displayLsLeadReport.html' : 'displayLsLead.html';
+
+            // Small delay to show the success message
+            setTimeout(() => {
+                window.location.href = targetPage;
+            }, 1000);
+        } else {
+            throw new Error('Failed to save configuration');
+        }
+
+    } catch (error) {
+        console.error('❌ Failed to save configuration:', error);
+        showNotification('Failed to save configuration: ' + error.message, 'error');
+    }
+};
+
+/**
+ * Navigate back to events page
+ */
+window.goBack = function() {
+    window.location.href = 'display.html';
+};
 
 /**
  * Show notification
@@ -309,3 +394,6 @@ function showNotification(message, type = 'success') {
         setTimeout(() => notification.remove(), 300);
     }, 3000);
 }
+
+// Export for use in other modules
+export { fieldMappingService, REQUIRED_FIELDS };
