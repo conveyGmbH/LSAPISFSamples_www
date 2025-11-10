@@ -50,11 +50,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Initialize Field Mapping Service
         fieldMappingService = new FieldMappingService();
 
-        // Get event ID from session
-        const eventId = sessionStorage.getItem('selectedEventId');
+        // Get event ID from URL parameters or session
+        const urlParams = new URLSearchParams(window.location.search);
+        const eventId = urlParams.get('eventId') || sessionStorage.getItem('selectedEventId');
+        const leadSource = urlParams.get('source') || sessionStorage.getItem('selectedLeadSource') || 'lead';
+
         if (eventId) {
             fieldMappingService.setCurrentEventId(eventId);
-            console.log(`📋 Loaded configuration for Event ID: ${eventId}`);
+            sessionStorage.setItem('selectedEventId', eventId);
+            sessionStorage.setItem('selectedLeadSource', leadSource);
+            console.log(`📋 Loaded configuration for Event ID: ${eventId}, Source: ${leadSource}`);
+
+            // Update event info in UI
+            const eventInfo = document.getElementById('event-info');
+            if (eventInfo) {
+                eventInfo.textContent = `Configure which fields will be transferred to Salesforce for Event ${eventId} (${leadSource}). Required fields (LastName, Company) are always included.`;
+            }
+        } else {
+            console.warn('⚠️ No event ID available');
+            showNotification('No event selected. Please select an event first.', 'error');
         }
 
         // Get lead data to find custom fields
@@ -319,10 +333,42 @@ function setupEventListeners() {
 }
 
 /**
- * Navigate back to lead transfer page
+ * Save configuration and continue to leads page
+ */
+window.saveAndContinue = async function() {
+    try {
+        console.log('💾 Saving configuration and continuing to leads...');
+
+        // Save to database
+        const success = await fieldMappingService.bulkSaveToDatabase();
+
+        if (success) {
+            showNotification('Configuration saved successfully!', 'success');
+            console.log('✅ Configuration saved to database');
+
+            // Determine which page to redirect to based on lead source
+            const leadSource = sessionStorage.getItem('selectedLeadSource') || 'lead';
+            const targetPage = leadSource === 'leadReport' ? 'displayLsLeadReport.html' : 'displayLsLead.html';
+
+            // Small delay to show the success message
+            setTimeout(() => {
+                window.location.href = targetPage;
+            }, 1000);
+        } else {
+            throw new Error('Failed to save configuration');
+        }
+
+    } catch (error) {
+        console.error('❌ Failed to save configuration:', error);
+        showNotification('Failed to save configuration: ' + error.message, 'error');
+    }
+};
+
+/**
+ * Navigate back to events page
  */
 window.goBack = function() {
-    window.location.href = 'displayLeadTransfer.html';
+    window.location.href = 'display.html';
 };
 
 /**
