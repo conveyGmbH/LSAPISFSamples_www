@@ -794,7 +794,9 @@ function init() {
   document.getElementById("viewLeadsButton").addEventListener("click", () => {
     if (selectedEventId) {
       sessionStorage.setItem("selectedEventId", selectedEventId);
-      window.location.href = "displayLsLead.html";
+      sessionStorage.setItem("selectedLeadSource", "lead");
+      // Redirect to field configurator first
+      window.location.href = `fieldConfigurator.html?eventId=${selectedEventId}&source=lead`;
     } else {
       alert("Please select an event first.");
     }
@@ -803,7 +805,9 @@ function init() {
   document.getElementById("viewLeadReportsButton").addEventListener("click", () => {
     if (selectedEventId) {
       sessionStorage.setItem("selectedEventId", selectedEventId);
-      window.location.href = "displayLsLeadReport.html";
+      sessionStorage.setItem("selectedLeadSource", "leadReport");
+      // Redirect to field configurator first
+      window.location.href = `fieldConfigurator.html?eventId=${selectedEventId}&source=leadReport`;
     } else {
       alert("Please select an event first.");
     }
