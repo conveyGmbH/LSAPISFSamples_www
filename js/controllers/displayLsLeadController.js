@@ -127,7 +127,7 @@ async function checkFieldMappingAndLoad() {
   const eventId = sessionStorage.getItem('selectedEventId');
   if (!eventId) {
     alert('No EventId provided.');
-    window.location.href = '/display.html';
+    window.location.href = 'display.html';
     return;
   }
 
@@ -215,12 +215,12 @@ function showFieldConfigurationDialog(fields) {
   // Close modal
   document.getElementById('closeFieldConfigModal').onclick = () => {
     modal.classList.remove('show');
-    window.location.href = '/display.html';
+    window.location.href = 'display.html';
   };
 
   document.getElementById('cancelFieldConfig').onclick = () => {
     modal.classList.remove('show');
-    window.location.href = '/display.html';
+    window.location.href = 'display.html';
   };
 
   // Save configuration
