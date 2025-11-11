@@ -211,6 +211,185 @@ async function fetchMetadata(entityType = 'LS_LeadReport') {
   }
 }
 
+// Check if field mapping exists, if not show configuration dialog
+async function checkFieldMappingAndLoad() {
+  const eventId = sessionStorage.getItem('selectedEventId');
+  if (!eventId) {
+    alert('No EventId provided.');
+    window.location.href = '/display.html';
+    return;
+  }
+
+  try {
+    // Load field mapping from database
+    await window.fieldMappingService.loadFieldMappingsFromAPI(eventId);
+    const activeFields = window.fieldMappingService.getActiveFieldNames();
+
+    if (activeFields.length === 0) {
+      console.log('⚠️ No field mapping found, showing configuration dialog');
+
+      // Fetch metadata to get available fields
+      const metadataFields = await fetchMetadata('LS_LeadReport');
+
+      // Show configuration dialog
+      showFieldConfigurationDialog(metadataFields);
+    } else {
+      console.log('✅ Field mapping exists, loading data');
+      // Field mapping exists, proceed with normal data loading
+      fetchLsLeadReportData();
+    }
+  } catch (error) {
+    console.error('Error checking field mapping:', error);
+    alert('Error loading field configuration. Please try again.');
+  }
+}
+
+// Show field configuration dialog
+function showFieldConfigurationDialog(fields) {
+  const modal = document.getElementById('fieldConfigModal');
+  const fieldsGrid = document.getElementById('fieldsGrid');
+  const searchInput = document.getElementById('fieldSearchInput');
+
+  // Clear existing content
+  fieldsGrid.innerHTML = '';
+
+  // Required fields
+  const requiredFields = ['LastName', 'Company'];
+
+  // Store fields for search
+  window.configFields = fields;
+
+  // Render fields
+  renderConfigFields(fields);
+
+  // Show modal
+  modal.classList.add('show');
+
+  // Search functionality
+  searchInput.addEventListener('input', (e) => {
+    const searchTerm = e.target.value.toLowerCase();
+    const filtered = fields.filter(f =>
+      f.name.toLowerCase().includes(searchTerm)
+    );
+    renderConfigFields(filtered);
+  });
+
+  // Select All
+  document.getElementById('selectAllFields').onclick = () => {
+    document.querySelectorAll('.field-item input[type="checkbox"]:not([disabled])').forEach(cb => {
+      cb.checked = true;
+    });
+  };
+
+  // Deselect All
+  document.getElementById('deselectAllFields').onclick = () => {
+    document.querySelectorAll('.field-item input[type="checkbox"]:not([disabled])').forEach(cb => {
+      cb.checked = false;
+    });
+  };
+
+  // Close modal
+  document.getElementById('closeFieldConfigModal').onclick = () => {
+    modal.classList.remove('show');
+  };
+
+  document.getElementById('cancelFieldConfig').onclick = () => {
+    modal.classList.remove('show');
+    window.location.href = '/display.html';
+  };
+
+  // Save configuration
+  document.getElementById('saveFieldConfig').onclick = async () => {
+    await saveFieldConfiguration();
+  };
+}
+
+// Render fields in grid
+function renderConfigFields(fields) {
+  const fieldsGrid = document.getElementById('fieldsGrid');
+  const requiredFields = ['LastName', 'Company'];
+
+  fieldsGrid.innerHTML = '';
+
+  fields.forEach(field => {
+    const isRequired = requiredFields.includes(field.name);
+
+    const fieldItem = document.createElement('div');
+    fieldItem.className = `field-item ${isRequired ? 'required' : ''}`;
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.id = `field_${field.name}`;
+    checkbox.value = field.name;
+    checkbox.checked = isRequired; // Required fields pre-checked
+    checkbox.disabled = isRequired; // Required fields can't be unchecked
+
+    const label = document.createElement('label');
+    label.htmlFor = `field_${field.name}`;
+    label.textContent = field.name;
+    label.style.cursor = 'pointer';
+    label.style.flex = '1';
+
+    fieldItem.appendChild(checkbox);
+    fieldItem.appendChild(label);
+
+    // Click on item to toggle checkbox
+    fieldItem.onclick = (e) => {
+      if (e.target !== checkbox && !isRequired) {
+        checkbox.checked = !checkbox.checked;
+      }
+    };
+
+    fieldsGrid.appendChild(fieldItem);
+  });
+}
+
+// Save field configuration
+async function saveFieldConfiguration() {
+  const eventId = sessionStorage.getItem('selectedEventId');
+  const checkboxes = document.querySelectorAll('.field-item input[type="checkbox"]:checked');
+
+  if (checkboxes.length === 0) {
+    alert('Please select at least one field');
+    return;
+  }
+
+  const selectedFields = Array.from(checkboxes).map(cb => cb.value);
+
+  console.log(`💾 Saving ${selectedFields.length} selected fields`);
+
+  // Configure fields in FieldMappingService
+  selectedFields.forEach(fieldName => {
+    window.fieldMappingService.setFieldConfig(fieldName, { active: true });
+  });
+
+  // Set eventId
+  window.fieldMappingService.currentEventId = eventId;
+
+  // Save to local storage
+  window.fieldMappingService.saveConfig();
+
+  // Bulk save to database
+  try {
+    const success = await window.fieldMappingService.bulkSaveToDatabase();
+
+    if (success) {
+      console.log('✅ Field configuration saved successfully');
+
+      // Close modal
+      document.getElementById('fieldConfigModal').classList.remove('show');
+
+      // Load data with configured fields
+      fetchLsLeadReportData();
+    } else {
+      alert('Failed to save field configuration');
+    }
+  } catch (error) {
+    console.error('Error saving field configuration:', error);
+    alert('Error saving field configuration');
+  }
+}
+
 let lastSortedColumn = null;
 let lastSortDirection = "asc";
 let selectedRowItem = null;
@@ -1111,7 +1290,7 @@ function init() {
   // Display userName in header
   displayUserName();
 
-  fetchLsLeadReportData();
+  checkFieldMappingAndLoad();
 
   // Setup back button
   const backButton = document.getElementById("backButton");
