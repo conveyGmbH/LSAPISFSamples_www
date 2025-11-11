@@ -55,6 +55,71 @@ const apiService = new ApiService(serverName, apiName);
 
 const pagination = setupPagination(apiService, displayData);
 
+// Fetch and parse $metadata to get field structure
+async function fetchMetadata(entityType = 'LS_Lead') {
+  try {
+    const endpoint = '$metadata';
+    const response = await fetch(`https://${serverName}/${apiName}/${endpoint}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Basic ${credentials}`,
+        'Accept': 'application/xml'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch metadata: ${response.statusText}`);
+    }
+
+    const xmlText = await response.text();
+    const parser = new DOMParser();
+    const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+
+    // Find the EntityType for LS_Lead or LS_LeadReport
+    const entityTypes = xmlDoc.getElementsByTagName('EntityType');
+    let targetEntity = null;
+
+    for (let entity of entityTypes) {
+      if (entity.getAttribute('Name') === entityType) {
+        targetEntity = entity;
+        break;
+      }
+    }
+
+    if (!targetEntity) {
+      console.error(`EntityType ${entityType} not found in metadata`);
+      return [];
+    }
+
+    // Extract all Property elements (fields)
+    const properties = targetEntity.getElementsByTagName('Property');
+    const fields = [];
+
+    for (let prop of properties) {
+      const fieldName = prop.getAttribute('Name');
+      const fieldType = prop.getAttribute('Type');
+
+      // Skip metadata fields
+      if (fieldName === 'KontaktViewId' || fieldName === '__metadata') {
+        continue;
+      }
+
+      fields.push({
+        name: fieldName,
+        type: fieldType,
+        nullable: prop.getAttribute('Nullable') !== 'false'
+      });
+    }
+
+    console.log(`✅ Loaded ${fields.length} fields from $metadata for ${entityType}`);
+    return fields;
+
+  } catch (error) {
+    console.error('Error fetching metadata:', error);
+    throw error;
+  }
+}
+
 let lastSortedColumn = null;
 let lastSortDirection = 'asc';
 let selectedRowItem = null;

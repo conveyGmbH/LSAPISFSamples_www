@@ -1,7 +1,4 @@
-// fieldConfiguratorController_v3.js - Dynamic Field Configuration from API
-// FieldMappingService is loaded globally via script tag
 
-// Required fields (cannot be disabled)
 const REQUIRED_FIELDS = ['LastName', 'Company'];
 
 // Default active fields (commonly used)
@@ -11,8 +8,6 @@ const DEFAULT_ACTIVE_FIELDS = [
     'Title', 'Industry', 'Description'
 ];
 
-// No fields are excluded - show everything from the API
-// The user will decide which fields to use
 
 // Global variables
 let fieldMappingService = null;
@@ -24,7 +19,6 @@ let apiEndpoint = 'LS_Lead'; // Default endpoint
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('🚀 Field Configurator V3 initializing...');
 
     try {
         // Initialize Field Mapping Service
@@ -68,9 +62,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
-/**
- * Load fields dynamically from API
- */
+// Load fields dynamically from API
+
 async function loadFieldsFromAPI(eventId) {
     allFields = [];
 
