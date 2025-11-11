@@ -225,6 +225,8 @@ async function checkFieldMappingAndLoad() {
     await window.fieldMappingService.loadFieldMappingsFromAPI(eventId);
     const activeFields = window.fieldMappingService.getActiveFieldNames();
 
+    console.log(`📋 Active fields found: ${activeFields.length}`);
+
     if (activeFields.length === 0) {
       console.log('⚠️ No field mapping found, showing configuration dialog');
 
@@ -252,12 +254,14 @@ function showFieldConfigurationDialog(fields) {
 
   // Clear existing content
   fieldsGrid.innerHTML = '';
+  searchInput.value = ''; // Reset search
 
   // Required fields
   const requiredFields = ['LastName', 'Company'];
 
   // Store fields for search
   window.configFields = fields;
+  window.fieldSelections = {}; // Track selections across re-renders
 
   // Render fields
   renderConfigFields(fields);
@@ -265,8 +269,15 @@ function showFieldConfigurationDialog(fields) {
   // Show modal
   modal.classList.add('show');
 
-  // Search functionality
-  searchInput.addEventListener('input', (e) => {
+  // Remove old event listeners by replacing elements
+  const newSearchInput = searchInput.cloneNode(true);
+  searchInput.parentNode.replaceChild(newSearchInput, searchInput);
+
+  // Search functionality - preserve selections
+  newSearchInput.addEventListener('input', (e) => {
+    // Save current selections before re-rendering
+    saveCurrentSelections();
+
     const searchTerm = e.target.value.toLowerCase();
     const filtered = fields.filter(f =>
       f.name.toLowerCase().includes(searchTerm)
@@ -278,6 +289,7 @@ function showFieldConfigurationDialog(fields) {
   document.getElementById('selectAllFields').onclick = () => {
     document.querySelectorAll('.field-item input[type="checkbox"]:not([disabled])').forEach(cb => {
       cb.checked = true;
+      window.fieldSelections[cb.value] = true;
     });
   };
 
@@ -285,12 +297,14 @@ function showFieldConfigurationDialog(fields) {
   document.getElementById('deselectAllFields').onclick = () => {
     document.querySelectorAll('.field-item input[type="checkbox"]:not([disabled])').forEach(cb => {
       cb.checked = false;
+      window.fieldSelections[cb.value] = false;
     });
   };
 
   // Close modal
   document.getElementById('closeFieldConfigModal').onclick = () => {
     modal.classList.remove('show');
+    window.location.href = '/display.html';
   };
 
   document.getElementById('cancelFieldConfig').onclick = () => {
@@ -302,6 +316,13 @@ function showFieldConfigurationDialog(fields) {
   document.getElementById('saveFieldConfig').onclick = async () => {
     await saveFieldConfiguration();
   };
+}
+
+// Save current checkbox selections
+function saveCurrentSelections() {
+  document.querySelectorAll('.field-item input[type="checkbox"]').forEach(cb => {
+    window.fieldSelections[cb.value] = cb.checked;
+  });
 }
 
 // Render fields in grid
@@ -321,8 +342,20 @@ function renderConfigFields(fields) {
     checkbox.type = 'checkbox';
     checkbox.id = `field_${field.name}`;
     checkbox.value = field.name;
-    checkbox.checked = isRequired; // Required fields pre-checked
+
+    // Restore previous selection if exists, otherwise use default
+    if (window.fieldSelections && window.fieldSelections.hasOwnProperty(field.name)) {
+      checkbox.checked = window.fieldSelections[field.name];
+    } else {
+      checkbox.checked = isRequired; // Required fields pre-checked by default
+    }
+
     checkbox.disabled = isRequired; // Required fields can't be unchecked
+
+    // Save selection when checkbox changes
+    checkbox.addEventListener('change', (e) => {
+      window.fieldSelections[field.name] = e.target.checked;
+    });
 
     const label = document.createElement('label');
     label.htmlFor = `field_${field.name}`;
