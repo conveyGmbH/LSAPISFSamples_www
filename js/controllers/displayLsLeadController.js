@@ -1118,12 +1118,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Add Change Field Mapping button handler
+  // Add Change Field Mapping button handler - Redirects to configuration page
   const changeFieldMappingBtn = document.getElementById('changeFieldMappingBtn');
   if (changeFieldMappingBtn) {
-    changeFieldMappingBtn.addEventListener('click', async () => {
-      const metadataFields = await fetchMetadata('LS_Lead');
-      showFieldConfigurationDialog(metadataFields);
+    changeFieldMappingBtn.addEventListener('click', () => {
+      const eventId = sessionStorage.getItem('selectedEventId');
+      sessionStorage.setItem('selectedLeadSource', 'lead');
+      window.location.href = `fieldConfigurator.html?eventId=${eventId}&source=lead`;
     });
   }
 

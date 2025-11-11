@@ -1323,12 +1323,13 @@ function init() {
     });
   }
 
-  // Add Change Field Mapping button handler
+  // Add Change Field Mapping button handler - Redirects to configuration page
   const changeFieldMappingBtn = document.getElementById("changeFieldMappingBtn");
   if (changeFieldMappingBtn) {
-    changeFieldMappingBtn.addEventListener("click", async () => {
-      const metadataFields = await fetchMetadata('LS_LeadReport');
-      showFieldConfigurationDialog(metadataFields);
+    changeFieldMappingBtn.addEventListener("click", () => {
+      const eventId = sessionStorage.getItem('selectedEventId');
+      sessionStorage.setItem('selectedLeadSource', 'leadReport');
+      window.location.href = `fieldConfigurator.html?eventId=${eventId}&source=leadReport`;
     });
   }
 }
