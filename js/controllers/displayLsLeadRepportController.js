@@ -1322,6 +1322,15 @@ function init() {
       }
     });
   }
+
+  // Add Change Field Mapping button handler
+  const changeFieldMappingBtn = document.getElementById("changeFieldMappingBtn");
+  if (changeFieldMappingBtn) {
+    changeFieldMappingBtn.addEventListener("click", async () => {
+      const metadataFields = await fetchMetadata('LS_LeadReport');
+      showFieldConfigurationDialog(metadataFields);
+    });
+  }
 }
 
 // Initialize the application when DOM is loaded

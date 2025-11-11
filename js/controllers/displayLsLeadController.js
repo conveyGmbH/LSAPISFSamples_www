@@ -1118,6 +1118,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // Add Change Field Mapping button handler
+  const changeFieldMappingBtn = document.getElementById('changeFieldMappingBtn');
+  if (changeFieldMappingBtn) {
+    changeFieldMappingBtn.addEventListener('click', async () => {
+      const metadataFields = await fetchMetadata('LS_Lead');
+      showFieldConfigurationDialog(metadataFields);
+    });
+  }
+
     addTransferButton();
 
 
