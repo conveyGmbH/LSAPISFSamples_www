@@ -795,8 +795,8 @@ function init() {
     if (selectedEventId) {
       sessionStorage.setItem("selectedEventId", selectedEventId);
       sessionStorage.setItem("selectedLeadSource", "lead");
-      // Redirect to field configurator first
-      window.location.href = `fieldConfigurator.html?eventId=${selectedEventId}&source=lead`;
+      // Redirect directly to lead display page (modal will show if no field mapping)
+      window.location.href = `displayLsLead.html`;
     } else {
       alert("Please select an event first.");
     }
@@ -806,8 +806,8 @@ function init() {
     if (selectedEventId) {
       sessionStorage.setItem("selectedEventId", selectedEventId);
       sessionStorage.setItem("selectedLeadSource", "leadReport");
-      // Redirect to field configurator first
-      window.location.href = `fieldConfigurator.html?eventId=${selectedEventId}&source=leadReport`;
+      // Redirect directly to lead report display page (modal will show if no field mapping)
+      window.location.href = `displayLsLeadReport.html`;
     } else {
       alert("Please select an event first.");
     }
