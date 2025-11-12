@@ -1,6 +1,9 @@
 import ApiService from '../services/apiService.js';
 import {escapeODataValue, formatDateForOData, formatDate, setupPagination } from '../utils/helper.js';
 
+
+
+
 const REQUIRED_FIELDS = ['LastName', 'Company'];
 const DEFAULT_ACTIVE_FIELDS = [
     'FirstName', 'LastName', 'Email', 'Company', 'Phone', 'MobilePhone',
@@ -153,6 +156,55 @@ const STANDARD_SALESFORCE_FIELDS = [
   'Id', 'CreatedDate', 'LastModifiedDate', 'SystemModstamp'
 ];
 
+// Check if Field Mapping configuration exists for the event
+async function hasFieldMappingConfig(eventId) {
+  try {
+    if (!eventId || !window.fieldMappingService) {
+      console.log('❌ hasFieldMappingConfig: Missing eventId or fieldMappingService');
+      return false;
+    }
+
+    const apiService = window.fieldMappingService.createApiService();
+    const endpoint = `LS_FieldMappings?$filter=EventId eq '${eventId}'&$format=json`;
+    console.log(`🔎 Checking field mapping config with endpoint: ${endpoint}`);
+
+    const data = await apiService.request('GET', endpoint);
+    console.log('📡 Field mapping response:', data);
+
+    const hasConfig = !!(data && data.d && data.d.results && data.d.results.length > 0);
+    console.log(`📊 Field mapping config exists: ${hasConfig} (count: ${data?.d?.results?.length || 0})`);
+
+    return hasConfig;
+  } catch (error) {
+    console.error('❌ Error checking field mapping config:', error);
+    return false;
+  }
+}
+
+// Check if contacts exist for the event
+async function hasContactsForEvent(eventId) {
+  try {
+    if (!eventId) {
+      console.log('❌ hasContactsForEvent: No eventId provided');
+      return false;
+    }
+
+    const endpoint = `LS_Lead?$filter=EventId eq '${eventId}'&$top=1&$format=json`;
+    console.log(`🔎 Checking contacts with endpoint: ${endpoint}`);
+
+    const response = await apiService.request('GET', endpoint);
+    console.log('📡 Response from API:', response);
+
+    const hasContacts = !!(response && response.d && response.d.results && response.d.results.length > 0);
+    console.log(`📊 Contacts found: ${hasContacts} (count: ${response?.d?.results?.length || 0})`);
+
+    return hasContacts;
+  } catch (error) {
+    console.error('❌ Error checking contacts:', error);
+    return false;
+  }
+}
+
 // Check if field mapping exists, if not show configuration dialog
 async function checkFieldMappingAndLoad() {
   const eventId = sessionStorage.getItem('selectedEventId');
@@ -163,18 +215,32 @@ async function checkFieldMappingAndLoad() {
   }
 
   try {
-    // Load field mapping from database
-    await window.fieldMappingService.loadFieldMappingsFromAPI(eventId);
-    const activeFields = window.fieldMappingService.getActiveFieldNames();
+    // 🔍 Step 1: FIRST check if contacts exist for this event
+    console.log('🔍 Step 1: Checking if contacts exist for this event...');
+    const contactsExist = await hasContactsForEvent(eventId);
 
-    console.log(`📋 Active fields found: ${activeFields.length}`);
+    if (!contactsExist) {
+      // ❌ NO CONTACTS → Show VirtualDataModal (test mode)
+      console.log('⚠️ No contacts found for this event');
+      console.log('🧪 Showing Virtual Data Modal for testing (no real contacts to display)');
 
-    if (activeFields.length === 0) {
+      // Show virtual data configuration modal immediately
+      await showVirtualDataConfiguration(eventId);
+      return;
+    }
+
+    // ✅ CONTACTS EXIST → Check field mapping and load real data
+    console.log('✅ Contacts found for this event');
+    console.log('🔍 Step 2: Checking if field mapping configuration exists...');
+
+    const configExists = await hasFieldMappingConfig(eventId);
+
+    if (!configExists) {
+      // No field mapping configured yet → Show configuration dialog
       console.log('⚠️ No field mapping found, showing configuration dialog');
 
       // Fetch metadata from API to get available fields
       const metadataFields = await fetchMetadata('LS_Lead');
-
       console.log(`📡 API fields found: ${metadataFields.length}`);
 
       // Use API fields directly and mark as active based on DEFAULT_ACTIVE_FIELDS
@@ -182,10 +248,8 @@ async function checkFieldMappingAndLoad() {
         name: field.name,
         type: field.type,
         nullable: field.nullable,
-        isStandardActive: DEFAULT_ACTIVE_FIELDS.includes(field.name) // Only active if in default list
+        isStandardActive: DEFAULT_ACTIVE_FIELDS.includes(field.name)
       }));
-
-      console.log(`✅ API fields to display: ${apiFields.length}`);
 
       // Load custom fields from FieldMappingService and add them
       const customFields = window.fieldMappingService?.getAllCustomFields() || [];
@@ -200,14 +264,54 @@ async function checkFieldMappingAndLoad() {
 
       // Show configuration dialog with API fields + custom fields
       showFieldConfigurationDialog(apiFields);
-    } else {
-      console.log('✅ Field mapping exists, loading data');
-      // Field mapping exists, proceed with normal data loading
-      fetchLsLeadData();
+      return;
     }
+
+    // ✅ Step 3: Field mapping exists and contacts exist - load normally
+    console.log('✅ Field mapping configuration exists');
+    console.log('📊 Loading real contact data...');
+
+    // Load field mapping from database
+    await window.fieldMappingService.loadFieldMappingsFromAPI(eventId);
+    const activeFields = window.fieldMappingService.getActiveFieldNames();
+
+    console.log(`📋 Active fields found: ${activeFields.length}`);
+
+    // Proceed with normal data loading
+    fetchLsLeadData();
+    
   } catch (error) {
-    console.error('Error checking field mapping:', error);
+    console.error('❌ Error in checkFieldMappingAndLoad:', error);
     alert('Error loading field configuration. Please try again.');
+  }
+}
+
+// Show virtual data configuration modal (when no contacts exist)
+async function showVirtualDataConfiguration(eventId) {
+  try {
+    console.log('🧪 Initializing Virtual Data Modal...');
+
+    // Check if VirtualDataModal class is available
+    if (!window.VirtualDataModal) {
+      console.error('❌ VirtualDataModal class not found');
+      alert('Virtual Data Modal not available. Please refresh the page.');
+      return;
+    }
+
+    // Create instance of VirtualDataModal
+    const virtualModal = new window.VirtualDataModal(window.fieldMappingService);
+
+    // Store globally for access from modal callbacks
+    window.virtualDataModal = virtualModal;
+
+    // Show the modal
+    await virtualModal.show(eventId, 'LS_Lead');
+
+    console.log('✅ Virtual Data Modal displayed');
+
+  } catch (error) {
+    console.error('❌ Error showing virtual data configuration:', error);
+    alert('Error showing test data configuration. Please try again.');
   }
 }
 
@@ -228,10 +332,10 @@ function showFieldConfigurationDialog(fields) {
   // Store fields for search and filtering
   window.configFields = fields;
   window.fieldSelections = {}; // Track selections across re-renders
-  window.currentModalFilter = 'all'; // Track current filter
+  window.currentModalFilter = 'active'; // Track current filter - default to Active Fields
 
   // Render fields with current filter
-  renderConfigFields(fields, window.currentModalFilter);
+  renderConfigFields(fields, 'active'); // Start with Active Fields
 
   // Show modal
   modal.classList.add('show');
@@ -256,6 +360,9 @@ function showFieldConfigurationDialog(fields) {
 
       // Show/hide Add Custom Field button
       if (addCustomFieldBtn) {
+        addCustomFieldBtn.onclick = () => {
+          openAddCustomFieldModal();
+        };
         addCustomFieldBtn.style.display = window.currentModalFilter === 'custom' ? 'flex' : 'none';
       }
 
@@ -462,7 +569,7 @@ function renderConfigFields(fields, filter = 'all') {
       const deleteBtn = document.createElement('button');
       deleteBtn.className = 'field-delete-btn';
       deleteBtn.title = 'Delete field';
-      deleteBtn.onclick = function() { deleteCustomField(field.name); };
+      deleteBtn.onclick = function() { deleteCustomField(field.id || field.name); };
       deleteBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
         <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>
       </svg>`;
@@ -545,22 +652,28 @@ function saveEditFieldMapping() {
 }
 
 // Helper function to delete custom field
-window.deleteCustomField = async function(fieldName) {
-  if (!confirm(`Are you sure you want to delete the custom field "${fieldName}"?`)) {
+window.deleteCustomField = async function(fieldIdOrName) {
+  // Find the field to get its name for confirmation
+  const field = window.configFields.find(f => f.id === fieldIdOrName || f.name === fieldIdOrName);
+  if (!field) {
+    showToast('Field not found', 'error');
+    return;
+  }
+
+  if (!confirm(`Are you sure you want to delete the custom field "${field.name}"?`)) {
     return;
   }
 
   try {
-    const eventId = sessionStorage.getItem('selectedEventId');
-
-    // Remove from FieldMappingService
-    await window.fieldMappingService.removeCustomField(eventId, fieldName);
+    // Remove from FieldMappingService using the field ID
+    const fieldId = field.id || fieldIdOrName;
+    await window.fieldMappingService.deleteCustomField(fieldId);
 
     // Remove from configFields
-    window.configFields = window.configFields.filter(f => f.name !== fieldName);
+    window.configFields = window.configFields.filter(f => f.id !== fieldId && f.name !== field.name);
 
     // Re-render
-    renderConfigFields(window.configFields, window.currentModalFilter || 'all');
+    renderConfigFields(window.configFields, window.currentModalFilter || 'active');
 
     showToast('Custom field deleted successfully!', 'success');
   } catch (error) {
@@ -568,6 +681,35 @@ window.deleteCustomField = async function(fieldName) {
     showToast('Error deleting custom field', 'error');
   }
 };
+
+
+/**
+ * Switch to Active Fields tab after adding custom field
+ */
+window.switchToActiveFieldsTab = function() {
+  const activeTab = document.querySelector('[data-filter="active"]');
+  const customTab = document.querySelector('[data-filter="custom"]');
+  const allTab = document.querySelector('[data-filter="all"]');
+  
+  if (activeTab) {
+    // Remove active class from all tabs
+    [activeTab, customTab, allTab].forEach(tab => {
+      if (tab) tab.classList.remove('active');
+    });
+    
+    // Set Active Fields tab as active
+    activeTab.classList.add('active');
+    window.currentModalFilter = 'active';
+    
+    // Re-render with active filter
+    if (window.configFields) {
+      renderConfigFields(window.configFields, 'active');
+    }
+    
+    console.log('✅ Switched to Active Fields tab');
+  }
+};
+
 
 // Save field configuration
 async function saveFieldConfiguration() {
@@ -774,6 +916,10 @@ document.addEventListener('DOMContentLoaded', () => {
   displayUserName();
 
   addTransferButton();
+
+
+  // Check field mapping and load data
+  checkFieldMappingAndLoad();
 
 });
 
@@ -1498,6 +1644,7 @@ function openAddCustomFieldModal() {
   const customFieldModal = document.getElementById('customFieldModal');
   if (customFieldModal) {
     customFieldModal.classList.add('show');
+
     // Clear previous values
     document.getElementById('customFieldName').value = '';
     document.getElementById('customFieldValue').value = '';
@@ -1507,6 +1654,9 @@ function openAddCustomFieldModal() {
   const closeBtn = document.getElementById('closeCustomFieldModalBtn');
   const cancelBtn = document.getElementById('cancelCustomField');
   const saveBtn = document.getElementById('saveCustomFieldBtn');
+
+  // Setup event handlers
+  document.getElementById('saveCustomFieldBtn').onclick = saveCustomField;
 
   if (closeBtn) {
     closeBtn.onclick = closeCustomFieldModal;
@@ -1579,11 +1729,22 @@ async function saveCustomField() {
 
     window.configFields = updatedFields;
 
-    // Re-render with current filter
-    renderConfigFields(updatedFields, window.currentModalFilter || 'custom');
+    // Switch to Active Fields tab
+    window.currentModalFilter = 'active';
+    document.querySelectorAll('.filter-tab').forEach(tab => {
+        tab.classList.remove('active');
+        if (tab.getAttribute('data-filter') === 'active') {
+            tab.classList.add('active');
+        }
+    });
+
+    // Re-render with active filter
+    renderConfigFields(updatedFields, 'active');
 
     // Show success message
     showToast('Custom field added successfully!', 'success');
+
+    window.switchToActiveFieldsTab();
 
   } catch (error) {
     console.error('Error saving custom field:', error);

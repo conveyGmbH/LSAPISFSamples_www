@@ -309,7 +309,7 @@ async function applyFilters(entity, fields) {
       
       const formattedNextDay = formatDateForOData(nextDay);
       
-      // Find all events ending before the next day (thus including the entire specified day)
+      // Find all events ending before the next day
       filterParts.push(`EndDate lt datetime'${formattedNextDay}T00:00:00'`);
     }
   }

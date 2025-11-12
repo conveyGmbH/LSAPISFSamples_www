@@ -1132,6 +1132,8 @@ async bulkSaveToDatabase() {
         console.log('✅ Custom field deleted:', deletedField);
         return true;
     }
+    
+
 
     /**
      * Toggle custom field active status

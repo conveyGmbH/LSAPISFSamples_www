@@ -11,10 +11,10 @@ const DEFAULT_ACTIVE_FIELDS = [
 // Global variables
 let fieldMappingService = null;
 let allFields = []; // API fields
-let customFields = []; // User-created custom fields
-let currentFilter = 'all';
+let customFields = []; 
+let currentFilter = 'active'; 
 let searchQuery = '';
-let apiEndpoint = 'LS_Lead'; // Default endpoint
+let apiEndpoint = 'LS_Lead'; 
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', async () => {
@@ -35,6 +35,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             fieldMappingService.setCurrentEventId(eventId);
             sessionStorage.setItem('selectedEventId', eventId);
             sessionStorage.setItem('selectedLeadSource', leadSource);
+
+
 
             // Update event info
             const eventInfo = document.getElementById('event-info');
@@ -246,8 +248,7 @@ function renderFields() {
     }
 }
 
-// Toggle field active status (in memory only, no DB save)
- 
+// Toggle field active status (in memory only, no DB save) 
 window.toggleField = function(fieldName, checked, isCustomField = false) {
     let field;
 
@@ -424,14 +425,14 @@ window.saveCustomField = async function() {
 
     // Check if field name already exists
     const allFieldsCombined = getAllFieldsForRendering();
-    if (allFieldsCombined.some(f => f.name === fieldName || f.name === `${fieldName}__c`)) {
+    if (allFieldsCombined.some(f => f.name === fieldName)) {
         showNotification('A field with this name already exists', 'error');
         return;
     }
 
     try {
-        // Add __c suffix if not present
-        const sfFieldName = fieldName.endsWith('__c') ? fieldName : `${fieldName}__c`;
+        // Use field name as-is (no __c suffix needed - fields already exist in Salesforce)
+        const sfFieldName = fieldName;
 
         // Save to FieldMappingService
         if (fieldMappingService && fieldMappingService.addCustomField) {
@@ -448,6 +449,15 @@ window.saveCustomField = async function() {
                 value: fieldValue,
                 active: true,
                 isCustomField: true
+            });
+
+            // Switch to Active Fields tab after adding custom field
+            currentFilter = 'active';
+            document.querySelectorAll('.filter-tab').forEach(tab => {
+                tab.classList.remove('active');
+                if (tab.getAttribute('data-filter') === 'active') {
+                    tab.classList.add('active');
+                }
             });
 
             showNotification('Custom field added successfully!', 'success');
