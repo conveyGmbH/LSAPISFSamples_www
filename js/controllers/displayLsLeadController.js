@@ -1,6 +1,13 @@
 import ApiService from '../services/apiService.js';
 import {escapeODataValue, formatDateForOData, formatDate, setupPagination } from '../utils/helper.js';
 
+const REQUIRED_FIELDS = ['LastName', 'Company'];
+const DEFAULT_ACTIVE_FIELDS = [
+    'FirstName', 'LastName', 'Email', 'Company', 'Phone', 'MobilePhone',
+    'Street', 'City', 'PostalCode', 'State', 'Country',
+    'Title', 'Industry', 'Description'
+];
+
 const columnConfig = {
   LS_Lead: {
     "Status": "150px",  // New Status column
@@ -170,12 +177,12 @@ async function checkFieldMappingAndLoad() {
 
       console.log(`📡 API fields found: ${metadataFields.length}`);
 
-      // Use API fields directly and mark as active by default
+      // Use API fields directly and mark as active based on DEFAULT_ACTIVE_FIELDS
       const apiFields = metadataFields.map(field => ({
         name: field.name,
         type: field.type,
         nullable: field.nullable,
-        isStandardActive: true // Mark as active by default since it exists in API
+        isStandardActive: DEFAULT_ACTIVE_FIELDS.includes(field.name) // Only active if in default list
       }));
 
       console.log(`✅ API fields to display: ${apiFields.length}`);
@@ -271,17 +278,21 @@ function showFieldConfigurationDialog(fields) {
 
   // Select All
   document.getElementById('selectAllFields').onclick = () => {
-    document.querySelectorAll('.field-item input[type="checkbox"]:not([disabled])').forEach(cb => {
+    document.querySelectorAll('.field-card input[type="checkbox"]:not([disabled])').forEach(cb => {
       cb.checked = true;
       window.fieldSelections[cb.value] = true;
+      // Trigger the change handler to update the UI
+      handleFieldToggle(cb, cb.value);
     });
   };
 
   // Deselect All
   document.getElementById('deselectAllFields').onclick = () => {
-    document.querySelectorAll('.field-item input[type="checkbox"]:not([disabled])').forEach(cb => {
+    document.querySelectorAll('.field-card input[type="checkbox"]:not([disabled])').forEach(cb => {
       cb.checked = false;
       window.fieldSelections[cb.value] = false;
+      // Trigger the change handler to update the UI
+      handleFieldToggle(cb, cb.value);
     });
   };
 
@@ -311,7 +322,7 @@ function showFieldConfigurationDialog(fields) {
 
 // Save current checkbox selections
 function saveCurrentSelections() {
-  document.querySelectorAll('.field-item input[type="checkbox"]').forEach(cb => {
+  document.querySelectorAll('.field-card input[type="checkbox"]').forEach(cb => {
     window.fieldSelections[cb.value] = cb.checked;
   });
 }
@@ -350,84 +361,218 @@ function renderConfigFields(fields, filter = 'all') {
 
   filteredFields.forEach(field => {
     const isRequired = requiredFields.includes(field.name);
+    const isCustomField = field.isCustom === true;
 
-    const fieldItem = document.createElement('div');
-    fieldItem.className = `field-item ${isRequired ? 'required' : ''}`;
+    // Determine if field is checked
+    let isChecked;
+    if (window.fieldSelections && window.fieldSelections.hasOwnProperty(field.name)) {
+      isChecked = window.fieldSelections[field.name];
+    } else {
+      isChecked = isRequired || field.isStandardActive === true;
+    }
 
+    const isActive = isChecked;
+
+    // Get SF field name and default value
+    const sfFieldName = field.sfFieldName || field.name;
+    const defaultValue = field.defaultValue || '';
+
+    // Create field card
+    const fieldCard = document.createElement('div');
+    fieldCard.className = `field-card ${isActive ? '' : 'inactive'}`;
+
+    // Create checkbox
     const checkbox = document.createElement('input');
     checkbox.type = 'checkbox';
     checkbox.id = `field_${field.name}`;
     checkbox.value = field.name;
+    checkbox.checked = isChecked;
+    checkbox.disabled = isRequired;
+    checkbox.onchange = function() { handleFieldToggle(this, field.name); };
 
-    // Restore previous selection if exists, otherwise use default
-    if (window.fieldSelections && window.fieldSelections.hasOwnProperty(field.name)) {
-      checkbox.checked = window.fieldSelections[field.name];
-    } else {
-      // Check if it's a required field or a standard field from API
-      checkbox.checked = isRequired || field.isStandardActive === true;
+    // Create field card content
+    const cardContent = document.createElement('div');
+    cardContent.className = 'field-card-content';
+
+    // Header with name and badges
+    const header = document.createElement('div');
+    header.className = 'field-card-header';
+
+    const fieldName = document.createElement('span');
+    fieldName.className = 'field-card-name';
+    fieldName.textContent = field.name;
+
+    const badges = document.createElement('div');
+    badges.className = 'field-card-badges';
+
+    if (isRequired) {
+      const requiredBadge = document.createElement('span');
+      requiredBadge.className = 'badge required';
+      requiredBadge.textContent = 'REQUIRED';
+      badges.appendChild(requiredBadge);
     }
 
-    checkbox.disabled = isRequired; // Required fields can't be unchecked
+    const statusBadge = document.createElement('span');
+    statusBadge.className = `badge ${isActive ? 'active' : 'inactive'}`;
+    statusBadge.textContent = isActive ? 'ACTIVE' : 'INACTIVE';
+    badges.appendChild(statusBadge);
 
-    // Save selection when checkbox changes
-    checkbox.addEventListener('change', (e) => {
-      window.fieldSelections[field.name] = e.target.checked;
-    });
-
-    const label = document.createElement('label');
-    label.htmlFor = `field_${field.name}`;
-
-    // Check if it's a custom field
-    const standardFields = [
-      'ActionCadenceAssigneeId', 'ActionCadenceId', 'ActionCadenceState',
-      'ActiveTrackerCount', 'ActivityMetricId', 'ActivityMetricRollupId',
-      'Address', 'AnnualRevenue', 'City', 'CleanStatus', 'Company',
-      'CompanyDunsNumber', 'ConvertedAccountId', 'ConvertedContactId',
-      'ConvertedDate', 'ConvertedOpportunityId', 'ConnectionReceivedId',
-      'ConnectionSentId', 'Country', 'CountryCode', 'CurrencyIsoCode',
-      'DandBCompanyId', 'Description', 'Division', 'Email',
-      'EmailBouncedDate', 'EmailBouncedReason', 'ExportStatus', 'Fax',
-      'FirstCallDateTime', 'FirstEmailDateTime', 'FirstName',
-      'GeocodeAccuracy', 'GenderIdentity', 'HasOptedOutOfEmail',
-      'HasOptedOutOfFax', 'IndividualId', 'Industry', 'IsConverted',
-      'IsDeleted', 'IsPriorityRecord', 'IsUnreadByOwner', 'Jigsaw',
-      'JigsawContactId', 'LastActivityDate', 'LastName', 'LastReferencedDate',
-      'LastViewedDate', 'Latitude', 'LeadSource', 'Longitude',
-      'MasterRecordId', 'MiddleName', 'MobilePhone', 'Name',
-      'NumberOfEmployees', 'OwnerId', 'PartnerAccountId', 'Phone',
-      'PhotoUrl', 'PostalCode', 'Pronouns', 'Rating', 'RecordTypeId',
-      'Salutation', 'ScheduledResumeDateTime', 'ScoreIntelligenceId',
-      'State', 'StateCode', 'Status', 'Street', 'Suffix', 'Title', 'Website',
-      'Id', 'CreatedDate', 'LastModifiedDate', 'SystemModstamp'
-    ];
-    const isCustomField = !standardFields.includes(field.name);
-
-    label.textContent = field.name;
     if (isCustomField) {
-      label.innerHTML = field.name + ' <span class="custom-badge">Custom</span>';
+      const customBadge = document.createElement('span');
+      customBadge.className = 'badge custom';
+      customBadge.textContent = 'CUSTOM';
+      badges.appendChild(customBadge);
     }
-    label.style.cursor = 'pointer';
-    label.style.flex = '1';
 
-    fieldItem.appendChild(checkbox);
-    fieldItem.appendChild(label);
+    header.appendChild(fieldName);
+    header.appendChild(badges);
 
-    // Click on item to toggle checkbox
-    fieldItem.onclick = (e) => {
-      if (e.target !== checkbox && !isRequired) {
-        checkbox.checked = !checkbox.checked;
-        checkbox.dispatchEvent(new Event('change'));
-      }
-    };
+    // Field mappings
+    const lsMapping = document.createElement('div');
+    lsMapping.className = 'field-mapping';
+    lsMapping.innerHTML = `<span class="field-mapping-ls">LS: ${field.name}</span>`;
 
-    fieldsGrid.appendChild(fieldItem);
+    const sfMapping = document.createElement('div');
+    sfMapping.className = 'field-mapping';
+    sfMapping.innerHTML = `<span class="field-mapping-sf">SF: ${sfFieldName}</span>`;
+
+    cardContent.appendChild(header);
+    cardContent.appendChild(lsMapping);
+    cardContent.appendChild(sfMapping);
+
+    // Default value if exists
+    if (defaultValue) {
+      const defaultDiv = document.createElement('div');
+      defaultDiv.className = 'field-default-value';
+      defaultDiv.textContent = `Default: ${defaultValue}`;
+      cardContent.appendChild(defaultDiv);
+    }
+
+    // Edit button for all fields
+    const editBtn = document.createElement('button');
+    editBtn.className = 'field-edit-btn';
+    editBtn.title = 'Edit mapping';
+    editBtn.onclick = function() { openEditFieldMapping(field.name); };
+    editBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+      <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/>
+    </svg>`;
+
+    // Delete button only for custom fields
+    if (isCustomField) {
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'field-delete-btn';
+      deleteBtn.title = 'Delete field';
+      deleteBtn.onclick = function() { deleteCustomField(field.name); };
+      deleteBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>
+      </svg>`;
+      fieldCard.appendChild(deleteBtn);
+    }
+
+    // Assemble card
+    fieldCard.appendChild(checkbox);
+    fieldCard.appendChild(cardContent);
+    fieldCard.appendChild(editBtn);
+
+    fieldsGrid.appendChild(fieldCard);
   });
 }
+
+// Helper function to handle field toggle
+window.handleFieldToggle = function(checkbox, fieldName) {
+  window.fieldSelections[fieldName] = checkbox.checked;
+
+  // Update the card's active/inactive class
+  const card = checkbox.closest('.field-card');
+  if (card) {
+    if (checkbox.checked) {
+      card.classList.remove('inactive');
+    } else {
+      card.classList.add('inactive');
+    }
+
+    // Update the status badge
+    const statusBadge = card.querySelector('.badge.active, .badge.inactive');
+    if (statusBadge) {
+      statusBadge.className = checkbox.checked ? 'badge active' : 'badge inactive';
+      statusBadge.textContent = checkbox.checked ? 'ACTIVE' : 'INACTIVE';
+    }
+  }
+};
+
+// Helper function to open edit field mapping modal
+window.openEditFieldMapping = function(fieldName) {
+  const field = window.configFields.find(f => f.name === fieldName);
+  if (!field) return;
+
+  const editModal = document.getElementById('editFieldMappingModal');
+  document.getElementById('editLsFieldName').value = field.name;
+  document.getElementById('editSfFieldName').value = field.sfFieldName || field.name;
+
+  // Store current field name for saving
+  window.currentEditingField = fieldName;
+
+  editModal.classList.add('show');
+
+  // Setup event handlers
+  document.getElementById('closeEditFieldMappingBtn').onclick = closeEditFieldMapping;
+  document.getElementById('cancelEditFieldMapping').onclick = closeEditFieldMapping;
+  document.getElementById('saveEditFieldMapping').onclick = saveEditFieldMapping;
+};
+
+function closeEditFieldMapping() {
+  document.getElementById('editFieldMappingModal').classList.remove('show');
+  window.currentEditingField = null;
+}
+
+function saveEditFieldMapping() {
+  const sfFieldName = document.getElementById('editSfFieldName').value.trim();
+  if (!sfFieldName) {
+    showToast('Salesforce field name is required', 'error');
+    return;
+  }
+
+  // Update the field in configFields
+  const field = window.configFields.find(f => f.name === window.currentEditingField);
+  if (field) {
+    field.sfFieldName = sfFieldName;
+    // Re-render to show updated SF field name
+    renderConfigFields(window.configFields, window.currentModalFilter || 'all');
+    showToast('Field mapping updated successfully!', 'success');
+  }
+
+  closeEditFieldMapping();
+}
+
+// Helper function to delete custom field
+window.deleteCustomField = async function(fieldName) {
+  if (!confirm(`Are you sure you want to delete the custom field "${fieldName}"?`)) {
+    return;
+  }
+
+  try {
+    const eventId = sessionStorage.getItem('selectedEventId');
+
+    // Remove from FieldMappingService
+    await window.fieldMappingService.removeCustomField(eventId, fieldName);
+
+    // Remove from configFields
+    window.configFields = window.configFields.filter(f => f.name !== fieldName);
+
+    // Re-render
+    renderConfigFields(window.configFields, window.currentModalFilter || 'all');
+
+    showToast('Custom field deleted successfully!', 'success');
+  } catch (error) {
+    console.error('Error deleting custom field:', error);
+    showToast('Error deleting custom field', 'error');
+  }
+};
 
 // Save field configuration
 async function saveFieldConfiguration() {
   const eventId = sessionStorage.getItem('selectedEventId');
-  const checkboxes = document.querySelectorAll('.field-item input[type="checkbox"]:checked');
+  const checkboxes = document.querySelectorAll('.field-card input[type="checkbox"]:checked');
 
   if (checkboxes.length === 0) {
     alert('Please select at least one field');
@@ -1319,6 +1464,34 @@ backButton.addEventListener('click', () => {
 // ========================================
 
 /**
+ * Show toast notification
+ */
+function showToast(message, type = 'success') {
+  // Remove existing toast if any
+  const existingToast = document.querySelector('.toast');
+  if (existingToast) {
+    existingToast.remove();
+  }
+
+  // Create toast element
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.innerHTML = `
+    <div class="toast-message">${message}</div>
+    <button class="toast-close" onclick="this.parentElement.remove()">&times;</button>
+  `;
+
+  document.body.appendChild(toast);
+
+  // Auto remove after 3 seconds
+  setTimeout(() => {
+    if (toast.parentElement) {
+      toast.remove();
+    }
+  }, 3000);
+}
+
+/**
  * Open custom field modal
  */
 function openAddCustomFieldModal() {
@@ -1364,42 +1537,41 @@ async function saveCustomField() {
   const fieldValue = document.getElementById('customFieldValue').value.trim();
 
   if (!fieldName) {
-    alert('Field name is required');
+    showToast('Field name is required', 'error');
     return;
   }
 
   // Validate field name (no spaces, no special characters except underscore)
   if (!/^[a-zA-Z][a-zA-Z0-9_]*$/.test(fieldName)) {
-    alert('Invalid field name. Use only letters, numbers, and underscores. Must start with a letter.');
+    showToast('Invalid field name. Use only letters, numbers, and underscores. Must start with a letter.', 'error');
     return;
   }
 
   // Check if field name already exists
   const allFields = window.configFields || [];
-  const sfFieldName = `${fieldName}__c`;
-  if (allFields.some(f => f.name === fieldName || f.name === sfFieldName)) {
-    alert('A field with this name already exists');
+  if (allFields.some(f => f.name === fieldName)) {
+    showToast('A field with this name already exists', 'error');
     return;
   }
 
   try {
     const eventId = sessionStorage.getItem('selectedEventId');
 
-    // Add custom field using FieldMappingService
+    // Add custom field using FieldMappingService (without __c suffix)
     await window.fieldMappingService.addCustomField(eventId, {
-      sfFieldName: sfFieldName,
+      sfFieldName: fieldName,
       defaultValue: fieldValue,
       active: true
     });
 
-    console.log(`✅ Custom field "${sfFieldName}" added successfully`);
+    console.log(`✅ Custom field "${fieldName}" added successfully`);
 
     // Close the custom field modal
     closeCustomFieldModal();
 
     // Reload the field configuration dialog with updated fields
     const updatedFields = [...allFields, {
-      name: sfFieldName,
+      name: fieldName,
       type: 'Edm.String',
       nullable: true,
       isCustom: true
@@ -1411,11 +1583,11 @@ async function saveCustomField() {
     renderConfigFields(updatedFields, window.currentModalFilter || 'custom');
 
     // Show success message
-    alert('Custom field added successfully!');
+    showToast('Custom field added successfully!', 'success');
 
   } catch (error) {
     console.error('Error saving custom field:', error);
-    alert('Error saving custom field. Please try again.');
+    showToast('Error saving custom field. Please try again.', 'error');
   }
 }
 

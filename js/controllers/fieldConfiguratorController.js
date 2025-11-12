@@ -1,7 +1,6 @@
-
 const REQUIRED_FIELDS = ['LastName', 'Company'];
 
-// Default active fields (commonly used)
+// Default active fields 
 const DEFAULT_ACTIVE_FIELDS = [
     'FirstName', 'LastName', 'Email', 'Company', 'Phone', 'MobilePhone',
     'Street', 'City', 'PostalCode', 'State', 'Country',
@@ -36,7 +35,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             fieldMappingService.setCurrentEventId(eventId);
             sessionStorage.setItem('selectedEventId', eventId);
             sessionStorage.setItem('selectedLeadSource', leadSource);
-            console.log(`📋 Event ID: ${eventId}, Source: ${leadSource}, Endpoint: ${apiEndpoint}`);
 
             // Update event info
             const eventInfo = document.getElementById('event-info');
@@ -54,10 +52,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderFields();
         setupEventListeners();
 
-        console.log('✅ Field Configurator loaded successfully');
+        console.log('Field Configurator loaded successfully');
 
     } catch (error) {
-        console.error('❌ Failed to initialize:', error);
+        console.error('Failed to initialize:', error);
         showNotification('Failed to load field configuration', 'error');
     }
 });
@@ -85,10 +83,7 @@ async function loadFieldsFromAPI(eventId) {
             endpoint += `&$filter=EventId eq '${encodeURIComponent(eventId)}'`;
         }
 
-        // Build full URL (without /odata/)
         const url = `https://${serverName}/${apiName}/${endpoint}`;
-
-        console.log(`📡 Fetching fields from: ${url}`);
 
         const response = await fetch(url, {
             method: 'GET',
@@ -113,17 +108,17 @@ async function loadFieldsFromAPI(eventId) {
 
         // Extract field names from first record
         const firstRecord = results[0];
+
         // Show ALL fields from the API - no exclusions
         const availableFields = Object.keys(firstRecord);
 
-        console.log(`📊 Found ${availableFields.length} available fields from API`);
 
         // Create field objects (all fields from API, no categorization)
         for (const fieldName of availableFields) {
             const fieldConfig = fieldMappingService.getFieldConfig(fieldName);
             const isRequired = REQUIRED_FIELDS.includes(fieldName);
 
-            // Check if field has a saved config, otherwise use default active list
+            // Check if field has a saved config
             let isActive = isRequired; // Required fields always active
             if (!isRequired) {
                 if (fieldConfig && fieldConfig.hasOwnProperty('active')) {
@@ -138,7 +133,7 @@ async function loadFieldsFromAPI(eventId) {
                 name: fieldName,
                 active: isActive,
                 required: isRequired,
-                isApiField: true // Mark as API field (not user-created custom field)
+                isApiField: true 
             });
         }
 
@@ -151,18 +146,14 @@ async function loadFieldsFromAPI(eventId) {
             return a.name.localeCompare(b.name);
         });
 
-        console.log(`✅ Loaded ${allFields.length} fields from API (${allFields.filter(f => f.active).length} active)`);
-
     } catch (error) {
-        console.error('❌ Failed to load fields from API:', error);
+        console.error('Failed to load fields from API:', error);
         showNotification('Failed to load fields from API: ' + error.message, 'error');
         throw error;
     }
 }
 
-/**
- * Load custom fields created by user
- */
+// Load custom fields created by user
 async function loadCustomFields() {
     try {
         if (!fieldMappingService || !fieldMappingService.getAllCustomFields) {
@@ -179,24 +170,19 @@ async function loadCustomFields() {
             isCustomField: true
         }));
 
-        console.log(`✅ Loaded ${customFields.length} custom fields`);
-
     } catch (error) {
-        console.error('❌ Failed to load custom fields:', error);
+        console.error('Failed to load custom fields:', error);
     }
 }
 
-/**
- * Get all fields (API fields + custom fields) for rendering
- */
+// Get all fields (API fields + custom fields) for rendering
+
 function getAllFieldsForRendering() {
     // Combine API fields and custom fields
     return [...allFields, ...customFields];
 }
 
-/**
- * Render fields in the grid
- */
+// Render fields in the grid
 function renderFields() {
     const container = document.getElementById('fieldsContainer');
     const addCustomFieldBtn = document.getElementById('addCustomFieldBtn');
@@ -260,9 +246,8 @@ function renderFields() {
     }
 }
 
-/**
- * Toggle field active status (in memory only, no DB save)
- */
+// Toggle field active status (in memory only, no DB save)
+ 
 window.toggleField = function(fieldName, checked, isCustomField = false) {
     let field;
 
@@ -288,12 +273,10 @@ window.toggleField = function(fieldName, checked, isCustomField = false) {
     }
 
     updateStatistics();
-    console.log(`✅ Field ${fieldName} ${checked ? 'activated' : 'deactivated'} (not saved yet)`);
+    console.log(`Field ${fieldName} ${checked ? 'activated' : 'deactivated'} (not saved yet)`);
 };
 
-/**
- * Select all fields (in memory only, no DB save)
- */
+// Select all fields (in memory only, no DB save)
 window.selectAllFields = function() {
     for (const field of allFields) {
         if (!field.required && !field.active) {
@@ -304,9 +287,7 @@ window.selectAllFields = function() {
     showNotification('All fields selected (not saved yet)', 'success');
 };
 
-/**
- * Deselect all fields (except required) (in memory only, no DB save)
- */
+// Deselect all fields (except required) (in memory only, no DB save)
 window.deselectAllFields = function() {
     for (const field of allFields) {
         if (!field.required && field.active) {
@@ -317,9 +298,7 @@ window.deselectAllFields = function() {
     showNotification('All optional fields deselected (not saved yet)', 'success');
 };
 
-/**
- * Save configuration and continue
- */
+// Save configuration and continue
 window.saveAndContinue = async function() {
     try {
         console.log('💾 Saving configuration...');
@@ -368,7 +347,7 @@ window.saveAndContinue = async function() {
 
             const allFieldsCombined = getAllFieldsForRendering();
             const activeCount = allFieldsCombined.filter(f => f.active).length;
-            console.log(`✅ Configuration saved: ${activeCount} active fields (${allFields.filter(f => f.active).length} API + ${customFields.filter(f => f.active).length} custom)`);
+            console.log(`Configuration saved: ${activeCount} active fields (${allFields.filter(f => f.active).length} API + ${customFields.filter(f => f.active).length} custom)`);
 
             const leadSource = sessionStorage.getItem('selectedLeadSource') || 'lead';
             const targetPage = leadSource === 'leadReport' ? 'displayLsLeadReport.html' : 'displayLsLead.html';
@@ -381,22 +360,19 @@ window.saveAndContinue = async function() {
         }
 
     } catch (error) {
-        console.error('❌ Failed to save:', error);
+        console.error('Failed to save:', error);
         showNotification('Failed to save configuration: ' + error.message, 'error');
     }
 };
 
-/**
- * Navigate back
- */
+// Navigate back
 window.goBack = function() {
     window.location.href = 'display.html';
 };
 
-/**
- * Update statistics
- */
+// Update statistics 
 function updateStatistics() {
+
     const allFieldsCombined = getAllFieldsForRendering();
     const total = allFieldsCombined.length;
     const active = allFieldsCombined.filter(f => f.active).length;
@@ -409,9 +385,8 @@ function updateStatistics() {
     document.getElementById('customFieldsCount').textContent = custom;
 }
 
-/**
- * Open modal to add custom field
- */
+// Open modal to add custom field
+ 
 window.openAddCustomFieldModal = function() {
     const modal = document.getElementById('customFieldModal');
     if (modal) {
@@ -422,9 +397,7 @@ window.openAddCustomFieldModal = function() {
     }
 };
 
-/**
- * Close custom field modal
- */
+// Close custom field modal
 window.closeCustomFieldModal = function() {
     const modal = document.getElementById('customFieldModal');
     if (modal) {
@@ -432,9 +405,8 @@ window.closeCustomFieldModal = function() {
     }
 };
 
-/**
- * Save custom field
- */
+// Save custom field
+
 window.saveCustomField = async function() {
     const fieldName = document.getElementById('customFieldName').value.trim();
     const fieldValue = document.getElementById('customFieldValue').value.trim();
@@ -486,14 +458,12 @@ window.saveCustomField = async function() {
         }
 
     } catch (error) {
-        console.error('❌ Failed to add custom field:', error);
+        console.error('Failed to add custom field:', error);
         showNotification('Failed to add custom field: ' + error.message, 'error');
     }
 };
 
-/**
- * Delete custom field
- */
+// Delete custom field
 window.deleteCustomField = async function(event, fieldId) {
     event.preventDefault();
     event.stopPropagation();
@@ -517,14 +487,13 @@ window.deleteCustomField = async function(event, fieldId) {
         }
 
     } catch (error) {
-        console.error('❌ Failed to delete custom field:', error);
+        console.error('Failed to delete custom field:', error);
         showNotification('Failed to delete custom field: ' + error.message, 'error');
     }
 };
 
-/**
- * Setup event listeners
- */
+// Setup event listeners
+ 
 function setupEventListeners() {
     // Search
     const searchInput = document.getElementById('searchField');
@@ -545,9 +514,7 @@ function setupEventListeners() {
     });
 }
 
-/**
- * Show notification
- */
+// Show notification
 function showNotification(message, type = 'success') {
     const notification = document.createElement('div');
     notification.className = `notification ${type}`;

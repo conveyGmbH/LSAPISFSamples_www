@@ -688,8 +688,8 @@
             <!-- Filter Tabs -->
             <div class="filter-tabs">
                 <button class="filter-tab active" data-filter="all">All Fields</button>
-                <button class="filter-tab" data-filter="active">Active Only</button>
-                <button class="filter-tab" data-filter="inactive">Inactive Only</button>
+                <button class="filter-tab" data-filter="active">Active Fields</button>
+                <button class="filter-tab" data-filter="inactive">Inactive Fields</button>
                 <button class="filter-tab" data-filter="required">Required</button>
                 <button class="filter-tab" data-filter="custom">Custom Fields</button>
             </div>
@@ -730,7 +730,11 @@
             <div class="form-group">
                 <label class="form-label" for="customFieldName">Field Name *</label>
                 <input type="text" id="customFieldName" class="form-input" placeholder="e.g., EUArea" />
-                <p class="form-hint">Field name will be saved as "FieldName__c" in Salesforce. Use only letters, numbers, and underscores.</p>
+                <p class="form-hint">You must first verify the exact field name in Salesforce and enter it here without spaces. 
+                Custom fields must follow Salesforce naming conventions: use only letters, numbers, and underscores, 
+                and ensure the name is unique within the same object. 
+                In the API, custom field names are identified by a suffix of two underscores followed by a lowercase "c". 
+                For example, a custom object labeled "Issue" appears as Issue__c, and a custom field labeled "Hire Date" appears as Hire_Date__c.</p>
             </div>
 
             <div class="form-group">
