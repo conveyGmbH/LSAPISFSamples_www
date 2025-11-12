@@ -211,6 +211,30 @@ async function fetchMetadata(entityType = 'LS_LeadReport') {
   }
 }
 
+// Standard Salesforce Lead Fields
+const STANDARD_SALESFORCE_FIELDS = [
+  'ActionCadenceAssigneeId', 'ActionCadenceId', 'ActionCadenceState',
+  'ActiveTrackerCount', 'ActivityMetricId', 'ActivityMetricRollupId',
+  'Address', 'AnnualRevenue', 'City', 'CleanStatus', 'Company',
+  'CompanyDunsNumber', 'ConvertedAccountId', 'ConvertedContactId',
+  'ConvertedDate', 'ConvertedOpportunityId', 'ConnectionReceivedId',
+  'ConnectionSentId', 'Country', 'CountryCode', 'CurrencyIsoCode',
+  'DandBCompanyId', 'Description', 'Division', 'Email',
+  'EmailBouncedDate', 'EmailBouncedReason', 'ExportStatus', 'Fax',
+  'FirstCallDateTime', 'FirstEmailDateTime', 'FirstName',
+  'GeocodeAccuracy', 'GenderIdentity', 'HasOptedOutOfEmail',
+  'HasOptedOutOfFax', 'IndividualId', 'Industry', 'IsConverted',
+  'IsDeleted', 'IsPriorityRecord', 'IsUnreadByOwner', 'Jigsaw',
+  'JigsawContactId', 'LastActivityDate', 'LastName', 'LastReferencedDate',
+  'LastViewedDate', 'Latitude', 'LeadSource', 'Longitude',
+  'MasterRecordId', 'MiddleName', 'MobilePhone', 'Name',
+  'NumberOfEmployees', 'OwnerId', 'PartnerAccountId', 'Phone',
+  'PhotoUrl', 'PostalCode', 'Pronouns', 'Rating', 'RecordTypeId',
+  'Salutation', 'ScheduledResumeDateTime', 'ScoreIntelligenceId',
+  'State', 'StateCode', 'Status', 'Street', 'Suffix', 'Title', 'Website',
+  'Id', 'CreatedDate', 'LastModifiedDate', 'SystemModstamp'
+];
+
 // Check if field mapping exists, if not show configuration dialog
 async function checkFieldMappingAndLoad() {
   const eventId = sessionStorage.getItem('selectedEventId');
@@ -230,11 +254,34 @@ async function checkFieldMappingAndLoad() {
     if (activeFields.length === 0) {
       console.log('⚠️ No field mapping found, showing configuration dialog');
 
-      // Fetch metadata to get available fields
+      // Fetch metadata from API to get available fields
       const metadataFields = await fetchMetadata('LS_LeadReport');
 
-      // Show configuration dialog
-      showFieldConfigurationDialog(metadataFields);
+      console.log(`📡 API fields found: ${metadataFields.length}`);
+
+      // Use API fields directly and mark as active by default
+      const apiFields = metadataFields.map(field => ({
+        name: field.name,
+        type: field.type,
+        nullable: field.nullable,
+        isStandardActive: true // Mark as active by default since it exists in API
+      }));
+
+      console.log(`✅ API fields to display: ${apiFields.length}`);
+
+      // Load custom fields from FieldMappingService and add them
+      const customFields = window.fieldMappingService?.getAllCustomFields() || [];
+      customFields.forEach(customField => {
+        apiFields.push({
+          name: customField.sfFieldName,
+          type: 'Edm.String',
+          nullable: true,
+          isCustom: true
+        });
+      });
+
+      // Show configuration dialog with API fields + custom fields
+      showFieldConfigurationDialog(apiFields);
     } else {
       console.log('✅ Field mapping exists, loading data');
       // Field mapping exists, proceed with normal data loading
@@ -251,6 +298,7 @@ function showFieldConfigurationDialog(fields) {
   const modal = document.getElementById('fieldConfigModal');
   const fieldsGrid = document.getElementById('fieldsGrid');
   const searchInput = document.getElementById('fieldSearchInput');
+  const addCustomFieldBtn = document.getElementById('addCustomFieldBtnModal');
 
   // Clear existing content
   fieldsGrid.innerHTML = '';
@@ -259,12 +307,13 @@ function showFieldConfigurationDialog(fields) {
   // Required fields
   const requiredFields = ['LastName', 'Company'];
 
-  // Store fields for search
+  // Store fields for search and filtering
   window.configFields = fields;
   window.fieldSelections = {}; // Track selections across re-renders
+  window.currentModalFilter = 'all'; // Track current filter
 
-  // Render fields
-  renderConfigFields(fields);
+  // Render fields with current filter
+  renderConfigFields(fields, window.currentModalFilter);
 
   // Show modal
   modal.classList.add('show');
@@ -273,7 +322,31 @@ function showFieldConfigurationDialog(fields) {
   const newSearchInput = searchInput.cloneNode(true);
   searchInput.parentNode.replaceChild(newSearchInput, searchInput);
 
-  // Search functionality - preserve selections
+  // Setup filter tabs
+  const filterTabs = document.querySelectorAll('.filter-tab');
+  filterTabs.forEach(tab => {
+    tab.onclick = () => {
+      // Save current selections
+      saveCurrentSelections();
+
+      // Update active tab
+      filterTabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+
+      // Get filter type
+      window.currentModalFilter = tab.getAttribute('data-filter');
+
+      // Show/hide Add Custom Field button
+      if (addCustomFieldBtn) {
+        addCustomFieldBtn.style.display = window.currentModalFilter === 'custom' ? 'flex' : 'none';
+      }
+
+      // Apply filter
+      renderConfigFields(fields, window.currentModalFilter);
+    };
+  });
+
+  // Search functionality - preserve selections and respect filter
   newSearchInput.addEventListener('input', (e) => {
     // Save current selections before re-rendering
     saveCurrentSelections();
@@ -282,7 +355,7 @@ function showFieldConfigurationDialog(fields) {
     const filtered = fields.filter(f =>
       f.name.toLowerCase().includes(searchTerm)
     );
-    renderConfigFields(filtered);
+    renderConfigFields(filtered, window.currentModalFilter);
   });
 
   // Select All
@@ -300,6 +373,13 @@ function showFieldConfigurationDialog(fields) {
       window.fieldSelections[cb.value] = false;
     });
   };
+
+  // Add Custom Field button
+  if (addCustomFieldBtn) {
+    addCustomFieldBtn.onclick = () => {
+      openAddCustomFieldModal();
+    };
+  }
 
   // Close modal
   document.getElementById('closeFieldConfigModal').onclick = () => {
@@ -326,13 +406,38 @@ function saveCurrentSelections() {
 }
 
 // Render fields in grid
-function renderConfigFields(fields) {
+function renderConfigFields(fields, filter = 'all') {
   const fieldsGrid = document.getElementById('fieldsGrid');
   const requiredFields = ['LastName', 'Company'];
 
   fieldsGrid.innerHTML = '';
 
-  fields.forEach(field => {
+  // Apply filter to fields
+  let filteredFields = fields;
+  if (filter !== 'all') {
+    filteredFields = fields.filter(field => {
+      const isRequired = requiredFields.includes(field.name);
+      const isCustomField = field.isCustom === true;
+      const isActive = window.fieldSelections && window.fieldSelections.hasOwnProperty(field.name)
+        ? window.fieldSelections[field.name]
+        : (isRequired || field.isStandardActive === true);
+
+      switch (filter) {
+        case 'active':
+          return isActive;
+        case 'inactive':
+          return !isActive;
+        case 'required':
+          return isRequired;
+        case 'custom':
+          return isCustomField;
+        default:
+          return true;
+      }
+    });
+  }
+
+  filteredFields.forEach(field => {
     const isRequired = requiredFields.includes(field.name);
 
     const fieldItem = document.createElement('div');
@@ -347,7 +452,8 @@ function renderConfigFields(fields) {
     if (window.fieldSelections && window.fieldSelections.hasOwnProperty(field.name)) {
       checkbox.checked = window.fieldSelections[field.name];
     } else {
-      checkbox.checked = isRequired; // Required fields pre-checked by default
+      // Check if it's a required field or a standard field from API
+      checkbox.checked = isRequired || field.isStandardActive === true;
     }
 
     checkbox.disabled = isRequired; // Required fields can't be unchecked
@@ -359,7 +465,36 @@ function renderConfigFields(fields) {
 
     const label = document.createElement('label');
     label.htmlFor = `field_${field.name}`;
+
+    // Check if it's a custom field
+    const standardFields = [
+      'ActionCadenceAssigneeId', 'ActionCadenceId', 'ActionCadenceState',
+      'ActiveTrackerCount', 'ActivityMetricId', 'ActivityMetricRollupId',
+      'Address', 'AnnualRevenue', 'City', 'CleanStatus', 'Company',
+      'CompanyDunsNumber', 'ConvertedAccountId', 'ConvertedContactId',
+      'ConvertedDate', 'ConvertedOpportunityId', 'ConnectionReceivedId',
+      'ConnectionSentId', 'Country', 'CountryCode', 'CurrencyIsoCode',
+      'DandBCompanyId', 'Description', 'Division', 'Email',
+      'EmailBouncedDate', 'EmailBouncedReason', 'ExportStatus', 'Fax',
+      'FirstCallDateTime', 'FirstEmailDateTime', 'FirstName',
+      'GeocodeAccuracy', 'GenderIdentity', 'HasOptedOutOfEmail',
+      'HasOptedOutOfFax', 'IndividualId', 'Industry', 'IsConverted',
+      'IsDeleted', 'IsPriorityRecord', 'IsUnreadByOwner', 'Jigsaw',
+      'JigsawContactId', 'LastActivityDate', 'LastName', 'LastReferencedDate',
+      'LastViewedDate', 'Latitude', 'LeadSource', 'Longitude',
+      'MasterRecordId', 'MiddleName', 'MobilePhone', 'Name',
+      'NumberOfEmployees', 'OwnerId', 'PartnerAccountId', 'Phone',
+      'PhotoUrl', 'PostalCode', 'Pronouns', 'Rating', 'RecordTypeId',
+      'Salutation', 'ScheduledResumeDateTime', 'ScoreIntelligenceId',
+      'State', 'StateCode', 'Status', 'Street', 'Suffix', 'Title', 'Website',
+      'Id', 'CreatedDate', 'LastModifiedDate', 'SystemModstamp'
+    ];
+    const isCustomField = !standardFields.includes(field.name);
+
     label.textContent = field.name;
+    if (isCustomField) {
+      label.innerHTML = field.name + ' <span class="custom-badge">Custom</span>';
+    }
     label.style.cursor = 'pointer';
     label.style.flex = '1';
 
@@ -370,6 +505,7 @@ function renderConfigFields(fields) {
     fieldItem.onclick = (e) => {
       if (e.target !== checkbox && !isRequired) {
         checkbox.checked = !checkbox.checked;
+        checkbox.dispatchEvent(new Event('change'));
       }
     };
 
@@ -1369,3 +1505,108 @@ function init() {
 
 // Initialize the application when DOM is loaded
 document.addEventListener("DOMContentLoaded", init);
+
+// ========================================
+// Custom Field Management Functions
+// ========================================
+
+/**
+ * Open custom field modal
+ */
+function openAddCustomFieldModal() {
+  const customFieldModal = document.getElementById('customFieldModal');
+  if (customFieldModal) {
+    customFieldModal.classList.add('show');
+    // Clear previous values
+    document.getElementById('customFieldName').value = '';
+    document.getElementById('customFieldValue').value = '';
+  }
+
+  // Setup event handlers
+  const closeBtn = document.getElementById('closeCustomFieldModalBtn');
+  const cancelBtn = document.getElementById('cancelCustomField');
+  const saveBtn = document.getElementById('saveCustomFieldBtn');
+
+  if (closeBtn) {
+    closeBtn.onclick = closeCustomFieldModal;
+  }
+  if (cancelBtn) {
+    cancelBtn.onclick = closeCustomFieldModal;
+  }
+  if (saveBtn) {
+    saveBtn.onclick = saveCustomField;
+  }
+}
+
+/**
+ * Close custom field modal
+ */
+function closeCustomFieldModal() {
+  const customFieldModal = document.getElementById('customFieldModal');
+  if (customFieldModal) {
+    customFieldModal.classList.remove('show');
+  }
+}
+
+/**
+ * Save custom field
+ */
+async function saveCustomField() {
+  const fieldName = document.getElementById('customFieldName').value.trim();
+  const fieldValue = document.getElementById('customFieldValue').value.trim();
+
+  if (!fieldName) {
+    alert('Field name is required');
+    return;
+  }
+
+  // Validate field name (no spaces, no special characters except underscore)
+  if (!/^[a-zA-Z][a-zA-Z0-9_]*$/.test(fieldName)) {
+    alert('Invalid field name. Use only letters, numbers, and underscores. Must start with a letter.');
+    return;
+  }
+
+  // Check if field name already exists
+  const allFields = window.configFields || [];
+  const sfFieldName = `${fieldName}__c`;
+  if (allFields.some(f => f.name === fieldName || f.name === sfFieldName)) {
+    alert('A field with this name already exists');
+    return;
+  }
+
+  try {
+    const eventId = sessionStorage.getItem('selectedEventId');
+
+    // Add custom field using FieldMappingService
+    await window.fieldMappingService.addCustomField(eventId, {
+      sfFieldName: sfFieldName,
+      defaultValue: fieldValue,
+      active: true
+    });
+
+    console.log(`✅ Custom field "${sfFieldName}" added successfully`);
+
+    // Close the custom field modal
+    closeCustomFieldModal();
+
+    // Reload the field configuration dialog with updated fields
+    const updatedFields = [...allFields, {
+      name: sfFieldName,
+      type: 'Edm.String',
+      nullable: true,
+      isCustom: true
+    }];
+
+    window.configFields = updatedFields;
+
+    // Re-render with current filter
+    renderConfigFields(updatedFields, window.currentModalFilter || 'custom');
+
+    // Show success message
+    alert('Custom field added successfully!');
+
+  } catch (error) {
+    console.error('Error saving custom field:', error);
+    alert('Error saving custom field. Please try again.');
+  }
+}

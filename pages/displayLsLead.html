@@ -111,19 +111,36 @@
 
     <!-- Field Configuration Modal -->
     <div id="fieldConfigModal" class="modal">
-        <div class="modal-content" style="max-width: 900px; max-height: 90vh;">
+        <div class="modal-content" style="max-width: 1200px; max-height: 90vh;">
             <div class="modal-header">
                 <h2>Configure Fields for Lead Display</h2>
                 <button id="closeFieldConfigModal" class="close-btn">&times;</button>
             </div>
 
-            <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
-                <!-- Search Bar -->
+            <div class="modal-body">
+                <!-- Search -->
                 <div class="search-container">
                     <input type="text" id="fieldSearchInput" placeholder="Search fields..." />
                 </div>
 
-                <!-- Select All / None -->
+                <!-- Filter Tabs -->
+                <div class="filter-tabs">
+                    <button class="filter-tab active" data-filter="all">All Fields</button>
+                    <button class="filter-tab" data-filter="active">Active Only</button>
+                    <button class="filter-tab" data-filter="inactive">Inactive Only</button>
+                    <button class="filter-tab" data-filter="required">Required</button>
+                    <button class="filter-tab" data-filter="custom">Custom Fields</button>
+                </div>
+
+                <!-- Add Custom Field Button (shown only when Custom Fields tab is active) -->
+                <button id="addCustomFieldBtnModal" class="add-custom-field-btn" style="display: none;">
+                    <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
+                    </svg>
+                    Add Custom Field
+                </button>
+
+                <!-- Bulk Actions -->
                 <div class="bulk-actions">
                     <button id="selectAllFields">Select All</button>
                     <button id="deselectAllFields">Deselect All</button>
@@ -157,7 +174,7 @@
         }
 
         .modal.show {
-            display: flex;
+            display: flex !important;
         }
 
         .modal-content {
@@ -166,6 +183,83 @@
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
             width: 90%;
             max-width: 900px;
+        }
+
+        .custom-badge {
+            background: #8b5cf6;
+            color: white;
+            font-size: 10px;
+            font-weight: 600;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-left: 6px;
+        }
+
+        .search-container {
+            margin-bottom: 16px;
+        }
+
+        #fieldSearchInput {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .bulk-actions {
+            margin-bottom: 16px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .bulk-actions button {
+            padding: 8px 16px;
+            border: 1px solid #d1d5db;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .bulk-actions button:hover {
+            background: #f3f4f6;
+        }
+
+        .fields-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 12px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .field-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .field-item:hover {
+            background: #f9fafb;
+            border-color: #3b82f6;
+        }
+
+        .field-item input[type="checkbox"] {
+            margin-right: 10px;
+        }
+
+        .field-item.required {
+            border-left: 3px solid #f59e0b;
+            background: #fffbeb;
+        }
+
+        .field-item.required input[type="checkbox"] {
+            cursor: not-allowed;
         }
 
         .modal-header {
@@ -292,7 +386,125 @@
         .btn-primary:hover {
             background: #2563eb;
         }
+
+        /* Filter Tabs */
+        .filter-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            border-bottom: 1px solid #e5e7eb;
+            padding-bottom: 8px;
+        }
+
+        .filter-tab {
+            background: none;
+            border: none;
+            padding: 8px 16px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #718096;
+            cursor: pointer;
+            border-radius: 6px 6px 0 0;
+            transition: all 0.2s;
+        }
+
+        .filter-tab.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .filter-tab:hover:not(.active) {
+            background: #f3f4f6;
+        }
+
+        /* Add Custom Field Button */
+        .add-custom-field-btn {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            background: #8b5cf6;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 16px;
+            transition: background 0.2s;
+        }
+
+        .add-custom-field-btn:hover {
+            background: #7c3aed;
+        }
+
+        .add-custom-field-btn svg {
+            flex-shrink: 0;
+        }
+
+        /* Custom field badge for user-created fields */
+        .user-custom-field {
+            border-left: 3px solid #8b5cf6 !important;
+            background: #f5f3ff;
+        }
+
+        .user-custom-badge {
+            display: inline-block;
+            background: #8b5cf6;
+            color: white;
+            font-size: 9px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: 600;
+            margin-left: 6px;
+        }
+
+        .required-badge {
+            display: inline-block;
+            background: #f59e0b;
+            color: white;
+            font-size: 9px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: 600;
+            margin-left: 6px;
+        }
     </style>
+
+    <!-- Custom Field Modal -->
+    <div id="customFieldModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>Add Custom Field</h2>
+                <button id="closeCustomFieldModalBtn" class="close-btn">&times;</button>
+            </div>
+
+            <div class="modal-body">
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #1f2937;">Field Name *</label>
+                    <input type="text" id="customFieldName" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;" placeholder="e.g., EUArea" />
+                    <p style="margin-top: 6px; font-size: 12px; color: #6b7280;">Field name will be saved as "FieldName__c" in Salesforce. Use only letters, numbers, and underscores.</p>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #1f2937;">Default Value</label>
+                    <textarea id="customFieldValue" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;" rows="3" placeholder="e.g., Germany, France"></textarea>
+                    <p style="margin-top: 6px; font-size: 12px; color: #6b7280;">Optional: Set a default value for this field</p>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button id="cancelCustomField" class="btn-secondary">Cancel</button>
+                <button id="saveCustomFieldBtn" class="btn-primary">
+                    <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" style="display: inline; margin-right: 6px; vertical-align: middle;">
+                        <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
+                    </svg>
+                    Save Field
+                </button>
+            </div>
+        </div>
+    </div>
+
 </body>
 
 </html>

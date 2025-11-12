@@ -174,6 +174,7 @@ setFieldConfigLocal(fieldName, config) {
 
         const data = await this.createApiService().request('GET', endpoint);
 
+        console.log("field", data)
         if (!data) {
             console.log('No data returned from API');
             return;
