@@ -1,16 +1,15 @@
 // virtualDataModal.js
-// Modal for editing virtual/test data when no contacts exist
+// Modal for editing test data when no contacts exist
 
 class VirtualDataModal {
   constructor(fieldMappingService) {
     this.fieldMappingService = fieldMappingService;
     this.virtualData = {};
     this.metadata = null;
+    this.isClosing = false; // Prevent double-close
   }
 
-  /**
-   * Fetch metadata for the entity type
-   */
+  // Fetch metadata for the entity type
   async fetchMetadata(entityType = 'LS_Lead') {
     try {
       const serverName = sessionStorage.getItem('serverName');
@@ -80,51 +79,74 @@ class VirtualDataModal {
     }
   }
 
-  /**
-   * Generate default virtual data based on metadata
-   */
+  // Generate default virtual data based on metadata using FakeDataGenerator
   generateVirtualData(entityType = 'LS_Lead') {
     if (!this.metadata) {
       console.error('Metadata not loaded');
       return {};
     }
 
+    // Initialize FakeDataGenerator if available
+    const fakeGenerator = window.FakeDataGenerator ? new window.FakeDataGenerator() : null;
+
     const virtualData = {};
 
     this.metadata.forEach(field => {
-      // Set default values based on field type
-      switch (field.type) {
-        case 'Edm.String':
-          if (field.name.includes('Email')) {
-            virtualData[field.name] = 'test@example.com';
-          } else if (field.name.includes('Phone')) {
-            virtualData[field.name] = '+1234567890';
-          } else if (field.name === 'LastName') {
-            virtualData[field.name] = 'Doe';
-          } else if (field.name === 'FirstName') {
-            virtualData[field.name] = 'John';
-          } else if (field.name === 'Company') {
-            virtualData[field.name] = 'Test Company';
-          } else {
-            virtualData[field.name] = 'Sample Text';
-          }
-          break;
-          
-        case 'Edm.Int32':
-        case 'Edm.Int64':
-          virtualData[field.name] = 0;
-          break;
-          
-        case 'Edm.DateTime':
-          virtualData[field.name] = new Date().toISOString();
-          break;
-          
-        case 'Edm.Boolean':
-          virtualData[field.name] = false;
-          break;
-          
-        default:
-          virtualData[field.name] = '';
+      // Use FakeDataGenerator for realistic data if available
+      if (fakeGenerator) {
+        switch (field.name) {
+          case 'FirstName':
+            virtualData[field.name] = fakeGenerator.generateFirstName();
+            break;
+          case 'LastName':
+            virtualData[field.name] = fakeGenerator.generateLastName();
+            break;
+          case 'Email':
+            const firstName = virtualData['FirstName'] || 'test';
+            const lastName = virtualData['LastName'] || 'user';
+            virtualData[field.name] = fakeGenerator.generateEmail(firstName, lastName);
+            break;
+          case 'Company':
+            virtualData[field.name] = fakeGenerator.generateCompany();
+            break;
+          case 'Phone':
+            virtualData[field.name] = fakeGenerator.generatePhone();
+            break;
+          case 'MobilePhone':
+            virtualData[field.name] = fakeGenerator.generateMobilePhone();
+            break;
+          case 'Title':
+            virtualData[field.name] = fakeGenerator.generateTitle();
+            break;
+          case 'Street':
+            virtualData[field.name] = fakeGenerator.generateStreet();
+            break;
+          case 'City':
+            virtualData[field.name] = fakeGenerator.generateCity();
+            break;
+          case 'PostalCode':
+            virtualData[field.name] = fakeGenerator.generatePostalCode();
+            break;
+          case 'State':
+            virtualData[field.name] = fakeGenerator.generateState();
+            break;
+          case 'Industry':
+            virtualData[field.name] = fakeGenerator.generateIndustry();
+            break;
+          case 'Website':
+            const company = virtualData['Company'] || 'Example Company';
+            virtualData[field.name] = fakeGenerator.generateWebsite(company);
+            break;
+          case 'Description':
+            virtualData[field.name] = fakeGenerator.generateDescription();
+            break;
+          default:
+            // Fallback for other fields based on type
+            virtualData[field.name] = this.generateDefaultValue(field);
+        }
+      } else {
+        // Fallback if FakeDataGenerator not available
+        virtualData[field.name] = this.generateDefaultValue(field);
       }
     });
 
@@ -132,13 +154,28 @@ class VirtualDataModal {
     return virtualData;
   }
 
-  /**
-   * Show the virtual data configuration modal
-   */
+  // Generate default value based on field type (fallback)
+  generateDefaultValue(field) {
+    switch (field.type) {
+      case 'Edm.String':
+        return 'Sample Text';
+      case 'Edm.Int32':
+      case 'Edm.Int64':
+        return 0;
+      case 'Edm.DateTime':
+        return new Date().toISOString();
+      case 'Edm.Boolean':
+        return false;
+      default:
+        return '';
+    }
+  }
+
+  // Show the virtual data configuration modal
   async show(eventId, entityType = 'LS_Lead') {
     // Fetch metadata first
     await this.fetchMetadata(entityType);
-    
+
     // Generate virtual data
     this.generateVirtualData(entityType);
 
@@ -150,13 +187,13 @@ class VirtualDataModal {
             <h2>Test Data Configuration</h2>
             <button class="close-btn" onclick="window.virtualDataModal.close()">&times;</button>
           </div>
-          
+
           <div class="modal-body">
             <p class="info-message">
               No contacts found for this event. You can configure test data below for testing the transfer.
               All fields are editable for testing purposes.
             </p>
-            
+
             <!-- Tabs -->
             <div class="field-tabs">
               <button class="tab-btn active" data-tab="standard" onclick="window.virtualDataModal.switchTab('standard')">
@@ -166,14 +203,14 @@ class VirtualDataModal {
                 Custom Fields
               </button>
             </div>
-            
+
             <!-- Standard Fields Tab -->
             <div id="standardFieldsTab" class="tab-content active">
               <div class="fields-grid">
                 ${this.renderStandardFields()}
               </div>
             </div>
-            
+
             <!-- Custom Fields Tab -->
             <div id="customFieldsTab" class="tab-content" style="display: none;">
               <div class="fields-grid">
@@ -181,7 +218,7 @@ class VirtualDataModal {
               </div>
             </div>
           </div>
-          
+
           <div class="modal-footer">
             <button class="btn btn-secondary" onclick="window.virtualDataModal.close()">Cancel</button>
             <button class="btn btn-primary" onclick="window.virtualDataModal.saveAndTest()">
@@ -194,14 +231,13 @@ class VirtualDataModal {
 
     // Add modal to DOM
     document.body.insertAdjacentHTML('beforeend', modalHTML);
-    
+
     // Attach event listeners
     this.attachEventListeners();
   }
 
-  /**
-   * Render standard fields
-   */
+  
+   // Render standard fields  
   renderStandardFields() {
     if (!this.metadata) return '';
 
@@ -219,9 +255,7 @@ class VirtualDataModal {
     `).join('');
   }
 
-  /**
-   * Render custom fields
-   */
+  // Render custom fields
   renderCustomFields() {
     const customFields = this.fieldMappingService.getAllCustomFields();
     
@@ -244,9 +278,7 @@ class VirtualDataModal {
     `).join('');
   }
 
-  /**
-   * Switch between tabs
-   */
+  // Switch between tabs
   switchTab(tabName) {
     // Update tab buttons
     document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -260,11 +292,9 @@ class VirtualDataModal {
       tabName === 'custom' ? 'block' : 'none';
   }
 
-  /**
-   * Attach event listeners
-   */
+  // Attach event listeners
   attachEventListeners() {
-    // Listen to input changes
+    // Field inputs
     document.querySelectorAll('.field-input').forEach(input => {
       input.addEventListener('input', (e) => {
         const fieldName = e.target.dataset.field;
@@ -279,7 +309,7 @@ class VirtualDataModal {
       input.addEventListener('input', (e) => {
         const fieldId = e.target.dataset.fieldId;
         const value = e.target.value;
-        
+
         // Update custom field value
         const customField = this.fieldMappingService.getCustomFieldById(fieldId);
         if (customField) {
@@ -289,9 +319,7 @@ class VirtualDataModal {
     });
   }
 
-  /**
-   * Save and test transfer
-   */
+  // Save and test transfer
   async saveAndTest() {
     try {
       // Validate required fields
@@ -309,7 +337,7 @@ class VirtualDataModal {
       // Show success message
       showToast('Test data saved successfully!', 'success');
       
-      // Trigger the test transfer (you can implement this based on your transfer logic)
+      // Trigger the test transfer 
       if (window.testTransferWithVirtualData) {
         await window.testTransferWithVirtualData(this.virtualData);
       }
@@ -320,14 +348,27 @@ class VirtualDataModal {
     }
   }
 
-  /**
-   * Close the modal
-   */
+  // Close the modal
   close() {
+    // Prevent double execution
+    if (this.isClosing) {
+      console.log('⚠️ Close already in progress, ignoring...');
+      return;
+    }
+
+    this.isClosing = true;
+    console.log('🔒 Closing Virtual Data Modal...');
+
     const modal = document.getElementById('virtualDataModal');
     if (modal) {
       modal.remove();
+      console.log('✅ Virtual Data Modal closed and removed from DOM');
+    } else {
+      console.log('⚠️ Modal already removed or not found');
     }
+
+    // Redirect back to display.html
+    window.location.href = 'display.html';
   }
 }
 
