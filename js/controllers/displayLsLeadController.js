@@ -219,12 +219,12 @@ async function checkFieldMappingAndLoad() {
     const contactsExist = await hasContactsForEvent(eventId);
 
     if (!contactsExist) {
-      // ❌ NO CONTACTS → Show VirtualDataModal (test mode)
+      // ❌ NO CONTACTS → Redirect to fieldConfigurator in virtual mode
       console.log('⚠️ No contacts found for this event');
-      console.log('🧪 Showing Virtual Data Modal for testing (no real contacts to display)');
+      console.log('🧪 Redirecting to Field Configurator in virtual mode (no real contacts to display)');
 
-      // Show virtual data configuration modal immediately
-      await showVirtualDataConfiguration(eventId);
+      // Redirect to fieldConfigurator.html in virtual mode
+      window.location.href = `fieldConfigurator.html?mode=virtual&eventId=${eventId}&entityType=LS_Lead`;
       return;
     }
 

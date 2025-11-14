@@ -639,6 +639,85 @@
         .delete-custom-field:hover {
             background: #fee;
         }
+
+        /* Field label with flags (for modified labels) */
+        .field-label-with-flags {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            margin-top: 4px;
+        }
+
+        .ls-flag {
+            color: #666;
+            font-size: 12px;
+        }
+
+        .sf-flag {
+            color: #009EDB; /* Salesforce blue */
+            font-weight: 600;
+            font-size: 12px;
+        }
+
+        .arrow {
+            color: #999;
+            margin: 0 2px;
+        }
+
+        /* Field input styling */
+        .field-input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+
+        .field-input:focus {
+            outline: none;
+            border-color: #009EDB;
+            box-shadow: 0 0 0 2px rgba(0, 158, 219, 0.1);
+        }
+
+        .field-input:read-only {
+            background: #f9fafb;
+            cursor: not-allowed;
+        }
+
+        /* Tabs for Standard/Custom Fields */
+        .field-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .tab-btn {
+            padding: 10px 20px;
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            font-size: 16px;
+            color: #666;
+            transition: all 0.3s;
+        }
+
+        .tab-btn.active {
+            color: #009EDB;
+            border-bottom-color: #009EDB;
+            font-weight: 600;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
     </style>
 </head>
 <body>
@@ -651,8 +730,17 @@
         </button>
 
         <div class="header">
-            <h1>Field Configurator</h1>
+            <h1 id="page-title">Field Configurator</h1>
             <p id="event-info">Configure which fields will be transferred to Salesforce for this event. Required fields (LastName, Company) are always included.</p>
+        </div>
+
+        <!-- Info message for virtual mode (hidden by default) -->
+        <div id="virtual-mode-info" class="config-section" style="display: none;">
+            <div style="background: #E8F4F8; border-left: 4px solid #009EDB; padding: 16px; border-radius: 4px;">
+                <p style="color: #032D60; font-size: 14px; line-height: 1.5; margin: 0;">
+                    <strong>No contacts found for this event.</strong> You can configure test data below for testing the transfer. All fields are editable for testing purposes.
+                </p>
+            </div>
         </div>
 
         <!-- Statistics -->
@@ -708,15 +796,30 @@
                 <div>Loading fields...</div>
             </div>
 
-            <!-- Action Buttons -->
-            <div class="action-buttons">
-                <button class="btn btn-secondary" onclick="selectAllFields()">Select All</button>
-                <button class="btn btn-secondary" onclick="deselectAllFields()">Deselect All</button>
+            <!-- Action Buttons - Normal Mode -->
+            <div id="normal-mode-buttons" class="action-buttons" style="display: none;">
+                <button class="btn btn-secondary" onclick="cancelConfiguration()">Cancel</button>
                 <button class="btn btn-primary" onclick="saveAndContinue()">
                     <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" style="display: inline; margin-right: 8px; vertical-align: middle;">
                         <path fill-rule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clip-rule="evenodd"/>
                     </svg>
-                    Save & Continue to Leads
+                    Save & Continue
+                </button>
+            </div>
+
+            <!-- Action Buttons - Virtual Mode -->
+            <div id="virtual-mode-buttons" class="action-buttons" style="display: none;">
+                <button class="btn btn-secondary" onclick="saveFakeDataDefaults()">
+                    <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" style="display: inline; margin-right: 8px; vertical-align: middle;">
+                        <path d="M7.707 10.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V6h5a2 2 0 012 2v7a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2h5v5.586l-1.293-1.293zM9 4a1 1 0 012 0v2H9V4z"/>
+                    </svg>
+                    Save
+                </button>
+                <button class="btn btn-primary" onclick="testTransfer()">
+                    <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" style="display: inline; margin-right: 8px; vertical-align: middle;">
+                        <path fill-rule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                    </svg>
+                    Test & Transfer
                 </button>
             </div>
         </div>
@@ -757,6 +860,16 @@
 
     <!-- Load FieldMappingService first (non-module) -->
     <script src="../js/services/mapping/FieldMappingService.js"></script>
+
+    <!-- Initialize global FieldMappingService instance -->
+    <script>
+        if (!window.fieldMappingService) {
+            window.fieldMappingService = new window.FieldMappingService();
+        }
+    </script>
+
+    <!-- Load FakeDataGenerator for virtual mode -->
+    <script src="../js/services/fakeDataGenerator.js"></script>
 
     <!-- Load controller (module) -->
     <script type="module" src="../js/controllers/fieldConfiguratorController.js"></script>

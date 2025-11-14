@@ -11,56 +11,271 @@ const DEFAULT_ACTIVE_FIELDS = [
 // Global variables
 let fieldMappingService = null;
 let allFields = []; // API fields
-let customFields = []; 
-let currentFilter = 'active'; 
+let customFields = [];
+let currentFilter = 'active';
 let searchQuery = '';
-let apiEndpoint = 'LS_Lead'; 
+let apiEndpoint = 'LS_Lead';
+let currentMode = 'normal'; // 'virtual' or 'normal'
+let virtualData = {}; // Store virtual test data
+let metadata = null; // Store metadata for virtual mode 
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', async () => {
 
     try {
         // Initialize Field Mapping Service
-        fieldMappingService = new window.FieldMappingService();
+        fieldMappingService = window.fieldMappingService || new window.FieldMappingService();
 
-        // Get event ID from URL parameters or session
+        // Get parameters from URL
         const urlParams = new URLSearchParams(window.location.search);
+        const mode = urlParams.get('mode') || 'normal'; // 'virtual' or 'normal'
         const eventId = urlParams.get('eventId') || sessionStorage.getItem('selectedEventId');
+        const entityType = urlParams.get('entityType') || 'LS_Lead';
         const leadSource = urlParams.get('source') || sessionStorage.getItem('selectedLeadSource') || 'lead';
 
-        // Determine API endpoint based on source
-        apiEndpoint = leadSource === 'leadReport' ? 'LS_LeadReport' : 'LS_Lead';
+        // Set global mode
+        currentMode = mode;
+
+        // Determine API endpoint based on entityType or leadSource
+        apiEndpoint = entityType || (leadSource === 'leadReport' ? 'LS_LeadReport' : 'LS_Lead');
+
+        console.log(`🔧 Field Configurator initializing in ${currentMode} mode for ${apiEndpoint}`);
 
         if (eventId) {
             fieldMappingService.setCurrentEventId(eventId);
             sessionStorage.setItem('selectedEventId', eventId);
             sessionStorage.setItem('selectedLeadSource', leadSource);
-
-
-
-            // Update event info
-            const eventInfo = document.getElementById('event-info');
-            if (eventInfo) {
-                eventInfo.textContent = `Configure which fields will be transferred to Salesforce for Event ${eventId}. Required fields (LastName, Company) are always included.`;
-            }
         }
 
-        // Load fields dynamically from API
-        await loadFieldsFromAPI(eventId);
+        // Configure UI based on mode
+        configureUIForMode(mode, eventId);
 
-        // Load custom fields from FieldMappingService
-        await loadCustomFields();
+        if (mode === 'virtual') {
+            // VIRTUAL MODE: Load metadata and generate fake data
+            await initVirtualMode(eventId, apiEndpoint);
+        } else {
+            // NORMAL MODE: Load existing field mapping
+            await initNormalMode(eventId);
+        }
 
         renderFields();
         setupEventListeners();
 
-        console.log('Field Configurator loaded successfully');
+        console.log('✅ Field Configurator loaded successfully');
 
     } catch (error) {
-        console.error('Failed to initialize:', error);
+        console.error('❌ Failed to initialize:', error);
         showNotification('Failed to load field configuration', 'error');
     }
 });
+
+// Configure UI elements based on mode
+function configureUIForMode(mode, eventId) {
+    const pageTitle = document.getElementById('page-title');
+    const eventInfo = document.getElementById('event-info');
+    const virtualModeInfo = document.getElementById('virtual-mode-info');
+    const normalModeButtons = document.getElementById('normal-mode-buttons');
+    const virtualModeButtons = document.getElementById('virtual-mode-buttons');
+
+    if (mode === 'virtual') {
+        // Virtual mode UI
+        if (pageTitle) pageTitle.textContent = 'Test Data Configuration';
+        if (eventInfo) eventInfo.style.display = 'none';
+        if (virtualModeInfo) virtualModeInfo.style.display = 'block';
+        if (normalModeButtons) normalModeButtons.style.display = 'none';
+        if (virtualModeButtons) virtualModeButtons.style.display = 'flex';
+    } else {
+        // Normal mode UI
+        if (pageTitle) pageTitle.textContent = 'Field Configurator';
+        if (eventInfo) {
+            eventInfo.style.display = 'block';
+            eventInfo.textContent = `Configure which fields will be transferred to Salesforce for Event ${eventId}. Required fields (LastName, Company) are always included.`;
+        }
+        if (virtualModeInfo) virtualModeInfo.style.display = 'none';
+        if (normalModeButtons) normalModeButtons.style.display = 'flex';
+        if (virtualModeButtons) virtualModeButtons.style.display = 'none';
+    }
+}
+
+// Initialize virtual mode
+async function initVirtualMode(eventId, entityType) {
+    console.log('🧪 Initializing Virtual Mode...');
+
+    // Fetch metadata from API
+    await fetchMetadata(entityType);
+
+    // Generate virtual data using FakeDataGenerator
+    generateVirtualData();
+
+    // Load custom fields from FieldMappingService
+    await loadCustomFields();
+
+    console.log('✅ Virtual mode initialized with fake data');
+}
+
+// Initialize normal mode
+async function initNormalMode(eventId) {
+    console.log('📋 Initializing Normal Mode...');
+
+    // Load fields from API
+    await loadFieldsFromAPI(eventId);
+
+    // Load custom fields from FieldMappingService
+    await loadCustomFields();
+
+    console.log('✅ Normal mode initialized');
+}
+
+// Fetch metadata from API
+async function fetchMetadata(entityType = 'LS_Lead') {
+    try {
+        const serverName = sessionStorage.getItem('serverName');
+        const apiName = sessionStorage.getItem('apiName');
+        const credentials = sessionStorage.getItem('credentials');
+
+        const endpoint = '$metadata';
+        const response = await fetch(`https://${serverName}/${apiName}/${endpoint}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Basic ${credentials}`,
+                'Accept': 'application/xml'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to fetch metadata: ${response.statusText}`);
+        }
+
+        const xmlText = await response.text();
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+
+        const entityTypes = xmlDoc.getElementsByTagName('EntityType');
+        let targetEntity = null;
+
+        for (let entity of entityTypes) {
+            if (entity.getAttribute('Name') === entityType) {
+                targetEntity = entity;
+                break;
+            }
+        }
+
+        if (!targetEntity) {
+            console.error(`EntityType ${entityType} not found in metadata`);
+            return [];
+        }
+
+        // Parse properties
+        const properties = targetEntity.getElementsByTagName('Property');
+        const fields = [];
+
+        for (let prop of properties) {
+            const name = prop.getAttribute('Name');
+            const type = prop.getAttribute('Type');
+            const nullable = prop.getAttribute('Nullable') !== 'false';
+            const maxLength = prop.getAttribute('MaxLength');
+
+            fields.push({
+                name,
+                type,
+                nullable,
+                maxLength: maxLength && maxLength !== 'Max' ? parseInt(maxLength) : null,
+                isStandardActive: DEFAULT_ACTIVE_FIELDS.includes(name)
+            });
+        }
+
+        metadata = fields;
+        allFields = fields;
+        console.log(`📡 Metadata loaded: ${fields.length} fields`);
+        return fields;
+
+    } catch (error) {
+        console.error('❌ Error fetching metadata:', error);
+        return [];
+    }
+}
+
+// Generate virtual data using FakeDataGenerator
+function generateVirtualData() {
+    if (!metadata || !window.FakeDataGenerator) {
+        console.error('❌ Metadata or FakeDataGenerator not available');
+        return;
+    }
+
+    const fakeGenerator = new window.FakeDataGenerator();
+    virtualData = {};
+
+    metadata.forEach(field => {
+        switch (field.name) {
+            case 'FirstName':
+                virtualData[field.name] = fakeGenerator.generateFirstName();
+                break;
+            case 'LastName':
+                virtualData[field.name] = fakeGenerator.generateLastName();
+                break;
+            case 'Email':
+                const firstName = virtualData['FirstName'] || 'test';
+                const lastName = virtualData['LastName'] || 'user';
+                virtualData[field.name] = fakeGenerator.generateEmail(firstName, lastName);
+                break;
+            case 'Company':
+                virtualData[field.name] = fakeGenerator.generateCompany();
+                break;
+            case 'Phone':
+                virtualData[field.name] = fakeGenerator.generatePhone();
+                break;
+            case 'MobilePhone':
+                virtualData[field.name] = fakeGenerator.generateMobilePhone();
+                break;
+            case 'Title':
+                virtualData[field.name] = fakeGenerator.generateTitle();
+                break;
+            case 'Street':
+                virtualData[field.name] = fakeGenerator.generateStreet();
+                break;
+            case 'City':
+                virtualData[field.name] = fakeGenerator.generateCity();
+                break;
+            case 'PostalCode':
+                virtualData[field.name] = fakeGenerator.generatePostalCode();
+                break;
+            case 'State':
+                virtualData[field.name] = fakeGenerator.generateState();
+                break;
+            case 'Industry':
+                virtualData[field.name] = fakeGenerator.generateIndustry();
+                break;
+            case 'Website':
+                const company = virtualData['Company'] || 'Example Company';
+                virtualData[field.name] = fakeGenerator.generateWebsite(company);
+                break;
+            case 'Description':
+                virtualData[field.name] = fakeGenerator.generateDescription();
+                break;
+            default:
+                virtualData[field.name] = generateDefaultValue(field);
+        }
+    });
+
+    console.log('🧪 Virtual data generated:', virtualData);
+}
+
+// Generate default value based on field type (fallback)
+function generateDefaultValue(field) {
+    switch (field.type) {
+        case 'Edm.String':
+            return 'Sample Text';
+        case 'Edm.Int32':
+        case 'Edm.Int64':
+            return 0;
+        case 'Edm.DateTime':
+            return new Date().toISOString();
+        case 'Edm.Boolean':
+            return false;
+        default:
+            return '';
+    }
+}
 
 // Load fields dynamically from API
 
@@ -243,9 +458,11 @@ function renderFields() {
         container.className = 'fields-grid';
         container.innerHTML = ''; // Clear container
 
-        // Create field items with event listeners (not inline onclick)
+        // Create field items based on mode
         filteredFields.forEach(field => {
-            const fieldItem = createFieldItem(field);
+            const fieldItem = currentMode === 'virtual'
+                ? createVirtualFieldItem(field)
+                : createFieldItem(field);
             container.appendChild(fieldItem);
         });
     }
@@ -390,6 +607,51 @@ function createFieldItem(field) {
     }
 
     return label;
+}
+
+// Create a virtual field item with editable input (Virtual mode)
+function createVirtualFieldItem(field) {
+    const fieldRow = document.createElement('div');
+    fieldRow.className = 'field-row';
+    fieldRow.style.marginBottom = '16px';
+
+    // Field label - NO flags in virtual mode (fields haven't been modified yet)
+    const fieldLabel = field.isCustomField
+        ? field.name  // Custom field: just the name, no "LS:" prefix
+        : field.name; // Standard field: just the name
+
+    // Get value from virtualData or field.value (for custom fields)
+    const fieldValue = field.isCustomField
+        ? (field.value || '')
+        : (virtualData[field.name] || '');
+
+    // Build HTML
+    fieldRow.innerHTML = `
+        <label class="field-label" style="font-weight: 600; color: #032D60; font-size: 14px; margin-bottom: 6px; display: block;">
+            ${fieldLabel}
+            ${field.required ? '<span style="color: #e53e3e; margin-left: 4px;">*</span>' : ''}
+        </label>
+        <input
+            type="text"
+            class="field-input"
+            ${field.isCustomField ? 'data-custom-field="true"' : 'data-field="' + field.name + '"'}
+            ${field.isCustomField ? 'data-custom-field-id="' + (field.id || '') + '"' : ''}
+            ${field.isCustomField ? 'data-sf-field="' + field.name + '"' : ''}
+            value="${fieldValue}"
+            placeholder="Enter ${fieldLabel}"
+            style="width: 100%; padding: 10px 12px; border: 1px solid #C9C7C5; border-radius: 4px; font-size: 14px;"
+        />
+    `;
+
+    // Add input event listener to update virtualData in real-time
+    const input = fieldRow.querySelector('.field-input');
+    input.addEventListener('input', (e) => {
+        const fieldName = field.isCustomField ? field.name : field.name;
+        virtualData[fieldName] = e.target.value;
+        console.log(`📝 Updated ${fieldName}:`, e.target.value);
+    });
+
+    return fieldRow;
 }
 
 // Open modal to edit custom field value
@@ -760,6 +1022,88 @@ function showConfirmDialog(title, message, options = {}) {
         document.addEventListener('keydown', handleEsc);
     });
 }
+
+// Cancel configuration (Normal mode)
+window.cancelConfiguration = function() {
+    console.log('🔙 Cancelling configuration...');
+    window.location.href = 'display.html';
+};
+
+// Save fake data defaults (Virtual mode)
+window.saveFakeDataDefaults = async function() {
+    console.log('💾 Saving fake data defaults...');
+
+    try {
+        // Collect all modified virtual data from inputs
+        document.querySelectorAll('.field-input[data-field]').forEach(input => {
+            const fieldName = input.dataset.field;
+            virtualData[fieldName] = input.value;
+        });
+
+        // Collect custom field values
+        document.querySelectorAll('.field-input[data-custom-field]').forEach(input => {
+            const fieldId = input.dataset.customFieldId;
+            const sfFieldName = input.dataset.sfField;
+            virtualData[sfFieldName] = input.value;
+        });
+
+        // TODO: Save to database via API
+        // For now, just save to sessionStorage
+        sessionStorage.setItem('virtualTestDataDefaults', JSON.stringify(virtualData));
+
+        showNotification('Test data defaults saved successfully!', 'success');
+        console.log('✅ Virtual data defaults saved:', virtualData);
+
+    } catch (error) {
+        console.error('❌ Error saving fake data defaults:', error);
+        showNotification('Error saving test data defaults', 'error');
+    }
+};
+
+// Test & Transfer (Virtual mode)
+window.testTransfer = async function() {
+    console.log('🚀 Test & Transfer starting...');
+
+    try {
+        // Validate required fields
+        if (!virtualData.LastName || !virtualData.Company) {
+            showNotification('LastName and Company are required fields!', 'error');
+            return;
+        }
+
+        // Collect all modified virtual data from inputs
+        document.querySelectorAll('.field-input[data-field]').forEach(input => {
+            const fieldName = input.dataset.field;
+            virtualData[fieldName] = input.value;
+        });
+
+        // Collect custom field values
+        document.querySelectorAll('.field-input[data-custom-field]').forEach(input => {
+            const fieldId = input.dataset.customFieldId;
+            const sfFieldName = input.dataset.sfField;
+            virtualData[sfFieldName] = input.value;
+        });
+
+        // Save to sessionStorage for the display page
+        sessionStorage.setItem('virtualTestData', JSON.stringify(virtualData));
+        console.log('💾 Virtual test data saved to sessionStorage:', virtualData);
+
+        // Determine redirect page based on entityType
+        const entityType = apiEndpoint;
+        const redirectPage = entityType === 'LS_LeadReport' ? 'displayLsLeadReport.html' : 'displayLsLead.html';
+
+        showNotification('Redirecting to test with fake data...', 'success');
+
+        // Redirect to display page
+        setTimeout(() => {
+            window.location.href = redirectPage;
+        }, 500);
+
+    } catch (error) {
+        console.error('❌ Error in test & transfer:', error);
+        showNotification('Error during test & transfer', 'error');
+    }
+};
 
 // Setup event listeners
 
