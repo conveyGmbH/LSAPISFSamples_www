@@ -394,5 +394,3 @@ const fakeDataGenerator = new FakeDataGenerator();
 // Export for use in other modules
 window.FakeDataGenerator = FakeDataGenerator;
 window.fakeDataGenerator = fakeDataGenerator;
-
-export default fakeDataGenerator;

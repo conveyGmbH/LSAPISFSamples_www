@@ -180,7 +180,9 @@ async function fetchMetadata(entityType = 'LS_Lead') {
                 type,
                 nullable,
                 maxLength: maxLength && maxLength !== 'Max' ? parseInt(maxLength) : null,
-                isStandardActive: DEFAULT_ACTIVE_FIELDS.includes(name)
+                isStandardActive: DEFAULT_ACTIVE_FIELDS.includes(name),
+                required: REQUIRED_FIELDS.includes(name), // Mark required fields
+                active: DEFAULT_ACTIVE_FIELDS.includes(name) || REQUIRED_FIELDS.includes(name) // Active by default for DEFAULT_ACTIVE_FIELDS
             });
         }
 
@@ -207,6 +209,9 @@ function generateVirtualData() {
 
     metadata.forEach(field => {
         switch (field.name) {
+            case 'Salutation':
+                virtualData[field.name] = fakeGenerator.generateSalutation ? fakeGenerator.generateSalutation() : 'Mr.';
+                break;
             case 'FirstName':
                 virtualData[field.name] = fakeGenerator.generateFirstName();
                 break;
@@ -261,10 +266,13 @@ function generateVirtualData() {
 }
 
 // Generate default value based on field type (fallback)
+// For unknown fields (like Question01, Question02, etc.), use the field name as the value
 function generateDefaultValue(field) {
     switch (field.type) {
         case 'Edm.String':
-            return 'Sample Text';
+            // Use the field name as default value for string fields (e.g., Question01 → "Question01")
+            // This gives the client some default test data for fields not in FakeDataGenerator
+            return field.name || 'Sample Text';
         case 'Edm.Int32':
         case 'Edm.Int64':
             return 0;
@@ -273,7 +281,7 @@ function generateDefaultValue(field) {
         case 'Edm.Boolean':
             return false;
         default:
-            return '';
+            return field.name || '';
     }
 }
 
@@ -609,49 +617,132 @@ function createFieldItem(field) {
     return label;
 }
 
-// Create a virtual field item with editable input (Virtual mode)
+// Create a virtual field item with checkbox and editable input (Virtual mode)
 function createVirtualFieldItem(field) {
-    const fieldRow = document.createElement('div');
-    fieldRow.className = 'field-row';
-    fieldRow.style.marginBottom = '16px';
-
-    // Field label - NO flags in virtual mode (fields haven't been modified yet)
-    const fieldLabel = field.isCustomField
-        ? field.name  // Custom field: just the name, no "LS:" prefix
-        : field.name; // Standard field: just the name
+    const label = document.createElement('label');
+    label.className = `field-item ${field.active ? 'active' : ''} ${field.required ? 'required' : ''} ${field.isCustomField ? 'user-custom-field' : ''}`;
+    label.dataset.field = field.name;
+    label.dataset.isCustom = field.isCustomField || false;
+    label.dataset.fieldId = field.id || '';
 
     // Get value from virtualData or field.value (for custom fields)
     const fieldValue = field.isCustomField
         ? (field.value || '')
         : (virtualData[field.name] || '');
 
-    // Build HTML
-    fieldRow.innerHTML = `
-        <label class="field-label" style="font-weight: 600; color: #032D60; font-size: 14px; margin-bottom: 6px; display: block;">
-            ${fieldLabel}
-            ${field.required ? '<span style="color: #e53e3e; margin-left: 4px;">*</span>' : ''}
-        </label>
-        <input
-            type="text"
-            class="field-input"
-            ${field.isCustomField ? 'data-custom-field="true"' : 'data-field="' + field.name + '"'}
-            ${field.isCustomField ? 'data-custom-field-id="' + (field.id || '') + '"' : ''}
-            ${field.isCustomField ? 'data-sf-field="' + field.name + '"' : ''}
-            value="${fieldValue}"
-            placeholder="Enter ${fieldLabel}"
-            style="width: 100%; padding: 10px 12px; border: 1px solid #C9C7C5; border-radius: 4px; font-size: 14px;"
-        />
+    // Field name display - NO "LS:" prefix in virtual mode (fields not modified yet)
+    const fieldLabel = field.isCustomField
+        ? field.name  // Custom field: just the name
+        : field.name; // Standard field: just the name
+
+    // Build HTML with checkbox + label + editable input
+    label.innerHTML = `
+        <input type="checkbox"
+               class="field-checkbox"
+               ${field.active ? 'checked' : ''}
+               ${field.required ? 'disabled' : ''} />
+        <div class="field-info" style="flex: 1;">
+            <div class="field-name">
+                ${fieldLabel}
+                ${field.required ? '<span class="required-badge">REQUIRED</span>' : ''}
+            </div>
+            <input
+                type="text"
+                class="field-input"
+                ${field.isCustomField ? 'data-custom-field="true"' : 'data-field="' + field.name + '"'}
+                ${field.isCustomField ? 'data-custom-field-id="' + (field.id || '') + '"' : ''}
+                ${field.isCustomField ? 'data-sf-field="' + field.name + '"' : ''}
+                value="${fieldValue}"
+                placeholder="Enter ${fieldLabel}"
+                style="width: 100%; padding: 8px 12px; border: 1px solid #C9C7C5; border-radius: 4px; font-size: 14px; margin-top: 6px;"
+                onclick="event.stopPropagation()"
+            />
+        </div>
+        ${field.isCustomField ? `
+            <button class="delete-custom-field" title="Delete custom field">
+                <i class="fas fa-trash"></i>
+            </button>
+        ` : ''}
     `;
 
-    // Add input event listener to update virtualData in real-time
-    const input = fieldRow.querySelector('.field-input');
+    // Add event listeners
+    const checkbox = label.querySelector('.field-checkbox');
+    const input = label.querySelector('.field-input');
+    const deleteBtn = label.querySelector('.delete-custom-field');
+
+    // Checkbox toggle handler
+    checkbox.addEventListener('change', async (e) => {
+        e.stopPropagation();
+        const isChecked = checkbox.checked;
+
+        if (field.required) {
+            checkbox.checked = true;
+            return;
+        }
+
+        // Update field active state
+        field.active = isChecked;
+
+        // If it's a custom field, save the active state to the database
+        if (field.isCustomField && field.id) {
+            try {
+                await window.fieldMappingService.updateCustomField(field.id, {
+                    active: isChecked
+                });
+                console.log(`💾 Saved custom field "${field.name}" active state (${isChecked}) to database`);
+            } catch (error) {
+                console.error(`❌ Error saving custom field active state:`, error);
+                // Revert the checkbox if save failed
+                checkbox.checked = !isChecked;
+                field.active = !isChecked;
+                showNotification('Error saving field state', 'error');
+                return;
+            }
+        }
+
+        // Update UI
+        if (isChecked) {
+            label.classList.add('active');
+        } else {
+            label.classList.remove('active');
+        }
+
+        // Update statistics
+        updateStatistics();
+
+        console.log(`✅ Field ${field.name} ${isChecked ? 'activated' : 'deactivated'}`);
+    });
+
+    // Input change handler
     input.addEventListener('input', (e) => {
         const fieldName = field.isCustomField ? field.name : field.name;
         virtualData[fieldName] = e.target.value;
         console.log(`📝 Updated ${fieldName}:`, e.target.value);
     });
 
-    return fieldRow;
+    // Delete button for custom fields
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            if (confirm(`Delete custom field "${field.name}"?`)) {
+                try {
+                    await fieldMappingService.deleteCustomField(field.id);
+                    // Remove from customFields array
+                    customFields = customFields.filter(f => f.id !== field.id);
+                    // Re-render fields
+                    renderFields();
+                    showNotification(`Custom field "${field.name}" deleted successfully`, 'success');
+                } catch (error) {
+                    console.error('Failed to delete custom field:', error);
+                    showNotification('Failed to delete custom field', 'error');
+                }
+            }
+        });
+    }
+
+    return label;
 }
 
 // Open modal to edit custom field value
@@ -1034,17 +1125,25 @@ window.saveFakeDataDefaults = async function() {
     console.log('💾 Saving fake data defaults...');
 
     try {
-        // Collect all modified virtual data from inputs
+        // Collect all modified virtual data from inputs (only from active fields)
         document.querySelectorAll('.field-input[data-field]').forEach(input => {
             const fieldName = input.dataset.field;
-            virtualData[fieldName] = input.value;
+            // Only collect if field is active
+            const field = allFields.find(f => f.name === fieldName);
+            if (field && field.active) {
+                virtualData[fieldName] = input.value;
+            }
         });
 
-        // Collect custom field values
+        // Collect custom field values (only from active fields)
         document.querySelectorAll('.field-input[data-custom-field]').forEach(input => {
             const fieldId = input.dataset.customFieldId;
             const sfFieldName = input.dataset.sfField;
-            virtualData[sfFieldName] = input.value;
+            // Only collect if custom field is active
+            const customField = customFields.find(f => f.name === sfFieldName);
+            if (customField && customField.active) {
+                virtualData[sfFieldName] = input.value;
+            }
         });
 
         // TODO: Save to database via API
@@ -1071,22 +1170,57 @@ window.testTransfer = async function() {
             return;
         }
 
-        // Collect all modified virtual data from inputs
+        // Collect all modified virtual data from inputs (only from active fields)
         document.querySelectorAll('.field-input[data-field]').forEach(input => {
             const fieldName = input.dataset.field;
-            virtualData[fieldName] = input.value;
+            // Only collect if field is active
+            const field = allFields.find(f => f.name === fieldName);
+            if (field && field.active) {
+                virtualData[fieldName] = input.value;
+            }
         });
 
-        // Collect custom field values
+        // Collect custom field values (only from active fields)
         document.querySelectorAll('.field-input[data-custom-field]').forEach(input => {
             const fieldId = input.dataset.customFieldId;
             const sfFieldName = input.dataset.sfField;
-            virtualData[sfFieldName] = input.value;
+            // Only collect if custom field is active
+            const customField = customFields.find(f => f.name === sfFieldName);
+            if (customField && customField.active) {
+                virtualData[sfFieldName] = input.value;
+            }
+        });
+
+        // Get only ACTIVE fields for display
+        const activeFieldNames = [];
+        allFields.forEach(field => {
+            if (field.active) {
+                activeFieldNames.push(field.name);
+            }
+        });
+        customFields.forEach(field => {
+            if (field.active) {
+                activeFieldNames.push(field.name);
+            }
+        });
+
+        // Filter virtualData to only include active fields
+        const activeVirtualData = {};
+        activeFieldNames.forEach(fieldName => {
+            if (virtualData.hasOwnProperty(fieldName)) {
+                activeVirtualData[fieldName] = virtualData[fieldName];
+            }
         });
 
         // Save to sessionStorage for the display page
-        sessionStorage.setItem('virtualTestData', JSON.stringify(virtualData));
-        console.log('💾 Virtual test data saved to sessionStorage:', virtualData);
+        sessionStorage.setItem('virtualTestData', JSON.stringify(activeVirtualData));
+        sessionStorage.setItem('virtualTestDataActiveFields', JSON.stringify(activeFieldNames));
+        console.log('💾 Virtual test data saved to sessionStorage:', activeVirtualData);
+        console.log('📋 Active fields:', activeFieldNames);
+
+        // Get eventId from URL params
+        const urlParams = new URLSearchParams(window.location.search);
+        const eventId = urlParams.get('eventId') || sessionStorage.getItem('selectedEventId');
 
         // Determine redirect page based on entityType
         const entityType = apiEndpoint;
@@ -1094,9 +1228,9 @@ window.testTransfer = async function() {
 
         showNotification('Redirecting to test with fake data...', 'success');
 
-        // Redirect to display page
+        // Redirect to display page with eventId
         setTimeout(() => {
-            window.location.href = redirectPage;
+            window.location.href = `${redirectPage}?eventId=${eventId}&mode=virtual`;
         }, 500);
 
     } catch (error) {

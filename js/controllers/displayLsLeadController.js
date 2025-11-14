@@ -214,6 +214,17 @@ async function checkFieldMappingAndLoad() {
   }
 
   try {
+    // Check if we're in virtual mode (coming from fieldConfigurator with fake data)
+    const urlParams = new URLSearchParams(window.location.search);
+    const mode = urlParams.get('mode');
+
+    if (mode === 'virtual') {
+      // 🧪 VIRTUAL MODE: Load fake data from sessionStorage
+      console.log('🧪 Virtual mode detected - loading fake data from sessionStorage');
+      loadVirtualData();
+      return;
+    }
+
     // 🔍 Step 1: FIRST check if contacts exist for this event
     console.log('🔍 Step 1: Checking if contacts exist for this event...');
     const contactsExist = await hasContactsForEvent(eventId);
@@ -1084,6 +1095,60 @@ async function sortTable(index, th) {
   }
 }
 
+// Load virtual test data from sessionStorage (Virtual Mode)
+function loadVirtualData() {
+  try {
+    console.log('🧪 Loading virtual data from sessionStorage...');
+
+    // Get virtual test data from sessionStorage
+    const virtualTestDataStr = sessionStorage.getItem('virtualTestData');
+    const activeFieldsStr = sessionStorage.getItem('virtualTestDataActiveFields');
+
+    if (!virtualTestDataStr) {
+      console.error('❌ No virtual test data found in sessionStorage');
+      alert('No test data available. Please configure test data first.');
+      window.location.href = 'display.html';
+      return;
+    }
+
+    const virtualData = JSON.parse(virtualTestDataStr);
+    const activeFields = activeFieldsStr ? JSON.parse(activeFieldsStr) : Object.keys(virtualData);
+
+    console.log('💾 Virtual data loaded:', virtualData);
+    console.log('📋 Active fields:', activeFields);
+
+    // Create a mock lead object with virtual data
+    const mockLead = {
+      Id: 'VIRTUAL_TEST_' + Date.now(),
+      ...virtualData,
+      __metadata: { type: 'LS_Lead' }
+    };
+
+    // Set active field names in FieldMappingService for filtering
+    if (window.fieldMappingService && activeFields) {
+      // Use setFieldConfigLocal (not setFieldConfig) to avoid API calls in virtual mode
+      activeFields.forEach(fieldName => {
+        window.fieldMappingService.setFieldConfigLocal(fieldName, {
+          active: true,
+          fieldName: fieldName
+        });
+      });
+
+      console.log('✅ Configured active fields in FieldMappingService (local only)');
+    }
+
+    // Display virtual data in table with all active fields visible
+    displayData([mockLead], true);
+
+    console.log('✅ Virtual test data displayed in table');
+
+  } catch (error) {
+    console.error('❌ Error loading virtual data:', error);
+    alert('Error loading test data. Please try again.');
+    window.location.href = 'display.html';
+  }
+}
+
 function displayData(data, showAllFields = false) {
   const tableHead = document.getElementById('tableHead');
   const tableBody = document.getElementById('tableBody');
@@ -1116,10 +1181,13 @@ function displayData(data, showAllFields = false) {
     return activeFieldNames.includes(header);
   });
 
-  // Add custom fields at the end
+  // Add custom fields at the end (avoid duplicates)
   const headersWithCustom = [...headers];
   activeCustomFields.forEach(customField => {
-    headersWithCustom.push(customField.sfFieldName);
+    // Only add if not already in headers
+    if (!headersWithCustom.includes(customField.sfFieldName)) {
+      headersWithCustom.push(customField.sfFieldName);
+    }
   });
 
   const headerRow = document.createElement('tr');
@@ -1176,8 +1244,8 @@ function displayData(data, showAllFields = false) {
         // Check if this is a custom field
         const customField = activeCustomFields.find(f => f.sfFieldName === header);
         if (customField) {
-          // Display the custom field's default value
-          td.textContent = customField.value || 'N/A';
+          // In virtual mode, use the value from item (virtualData), otherwise use default value
+          td.textContent = item[header] || customField.value || 'N/A';
           td.style.fontStyle = 'italic';
           td.style.color = '#8b5cf6';
         } else {
