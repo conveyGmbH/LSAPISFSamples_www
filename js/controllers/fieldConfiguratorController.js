@@ -164,13 +164,24 @@ async function loadCustomFields() {
         }
 
         const loadedCustomFields = fieldMappingService.getAllCustomFields();
-        customFields = loadedCustomFields.map(field => ({
-            id: field.id,
-            name: field.sfFieldName,
-            value: field.value || '',
-            active: field.active !== false,
-            isCustomField: true
-        }));
+        console.log('📋 Raw custom fields from service:', loadedCustomFields);
+
+        customFields = loadedCustomFields.map(field => {
+            console.log('🔍 Processing custom field:', field);
+
+            // Try multiple possible field name properties
+            const fieldName = field.sfFieldName || field.fieldName || field.name || 'Unnamed Field';
+
+            return {
+                id: field.id,
+                name: fieldName,
+                value: field.value || '',
+                active: field.active !== false,
+                isCustomField: true
+            };
+        });
+
+        console.log('✅ Loaded custom fields:', customFields);
 
     } catch (error) {
         console.error('Failed to load custom fields:', error);
@@ -197,12 +208,17 @@ function renderFields() {
         addCustomFieldBtn.style.display = currentFilter === 'custom' ? 'flex' : 'none';
     }
 
-    // Filter fields
+    // Filter fields - FIXED: custom fields now appear in all tabs based on their state
     let filteredFields = allFieldsCombined.filter(field => {
+        // "Custom Fields" tab: show ONLY custom fields (regardless of active state)
+        if (currentFilter === 'custom') {
+            return field.isCustomField;
+        }
+
+        // All other tabs: include BOTH API fields AND custom fields based on state
         if (currentFilter === 'active' && !field.active) return false;
         if (currentFilter === 'inactive' && field.active) return false;
         if (currentFilter === 'required' && !field.required) return false;
-        if (currentFilter === 'custom' && !field.isCustomField) return false;
 
         if (searchQuery) {
             const query = searchQuery.toLowerCase();
@@ -225,56 +241,182 @@ function renderFields() {
         `;
     } else {
         container.className = 'fields-grid';
-        container.innerHTML = filteredFields.map(field => `
-            <label class="field-item ${field.active ? 'active' : ''} ${field.required ? 'required' : ''} ${field.isCustomField ? 'user-custom-field' : ''}"
-                   data-field="${field.name}"
-                   data-is-custom="${field.isCustomField || false}">
-                <input type="checkbox"
-                       class="field-checkbox"
-                       ${field.active ? 'checked' : ''}
-                       ${field.required ? 'disabled' : ''}
-                       onchange="toggleField('${field.name}', this.checked, ${field.isCustomField || false})" />
-                <div class="field-info">
-                    <div class="field-name">
-                        ${field.name}
-                        ${field.required ? '<span class="required-badge">REQUIRED</span>' : ''}
-                        ${field.isCustomField ? '<span class="user-custom-badge">CUSTOM</span>' : ''}
-                    </div>
-                    ${field.isCustomField && field.value ? `<div class="field-value-preview">${field.value}</div>` : ''}
-                </div>
-                ${field.isCustomField ? `<button class="delete-custom-field" onclick="deleteCustomField(event, '${field.id}')" title="Delete custom field"><i class="fas fa-trash"></i></button>` : ''}
-            </label>
-        `).join('');
+        container.innerHTML = ''; // Clear container
+
+        // Create field items with event listeners (not inline onclick)
+        filteredFields.forEach(field => {
+            const fieldItem = createFieldItem(field);
+            container.appendChild(fieldItem);
+        });
     }
 }
 
-// Toggle field active status (in memory only, no DB save) 
-window.toggleField = function(fieldName, checked, isCustomField = false) {
-    let field;
+// Create a field item element with proper event listeners
+function createFieldItem(field) {
+    const label = document.createElement('label');
+    label.className = `field-item ${field.active ? 'active' : ''} ${field.required ? 'required' : ''} ${field.isCustomField ? 'user-custom-field' : ''}`;
+    label.dataset.field = field.name;
+    label.dataset.isCustom = field.isCustomField || false;
+    label.dataset.fieldId = field.id || '';
 
-    if (isCustomField) {
-        field = customFields.find(f => f.name === fieldName);
+    // Field name display - FIXED: show actual field names for custom fields
+    let fieldNameDisplay = '';
+    if (field.isCustomField) {
+        // Custom field: show "Custom" badge in purple + actual field name
+        fieldNameDisplay = `
+            <div class="field-name">
+                <span style="color: #805ad5; font-weight: 600; font-size: 0.75rem; margin-right: 4px;">Custom:</span>
+                <span>${field.name}</span>
+                ${field.required ? '<span class="required-badge">REQUIRED</span>' : ''}
+            </div>
+        `;
     } else {
-        field = allFields.find(f => f.name === fieldName);
+        // API field: show LS: prefix + field name
+        fieldNameDisplay = `
+            <div class="field-name">
+                <span style="color: #718096; font-size: 0.75rem; margin-right: 4px;">LS:</span>
+                <span>${field.name}</span>
+                ${field.required ? '<span class="required-badge">REQUIRED</span>' : ''}
+            </div>
+        `;
     }
 
-    if (!field || field.required) return;
+    // Build HTML structure
+    label.innerHTML = `
+        <input type="checkbox"
+               class="field-checkbox"
+               ${field.active ? 'checked' : ''}
+               ${field.required ? 'disabled' : ''} />
+        <div class="field-info">
+            ${fieldNameDisplay}
+            ${field.isCustomField && field.value ? `
+                <div class="field-value-preview" style="font-size: 0.875rem; color: #4a5568; margin-top: 4px;">
+                    Value: <span style="font-weight: 500;">${field.value}</span>
+                </div>
+            ` : ''}
+        </div>
+        ${field.isCustomField ? `
+            <button class="delete-custom-field" title="Delete custom field">
+                <i class="fas fa-trash"></i>
+            </button>
+        ` : ''}
+    `;
 
-    // Update in memory only
-    field.active = checked;
+    // Add event listeners
+    const checkbox = label.querySelector('.field-checkbox');
+    const deleteBtn = label.querySelector('.delete-custom-field');
 
-    // Update the field item styling
-    const fieldItem = document.querySelector(`[data-field="${fieldName}"]`);
-    if (fieldItem) {
-        if (checked) {
-            fieldItem.classList.add('active');
-        } else {
-            fieldItem.classList.remove('active');
+    // Toggle handler - updates local state only (no DB save until saveAndContinue)
+    checkbox.addEventListener('change', (e) => {
+        e.stopPropagation();
+        const isChecked = checkbox.checked;
+
+        if (field.required) {
+            checkbox.checked = true;
+            return;
         }
+
+        // Update local state only (both API and custom fields)
+        field.active = isChecked;
+
+        // Update UI immediately
+        if (isChecked) {
+            label.classList.add('active');
+        } else {
+            label.classList.remove('active');
+        }
+
+        // Update statistics in real-time
+        updateStatistics();
+
+        console.log(`✅ Field ${field.name} ${isChecked ? 'activated' : 'deactivated'} (not saved yet)`);
+    });
+
+    // Delete handler for custom fields
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            // Use modern confirmation dialog
+            const confirmed = await showConfirmDialog(
+                'Delete Custom Field?',
+                `Are you sure you want to delete the custom field "${field.name}"?\n\nThis action cannot be undone.`,
+                {
+                    confirmText: 'Delete',
+                    cancelText: 'Cancel',
+                    type: 'danger'
+                }
+            );
+
+            if (!confirmed) {
+                return;
+            }
+
+            try {
+                console.log(`🗑️ Deleting custom field ${field.name} (ID: ${field.id})`);
+
+                // Delete from service (this updates fieldMappingService.customFields AND localStorage)
+                await fieldMappingService.deleteCustomField(field.id);
+
+                // Reload custom fields from service to ensure sync
+                await loadCustomFields();
+
+                // Re-render all fields immediately to update the UI
+                renderFields();
+                updateStatistics();
+
+                showNotification(`Custom field "${field.name}" deleted successfully`, 'success');
+                console.log(`✅ Custom field ${field.name} deleted and UI refreshed`);
+
+            } catch (error) {
+                console.error('Failed to delete custom field:', error);
+                showNotification('Failed to delete custom field', 'error');
+            }
+        });
     }
 
-    updateStatistics();
-    console.log(`Field ${fieldName} ${checked ? 'activated' : 'deactivated'} (not saved yet)`);
+    // Make field name clickable for inline editing (custom fields only)
+    if (field.isCustomField) {
+        const fieldNameElement = label.querySelector('.field-name');
+        fieldNameElement.style.cursor = 'pointer';
+        fieldNameElement.title = 'Click to edit field value';
+
+        fieldNameElement.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            openEditCustomFieldModal(field);
+        });
+    }
+
+    return label;
+}
+
+// Open modal to edit custom field value
+function openEditCustomFieldModal(field) {
+    const modal = document.getElementById('customFieldModal');
+    const modalHeader = modal?.querySelector('.modal-header');
+    if (!modal) return;
+
+    // Update modal title
+    if (modalHeader) {
+        modalHeader.textContent = 'Edit Custom Field';
+    }
+
+    // Pre-fill with existing values
+    document.getElementById('customFieldName').value = field.name;
+    document.getElementById('customFieldName').disabled = true; // Don't allow name change
+    document.getElementById('customFieldValue').value = field.value || '';
+
+    // Store field ID for update
+    modal.dataset.editingFieldId = field.id;
+    modal.style.display = 'flex';
+}
+
+// Legacy toggle function - kept for compatibility but not used anymore
+// Real-time toggle is now handled in createFieldItem()
+window.toggleField = function(fieldName, checked, isCustomField = false) {
+    console.warn('⚠️ Legacy toggleField called - this should not happen with new implementation');
 };
 
 // Select all fields (in memory only, no DB save)
@@ -302,7 +444,6 @@ window.deselectAllFields = function() {
 // Save configuration and continue
 window.saveAndContinue = async function() {
     try {
-        console.log('💾 Saving configuration...');
 
         // Update field configurations in memory WITHOUT triggering individual API saves
         // We'll do one bulk save at the end
@@ -387,14 +528,26 @@ function updateStatistics() {
 }
 
 // Open modal to add custom field
- 
+
 window.openAddCustomFieldModal = function() {
     const modal = document.getElementById('customFieldModal');
+    const modalHeader = modal?.querySelector('.modal-header');
+
     if (modal) {
         modal.style.display = 'flex';
+
+        // Update modal title
+        if (modalHeader) {
+            modalHeader.textContent = 'Add Custom Field';
+        }
+
         // Clear previous values
         document.getElementById('customFieldName').value = '';
+        document.getElementById('customFieldName').disabled = false; // Enable for new field
         document.getElementById('customFieldValue').value = '';
+
+        // Clear editing state
+        delete modal.dataset.editingFieldId;
     }
 };
 
@@ -403,107 +556,213 @@ window.closeCustomFieldModal = function() {
     const modal = document.getElementById('customFieldModal');
     if (modal) {
         modal.style.display = 'none';
+        // Reset editing state
+        delete modal.dataset.editingFieldId;
+        document.getElementById('customFieldName').disabled = false;
     }
 };
 
-// Save custom field
+// Save custom field (handles both create and update)
 
 window.saveCustomField = async function() {
     const fieldName = document.getElementById('customFieldName').value.trim();
     const fieldValue = document.getElementById('customFieldValue').value.trim();
+    const modal = document.getElementById('customFieldModal');
+    const editingFieldId = modal?.dataset.editingFieldId;
 
     if (!fieldName) {
         showNotification('Field name is required', 'error');
         return;
     }
 
-    // Validate field name (no spaces, no special characters except underscore)
-    if (!/^[a-zA-Z][a-zA-Z0-9_]*$/.test(fieldName)) {
+    // Validate field name (no spaces, no special characters except underscore) - only for new fields
+    if (!editingFieldId && !/^[a-zA-Z][a-zA-Z0-9_]*$/.test(fieldName)) {
         showNotification('Invalid field name. Use only letters, numbers, and underscores. Must start with a letter.', 'error');
         return;
     }
 
-    // Check if field name already exists
-    const allFieldsCombined = getAllFieldsForRendering();
-    if (allFieldsCombined.some(f => f.name === fieldName)) {
-        showNotification('A field with this name already exists', 'error');
-        return;
+    // Check if field name already exists (only for new fields)
+    if (!editingFieldId) {
+        const allFieldsCombined = getAllFieldsForRendering();
+        if (allFieldsCombined.some(f => f.name === fieldName)) {
+            showNotification('A field with this name already exists', 'error');
+            return;
+        }
     }
 
     try {
-        // Use field name as-is (no __c suffix needed - fields already exist in Salesforce)
-        const sfFieldName = fieldName;
+        if (editingFieldId) {
+            // UPDATE existing custom field
+            console.log(`🔄 Updating custom field ${fieldName} with new value: ${fieldValue}`);
 
-        // Save to FieldMappingService
-        if (fieldMappingService && fieldMappingService.addCustomField) {
-            const newField = await fieldMappingService.addCustomField({
-                sfFieldName: sfFieldName,
-                value: fieldValue,
-                active: true
+            // Update in FieldMappingService
+            await fieldMappingService.updateCustomField(editingFieldId, {
+                value: fieldValue
             });
 
-            // Add to local customFields array
-            customFields.push({
-                id: newField.id,
-                name: sfFieldName,
-                value: fieldValue,
-                active: true,
-                isCustomField: true
-            });
+            // Update in local array
+            const localField = customFields.find(f => f.id === editingFieldId);
+            if (localField) {
+                localField.value = fieldValue;
+            }
 
-            // Switch to Active Fields tab after adding custom field
-            currentFilter = 'active';
-            document.querySelectorAll('.filter-tab').forEach(tab => {
-                tab.classList.remove('active');
-                if (tab.getAttribute('data-filter') === 'active') {
-                    tab.classList.add('active');
-                }
-            });
-
-            showNotification('Custom field added successfully!', 'success');
+            showNotification(`Custom field "${fieldName}" updated successfully!`, 'success');
             closeCustomFieldModal();
+
+            // Re-render to show updated value
             renderFields();
+
         } else {
-            throw new Error('FieldMappingService.addCustomField not available');
+            // CREATE new custom field
+            console.log(`➕ Creating new custom field ${fieldName} with value: ${fieldValue}`);
+
+            // Use field name as-is (no __c suffix needed - fields already exist in Salesforce)
+            const sfFieldName = fieldName;
+
+            // Save to FieldMappingService
+            if (fieldMappingService && fieldMappingService.addCustomField) {
+                const newField = await fieldMappingService.addCustomField({
+                    sfFieldName: sfFieldName,
+                    value: fieldValue,
+                    active: true
+                });
+
+                // Add to local customFields array
+                customFields.push({
+                    id: newField.id,
+                    name: sfFieldName,
+                    value: fieldValue,
+                    active: true,
+                    isCustomField: true
+                });
+
+                // Stay on Custom Fields tab (do NOT switch to Active Fields)
+                currentFilter = 'custom';
+                document.querySelectorAll('.filter-tab').forEach(tab => {
+                    tab.classList.remove('active');
+                    if (tab.getAttribute('data-filter') === 'custom') {
+                        tab.classList.add('active');
+                    }
+                });
+
+                showNotification(`Custom field "${fieldName}" added successfully!`, 'success');
+                closeCustomFieldModal();
+                renderFields();
+            } else {
+                throw new Error('FieldMappingService.addCustomField not available');
+            }
         }
 
     } catch (error) {
-        console.error('Failed to add custom field:', error);
-        showNotification('Failed to add custom field: ' + error.message, 'error');
+        console.error('Failed to save custom field:', error);
+        showNotification('Failed to save custom field: ' + error.message, 'error');
     }
 };
 
-// Delete custom field
-window.deleteCustomField = async function(event, fieldId) {
-    event.preventDefault();
-    event.stopPropagation();
-
-    if (!confirm('Are you sure you want to delete this custom field?')) {
-        return;
-    }
-
-    try {
-        // Remove from FieldMappingService
-        if (fieldMappingService && fieldMappingService.deleteCustomField) {
-            await fieldMappingService.deleteCustomField(fieldId);
-
-            // Remove from local array
-            customFields = customFields.filter(f => f.id !== fieldId);
-
-            showNotification('Custom field deleted successfully', 'success');
-            renderFields();
-        } else {
-            throw new Error('FieldMappingService.deleteCustomField not available');
-        }
-
-    } catch (error) {
-        console.error('Failed to delete custom field:', error);
-        showNotification('Failed to delete custom field: ' + error.message, 'error');
-    }
+// Legacy delete function - kept for compatibility but not used anymore
+// Real-time delete is now handled in createFieldItem()
+window.deleteCustomField = async function() {
+    console.warn('⚠️ Legacy deleteCustomField called - this should not happen with new implementation');
 };
+
+// Modern confirm dialog (Salesforce-styled)
+function showConfirmDialog(title, message, options = {}) {
+    return new Promise((resolve) => {
+        const {
+            confirmText = 'OK',
+            cancelText = 'Cancel',
+            type = 'danger' // warning, danger, info
+        } = options;
+
+        const typeColors = {
+            warning: 'bg-yellow-500 hover:bg-yellow-600',
+            danger: 'bg-red-500 hover:bg-red-600',
+            info: 'bg-blue-500 hover:bg-blue-600'
+        };
+
+        const typeIcons = {
+            warning: '<i class="fas fa-exclamation-triangle text-yellow-500 text-4xl mb-4"></i>',
+            danger: '<i class="fas fa-trash-alt text-red-500 text-4xl mb-4"></i>',
+            info: '<i class="fas fa-info-circle text-blue-500 text-4xl mb-4"></i>'
+        };
+
+        const escapeHtml = (text) => {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        };
+
+        const modalHTML = `
+            <div id="modern-confirm-modal" class="fixed inset-0 z-[9999] flex items-center justify-center" style="background: rgba(0, 0, 0, 0.5); animation: fadeIn 0.2s ease-out;">
+                <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 transform" style="animation: slideUp 0.3s ease-out;">
+                    <div class="p-6 text-center">
+                        ${typeIcons[type]}
+                        <h3 class="text-xl font-bold text-gray-900 mb-2">${escapeHtml(title)}</h3>
+                        <p class="text-gray-600 mb-6 whitespace-pre-line">${escapeHtml(message)}</p>
+                        <div class="flex gap-3 justify-center">
+                            <button id="modal-cancel-btn" class="px-6 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-medium transition-colors">
+                                ${escapeHtml(cancelText)}
+                            </button>
+                            <button id="modal-confirm-btn" class="px-6 py-2.5 ${typeColors[type]} text-white rounded-lg font-medium transition-colors">
+                                ${escapeHtml(confirmText)}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <style>
+                @keyframes fadeIn {
+                    from { opacity: 0; }
+                    to { opacity: 1; }
+                }
+                @keyframes slideUp {
+                    from { transform: translateY(20px); opacity: 0; }
+                    to { transform: translateY(0); opacity: 1; }
+                }
+                @keyframes fadeOut {
+                    from { opacity: 1; }
+                    to { opacity: 0; }
+                }
+            </style>
+        `;
+
+        // Remove existing modal if any
+        const existingModal = document.getElementById('modern-confirm-modal');
+        if (existingModal) existingModal.remove();
+
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+        const modal = document.getElementById('modern-confirm-modal');
+        const confirmBtn = document.getElementById('modal-confirm-btn');
+        const cancelBtn = document.getElementById('modal-cancel-btn');
+
+        const closeModal = (result) => {
+            modal.style.animation = 'fadeOut 0.2s ease-out';
+            setTimeout(() => {
+                modal.remove();
+                resolve(result);
+            }, 200);
+        };
+
+        confirmBtn.addEventListener('click', () => closeModal(true));
+        cancelBtn.addEventListener('click', () => closeModal(false));
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeModal(false);
+        });
+
+        // ESC key to cancel
+        const handleEsc = (e) => {
+            if (e.key === 'Escape') {
+                closeModal(false);
+                document.removeEventListener('keydown', handleEsc);
+            }
+        };
+        document.addEventListener('keydown', handleEsc);
+    });
+}
 
 // Setup event listeners
- 
+
 function setupEventListeners() {
     // Search
     const searchInput = document.getElementById('searchField');

@@ -1009,8 +1009,27 @@ async bulkSaveToDatabase() {
         try {
             const saved = localStorage.getItem('salesforce_custom_fields');
             if (saved) {
-                this.customFields = JSON.parse(saved);
-                console.log(`✅ Loaded ${this.customFields.length} custom fields from localStorage`);
+                const loadedFields = JSON.parse(saved);
+
+                // Filter out custom fields without valid names (cleanup corrupted data)
+                const validFields = loadedFields.filter(field => {
+                    const hasValidName = !!(field.sfFieldName || field.fieldName || field.name || field.label);
+                    if (!hasValidName) {
+                        console.warn('⚠️ Removing invalid custom field without name:', field);
+                    }
+                    return hasValidName;
+                });
+
+                // If we filtered out invalid fields, save the cleaned data
+                if (validFields.length !== loadedFields.length) {
+                    console.log(`🧹 Cleaned ${loadedFields.length - validFields.length} invalid custom field(s)`);
+                    this.customFields = validFields;
+                    this.saveCustomFields();
+                } else {
+                    this.customFields = validFields;
+                }
+
+                console.log(`✅ Loaded ${this.customFields.length} valid custom fields from localStorage`);
             } else {
                 this.customFields = [];
             }

@@ -13,7 +13,6 @@ const DEFAULT_ACTIVE_FIELDS = [
 
 const columnConfig = {
   LS_Lead: {
-    "Status": "150px",  // New Status column
     "Id": "500px",
     "CreatedDate": "200px",
     "LastModifiedDate": "200px",
@@ -152,7 +151,7 @@ const STANDARD_SALESFORCE_FIELDS = [
   'NumberOfEmployees', 'OwnerId', 'PartnerAccountId', 'Phone',
   'PhotoUrl', 'PostalCode', 'Pronouns', 'Rating', 'RecordTypeId',
   'Salutation', 'ScheduledResumeDateTime', 'ScoreIntelligenceId',
-  'State', 'StateCode', 'Status', 'Street', 'Suffix', 'Title', 'Website',
+  'State', 'StateCode', 'Street', 'Suffix', 'Title', 'Website',
   'Id', 'CreatedDate', 'LastModifiedDate', 'SystemModstamp'
 ];
 
@@ -330,12 +329,35 @@ function showFieldConfigurationDialog(fields) {
   const requiredFields = ['LastName', 'Company'];
 
   // Store fields for search and filtering
-  window.configFields = fields;
+  // Load custom fields from FieldMappingService and combine with API fields
+  const customFields = window.fieldMappingService.getAllCustomFields();
+  console.log('📋 Loading custom fields for modal:', customFields);
+
+  const mappedCustomFields = customFields
+    .filter(cf => {
+      const hasValidName = !!(cf.sfFieldName || cf.fieldName || cf.name);
+      if (!hasValidName) {
+        console.warn('⚠️ Skipping custom field without name:', cf);
+      }
+      return hasValidName;
+    })
+    .map(cf => ({
+      id: cf.id,
+      name: cf.sfFieldName || cf.fieldName || cf.name,
+      value: cf.value || '',
+      isCustom: true,
+      active: cf.active !== false
+    }));
+
+  // Combine API fields + custom fields
+  window.configFields = [...fields, ...mappedCustomFields];
+  console.log(`✅ Modal loaded with ${fields.length} API fields and ${mappedCustomFields.length} custom fields`);
+
   window.fieldSelections = {}; // Track selections across re-renders
   window.currentModalFilter = 'active'; // Track current filter - default to Active Fields
 
   // Render fields with current filter
-  renderConfigFields(fields, 'active'); // Start with Active Fields
+  renderConfigFields(window.configFields, 'active'); // Start with Active Fields
 
   // Show modal
   modal.classList.add('show');
@@ -366,8 +388,8 @@ function showFieldConfigurationDialog(fields) {
         addCustomFieldBtn.style.display = window.currentModalFilter === 'custom' ? 'flex' : 'none';
       }
 
-      // Apply filter
-      renderConfigFields(fields, window.currentModalFilter);
+      // Apply filter - CRITICAL: use window.configFields (includes custom fields) instead of local 'fields' variable
+      renderConfigFields(window.configFields, window.currentModalFilter);
     };
   });
 
@@ -377,7 +399,8 @@ function showFieldConfigurationDialog(fields) {
     saveCurrentSelections();
 
     const searchTerm = e.target.value.toLowerCase();
-    const filtered = fields.filter(f =>
+    // CRITICAL: use window.configFields (includes custom fields) instead of local 'fields' variable
+    const filtered = window.configFields.filter(f =>
       f.name.toLowerCase().includes(searchTerm)
     );
     renderConfigFields(filtered, window.currentModalFilter);
@@ -447,9 +470,16 @@ function renderConfigFields(fields, filter = 'all') {
     filteredFields = fields.filter(field => {
       const isRequired = requiredFields.includes(field.name);
       const isCustomField = field.isCustom === true;
-      const isActive = window.fieldSelections && window.fieldSelections.hasOwnProperty(field.name)
-        ? window.fieldSelections[field.name]
-        : (isRequired || field.isStandardActive === true);
+
+      // Determine active state: check fieldSelections first, then field.active (for custom), then field.isStandardActive (for API)
+      let isActive;
+      if (window.fieldSelections && window.fieldSelections.hasOwnProperty(field.name)) {
+        isActive = window.fieldSelections[field.name];
+      } else if (isCustomField) {
+        isActive = field.active !== false; // Custom fields have 'active' property
+      } else {
+        isActive = isRequired || field.isStandardActive === true; // API fields
+      }
 
       switch (filter) {
         case 'active':
@@ -470,12 +500,14 @@ function renderConfigFields(fields, filter = 'all') {
     const isRequired = requiredFields.includes(field.name);
     const isCustomField = field.isCustom === true;
 
-    // Determine if field is checked
+    // Determine if field is checked: check fieldSelections first, then field.active (for custom), then field.isStandardActive (for API)
     let isChecked;
     if (window.fieldSelections && window.fieldSelections.hasOwnProperty(field.name)) {
       isChecked = window.fieldSelections[field.name];
+    } else if (isCustomField) {
+      isChecked = field.active !== false; // Custom fields have 'active' property
     } else {
-      isChecked = isRequired || field.isStandardActive === true;
+      isChecked = isRequired || field.isStandardActive === true; // API fields
     }
 
     const isActive = isChecked;
@@ -586,8 +618,30 @@ function renderConfigFields(fields, filter = 'all') {
 }
 
 // Helper function to handle field toggle
-window.handleFieldToggle = function(checkbox, fieldName) {
+window.handleFieldToggle = async function(checkbox, fieldName) {
   window.fieldSelections[fieldName] = checkbox.checked;
+
+  // CRITICAL: Also update the field.active property in window.configFields for custom fields
+  const field = window.configFields.find(f => f.name === fieldName);
+  if (field && field.isCustom) {
+    field.active = checkbox.checked;
+    console.log(`✅ Updated custom field "${fieldName}" active state to ${checkbox.checked}`);
+
+    // CRITICAL: Save to FieldMappingService to persist the change
+    try {
+      await window.fieldMappingService.updateCustomField(field.id, {
+        active: checkbox.checked
+      });
+      console.log(`💾 Saved custom field "${fieldName}" active state to FieldMappingService`);
+    } catch (error) {
+      console.error('Failed to save custom field active state:', error);
+      // Revert UI on error
+      checkbox.checked = !checkbox.checked;
+      field.active = !checkbox.checked;
+      showToast('Failed to update field state', 'error');
+      return;
+    }
+  }
 
   // Update the card's active/inactive class
   const card = checkbox.closest('.field-card');
@@ -933,8 +987,6 @@ function getColumnWidth(header, entity) {
   }
 
   // Return dynamic width for fields not in config (e.g., custom fields)
-  // Status gets smaller width, most other fields get medium width
-  if (header === 'Status') return '150px';
   if (header.includes('Id')) return '500px';
   if (header.includes('Date') || header === 'SystemModstamp') return '200px';
   if (header.includes('Description') || header.includes('Message')) return '600px';
@@ -1032,7 +1084,7 @@ async function sortTable(index, th) {
   }
 }
 
-function displayData(data) {
+function displayData(data, showAllFields = false) {
   const tableHead = document.getElementById('tableHead');
   const tableBody = document.getElementById('tableBody');
   const noDataMessage = document.getElementById('noDataMessage');
@@ -1056,25 +1108,23 @@ function displayData(data) {
   const activeFieldNames = window.fieldMappingService?.getActiveFieldNames() || [];
   const activeCustomFields = window.fieldMappingService?.getAllCustomFields().filter(f => f.active !== false) || [];
 
-  // Filter to show only active fields
-  const headers = allHeaders.filter(header => {
+  // Filter to show only active fields (unless showAllFields is true)
+  const headers = showAllFields ? allHeaders : allHeaders.filter(header => {
     // Always show required fields
     if (header === 'LastName' || header === 'Company') return true;
     // Check if field is in active configuration
     return activeFieldNames.includes(header);
   });
 
-  // Inject "Status" column at the beginning
-  const headersWithStatus = ['Status', ...headers];
-
   // Add custom fields at the end
+  const headersWithCustom = [...headers];
   activeCustomFields.forEach(customField => {
-    headersWithStatus.push(customField.sfFieldName);
+    headersWithCustom.push(customField.sfFieldName);
   });
 
   const headerRow = document.createElement('tr');
 
-  headersWithStatus.forEach((header, index) => {
+  headersWithCustom.forEach((header, index) => {
     const th = document.createElement('th');
 
     const width = getColumnWidth(header, 'LS_Lead');
@@ -1107,7 +1157,7 @@ function displayData(data) {
   data.forEach(item => {
     const row = document.createElement('tr');
 
-    headersWithStatus.forEach(header => {
+    headersWithCustom.forEach(header => {
       const td = document.createElement('td');
 
       const width = getColumnWidth(header, 'LS_Lead');
@@ -1119,37 +1169,8 @@ function displayData(data) {
         td.classList.add('active');
       }
 
-      // Handle Status column specially - load async
-      if (header === 'Status') {
-        const leadId = item.Id;
-
-        // Create loading placeholder
-        const badge = document.createElement('span');
-        badge.style.cssText = 'display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; background-color: #e5e7eb; color: #6b7280;';
-        badge.textContent = '⏳ Loading...';
-        badge.setAttribute('data-lead-id', leadId);
-        td.appendChild(badge);
-
-        // Load status asynchronously
-        getTransferStatus(leadId).then(status => {
-          if (status && status.icon) {
-            badge.style.backgroundColor = status.color;
-            badge.style.color = 'white';
-            badge.textContent = `${status.icon} ${status.label}`;
-            badge.title = status.details || status.label;
-            badge.style.cursor = 'help';
-          } else {
-            // Fallback for old format or no status
-            badge.style.backgroundColor = '#6b7280';
-            badge.style.color = 'white';
-            badge.textContent = '⏺ Not yet transferred';
-          }
-        }).catch(error => {
-          console.error('Error loading status for', leadId, error);
-          badge.style.backgroundColor = '#6b7280';
-          badge.textContent = '⏺ Not yet transferred';
-        });
-      } else if (header.includes('Date') || header === 'SystemModstamp') {
+      // Handle Date columns
+      if (header.includes('Date') || header === 'SystemModstamp') {
         td.textContent = formatDate(item[header]);
       } else {
         // Check if this is a custom field
@@ -1705,50 +1726,104 @@ async function saveCustomField() {
   }
 
   try {
-    const eventId = sessionStorage.getItem('selectedEventId');
+    console.log(`➕ Creating new custom field ${fieldName} with value: ${fieldValue}`);
 
-    // Add custom field using FieldMappingService (without __c suffix)
-    await window.fieldMappingService.addCustomField(eventId, {
+    // Add custom field using FieldMappingService (returns the new field object)
+    const newField = await window.fieldMappingService.addCustomField({
       sfFieldName: fieldName,
-      defaultValue: fieldValue,
+      value: fieldValue,
       active: true
     });
 
-    console.log(`✅ Custom field "${fieldName}" added successfully`);
+    console.log(`✅ Custom field "${fieldName}" added successfully`, newField);
+
+    // CRITICAL: Reload custom fields from FieldMappingService to ensure synchronization
+    const customFields = window.fieldMappingService.getAllCustomFields();
+    console.log('📋 Reloading custom fields after add:', customFields);
+
+    // Map custom fields to proper format
+    const mappedCustomFields = customFields
+      .filter(cf => {
+        const hasValidName = !!(cf.sfFieldName || cf.fieldName || cf.name);
+        if (!hasValidName) {
+          console.warn('⚠️ Skipping custom field without name:', cf);
+        }
+        return hasValidName;
+      })
+      .map(cf => ({
+        id: cf.id,
+        name: cf.sfFieldName || cf.fieldName || cf.name,
+        value: cf.value || '',
+        isCustom: true,
+        active: cf.active !== false
+      }));
+
+    // Get API fields (filter out old custom fields, keep only API fields)
+    const apiFields = window.configFields.filter(f => !f.isCustom);
+
+    // Combine API fields + updated custom fields
+    window.configFields = [...apiFields, ...mappedCustomFields];
+    console.log(`✅ Updated configFields: ${apiFields.length} API fields + ${mappedCustomFields.length} custom fields`);
 
     // Close the custom field modal
     closeCustomFieldModal();
 
-    // Reload the field configuration dialog with updated fields
-    const updatedFields = [...allFields, {
-      name: fieldName,
-      type: 'Edm.String',
-      nullable: true,
-      isCustom: true
-    }];
+    // Stay on Custom Fields tab to show the new field in context
+    window.currentModalFilter = 'custom';
+    console.log('🔄 Switching to Custom Fields tab...');
 
-    window.configFields = updatedFields;
-
-    // Switch to Active Fields tab
-    window.currentModalFilter = 'active';
+    let tabFound = false;
     document.querySelectorAll('.filter-tab').forEach(tab => {
-        tab.classList.remove('active');
-        if (tab.getAttribute('data-filter') === 'active') {
-            tab.classList.add('active');
-        }
+      tab.classList.remove('active');
+      if (tab.getAttribute('data-filter') === 'custom') {
+        tab.classList.add('active');
+        tabFound = true;
+        console.log('✅ Custom Fields tab activated');
+      }
     });
 
-    // Re-render with active filter
-    renderConfigFields(updatedFields, 'active');
+    if (!tabFound) {
+      console.warn('⚠️ Custom Fields tab not found!');
+    }
+
+    // Re-render with current filter (Custom Fields tab)
+    console.log('🎨 Re-rendering with custom filter, fields count:', window.configFields.length);
+    renderConfigFields(window.configFields, 'custom');
+    console.log('✅ Re-render complete');
 
     // Show success message
     showToast('Custom field added successfully!', 'success');
-
-    window.switchToActiveFieldsTab();
 
   } catch (error) {
     console.error('Error saving custom field:', error);
     showToast('Error saving custom field. Please try again.', 'error');
   }
 }
+
+/**
+ * Display virtual test data in the table
+ * This function is called after saving virtual test data from the VirtualDataModal
+ */
+window.displayVirtualDataInTable = async function(virtualData) {
+  try {
+    console.log('📊 Displaying virtual test data in table:', virtualData);
+
+    // Create a mock lead object with virtual data
+    const mockLead = {
+      Id: 'VIRTUAL_TEST_' + Date.now(),
+      ...virtualData,
+      __metadata: { type: 'LS_Lead' }
+    };
+
+    // Display in table with ALL fields visible (showAllFields = true)
+    displayData([mockLead], true);
+
+    console.log('✅ Virtual test data displayed in table with all fields');
+  } catch (error) {
+    console.error('❌ Error displaying virtual test data:', error);
+    if (typeof showToast === 'function') {
+      showToast('Error displaying test data', 'error');
+    }
+  }
+};
 
