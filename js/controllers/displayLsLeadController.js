@@ -246,34 +246,9 @@ async function checkFieldMappingAndLoad() {
     const configExists = await hasFieldMappingConfig(eventId);
 
     if (!configExists) {
-      // No field mapping configured yet → Show configuration dialog
-      console.log('⚠️ No field mapping found, showing configuration dialog');
-
-      // Fetch metadata from API to get available fields
-      const metadataFields = await fetchMetadata('LS_Lead');
-      console.log(`📡 API fields found: ${metadataFields.length}`);
-
-      // Use API fields directly and mark as active based on DEFAULT_ACTIVE_FIELDS
-      const apiFields = metadataFields.map(field => ({
-        name: field.name,
-        type: field.type,
-        nullable: field.nullable,
-        isStandardActive: DEFAULT_ACTIVE_FIELDS.includes(field.name)
-      }));
-
-      // Load custom fields from FieldMappingService and add them
-      const customFields = window.fieldMappingService?.getAllCustomFields() || [];
-      customFields.forEach(customField => {
-        apiFields.push({
-          name: customField.sfFieldName,
-          type: 'Edm.String',
-          nullable: true,
-          isCustom: true
-        });
-      });
-
-      // Show configuration dialog with API fields + custom fields
-      showFieldConfigurationDialog(apiFields);
+      // No field mapping configured yet → Redirect to fieldConfigurator in normal mode
+      console.log('⚠️ No field mapping found, redirecting to Field Configurator (normal mode)');
+      window.location.href = `fieldConfigurator.html?eventId=${eventId}&entityType=LS_Lead`;
       return;
     }
 
@@ -1675,7 +1650,20 @@ document.addEventListener('DOMContentLoaded', () => {
     changeFieldMappingBtn.addEventListener('click', () => {
       const eventId = sessionStorage.getItem('selectedEventId');
       sessionStorage.setItem('selectedLeadSource', 'lead');
-      window.location.href = `fieldConfigurator.html?eventId=${eventId}&source=lead`;
+
+      // Check if we're in virtual mode
+      const urlParams = new URLSearchParams(window.location.search);
+      const currentMode = urlParams.get('mode');
+
+      let redirectUrl = `fieldConfigurator.html?eventId=${eventId}&source=lead&entityType=LS_Lead`;
+
+      // Preserve virtual mode if active
+      if (currentMode === 'virtual') {
+        redirectUrl += '&mode=virtual';
+        console.log('🧪 Redirecting to Field Configurator in virtual mode');
+      }
+
+      window.location.href = redirectUrl;
     });
   }
 

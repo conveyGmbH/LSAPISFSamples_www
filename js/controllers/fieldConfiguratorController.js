@@ -120,10 +120,60 @@ async function initNormalMode(eventId) {
     // Load fields from API
     await loadFieldsFromAPI(eventId);
 
+    // Load a sample contact to display real values
+    await loadSampleContact(eventId);
+
     // Load custom fields from FieldMappingService
     await loadCustomFields();
 
     console.log('✅ Normal mode initialized');
+}
+
+// Load a sample contact to display real values in normal mode
+async function loadSampleContact(eventId) {
+    try {
+        console.log('📊 Loading sample contact for event:', eventId);
+
+        const serverName = sessionStorage.getItem('serverName');
+        const apiName = sessionStorage.getItem('apiName');
+        const credentials = sessionStorage.getItem('credentials');
+
+        if (!serverName || !apiName || !credentials) {
+            console.warn('⚠️ Missing credentials, cannot load sample contact');
+            return;
+        }
+
+        // Fetch one contact from the API for this event
+        const url = `https://${serverName}/${apiName}/${apiEndpoint}?$filter=EventId eq '${eventId}'&$top=1`;
+
+        const response = await fetch(url, {
+            headers: {
+                'Authorization': 'Basic ' + credentials,
+                'Accept': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            console.warn('⚠️ Failed to load sample contact:', response.statusText);
+            return;
+        }
+
+        const data = await response.json();
+
+        if (data.value && data.value.length > 0) {
+            const sampleContact = data.value[0];
+
+            // Store sample contact data in virtualData (we reuse the same storage)
+            virtualData = { ...sampleContact };
+
+            console.log('✅ Sample contact loaded:', virtualData);
+        } else {
+            console.warn('⚠️ No contacts found for this event');
+        }
+
+    } catch (error) {
+        console.error('❌ Error loading sample contact:', error);
+    }
 }
 
 // Fetch metadata from API
@@ -358,7 +408,8 @@ async function loadFieldsFromAPI(eventId) {
                 name: fieldName,
                 active: isActive,
                 required: isRequired,
-                isApiField: true 
+                isApiField: true,
+                sfLabel: fieldConfig?.sfLabel || fieldName // Load saved SF label mapping
             });
         }
 
@@ -476,7 +527,7 @@ function renderFields() {
     }
 }
 
-// Create a field item element with proper event listeners
+// Create a field item element with proper event listeners (NORMAL MODE)
 function createFieldItem(field) {
     const label = document.createElement('label');
     label.className = `field-item ${field.active ? 'active' : ''} ${field.required ? 'required' : ''} ${field.isCustomField ? 'user-custom-field' : ''}`;
@@ -484,51 +535,66 @@ function createFieldItem(field) {
     label.dataset.isCustom = field.isCustomField || false;
     label.dataset.fieldId = field.id || '';
 
-    // Field name display - FIXED: show actual field names for custom fields
-    let fieldNameDisplay = '';
-    if (field.isCustomField) {
-        // Custom field: show "Custom" badge in purple + actual field name
-        fieldNameDisplay = `
-            <div class="field-name">
-                <span style="color: #805ad5; font-weight: 600; font-size: 0.75rem; margin-right: 4px;">Custom:</span>
-                <span>${field.name}</span>
-                ${field.required ? '<span class="required-badge">REQUIRED</span>' : ''}
-            </div>
-        `;
-    } else {
-        // API field: show LS: prefix + field name
-        fieldNameDisplay = `
-            <div class="field-name">
-                <span style="color: #718096; font-size: 0.75rem; margin-right: 4px;">LS:</span>
-                <span>${field.name}</span>
-                ${field.required ? '<span class="required-badge">REQUIRED</span>' : ''}
-            </div>
-        `;
-    }
+    // Get value from virtualData (which now contains sample contact in normal mode)
+    const fieldValue = field.isCustomField
+        ? (field.value || '')
+        : (virtualData[field.name] || '');
 
-    // Build HTML structure
+    // Field name display
+    const fieldLabel = field.isCustomField
+        ? field.name  // Custom field: just the name
+        : field.name; // Standard field: just the name
+
+    // Get SF label (custom mapping) if exists
+    const sfLabel = field.sfLabel || field.name;
+    const hasCustomMapping = field.sfLabel && field.sfLabel !== field.name;
+
+    // Build HTML with checkbox + label mapping + value input
     label.innerHTML = `
         <input type="checkbox"
                class="field-checkbox"
                ${field.active ? 'checked' : ''}
                ${field.required ? 'disabled' : ''} />
-        <div class="field-info">
-            ${fieldNameDisplay}
-            ${field.isCustomField && field.value ? `
-                <div class="field-value-preview" style="font-size: 0.875rem; color: #4a5568; margin-top: 4px;">
-                    Value: <span style="font-weight: 500;">${field.value}</span>
-                </div>
-            ` : ''}
+        <div class="field-info" style="flex: 1;">
+            <div class="field-label-with-flags" style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
+                <span class="ls-flag" style="color: ${field.isCustomField ? '#805ad5' : '#718096'}; font-size: 0.75rem;">
+                    ${field.isCustomField ? 'Custom:' : 'LS:'}
+                </span>
+                <span style="color: ${field.isCustomField ? '#805ad5' : '#718096'};">${fieldLabel}</span>
+                ${hasCustomMapping ? `
+                    <span class="arrow" style="color: #999;">→</span>
+                    <span class="sf-flag" style="color: #009EDB; font-weight: 600; font-size: 0.75rem;">SF:</span>
+                    <span style="color: #009EDB; font-weight: 600;">${sfLabel}</span>
+                ` : ''}
+                ${field.required ? '<span class="required-badge">REQUIRED</span>' : ''}
+                <button class="edit-label-btn" title="Edit label mapping" style="margin-left: auto; background: none; border: none; color: #718096; cursor: pointer; padding: 4px; font-size: 14px;">
+                    ✏️
+                </button>
+            </div>
+            <input
+                type="text"
+                class="field-input field-value-input"
+                ${field.isCustomField ? 'data-custom-field="true"' : 'data-field="' + field.name + '"'}
+                ${field.isCustomField ? 'data-custom-field-id="' + (field.id || '') + '"' : ''}
+                ${field.isCustomField ? 'data-sf-field="' + field.name + '"' : ''}
+                value="${fieldValue}"
+                placeholder=${fieldLabel}
+                ${field.isCustomField ? '' : 'readonly'}
+                style="width: 100%; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 14px; ${field.isCustomField ? '' : 'background: #f9fafb; cursor: not-allowed;'}"
+                onclick="event.stopPropagation()"
+            />
         </div>
         ${field.isCustomField ? `
-            <button class="delete-custom-field" title="Delete custom field">
-                <i class="fas fa-trash"></i>
+            <button class="delete-custom-field" title="Delete custom field" style="font-size: 14px;">
+                🗑️
             </button>
         ` : ''}
     `;
 
     // Add event listeners
     const checkbox = label.querySelector('.field-checkbox');
+    const input = label.querySelector('.field-input');
+    const editLabelBtn = label.querySelector('.edit-label-btn');
     const deleteBtn = label.querySelector('.delete-custom-field');
 
     // Toggle handler - updates local state only (no DB save until saveAndContinue)
@@ -556,6 +622,23 @@ function createFieldItem(field) {
 
         console.log(`✅ Field ${field.name} ${isChecked ? 'activated' : 'deactivated'} (not saved yet)`);
     });
+
+    // Input change handler for custom fields (update value in memory)
+    if (input && field.isCustomField) {
+        input.addEventListener('input', (e) => {
+            field.value = e.target.value;
+            console.log(`📝 Updated custom field "${field.name}" value:`, e.target.value);
+        });
+    }
+
+    // Edit label button handler - Opens modal to edit SF label mapping
+    if (editLabelBtn) {
+        editLabelBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            openEditLabelModal(field);
+        });
+    }
 
     // Delete handler for custom fields
     if (deleteBtn) {
@@ -603,15 +686,17 @@ function createFieldItem(field) {
 
     // Make field name clickable for inline editing (custom fields only)
     if (field.isCustomField) {
-        const fieldNameElement = label.querySelector('.field-name');
-        fieldNameElement.style.cursor = 'pointer';
-        fieldNameElement.title = 'Click to edit field value';
+        const fieldNameElement = label.querySelector('.field-label-with-flags');
+        if (fieldNameElement) {
+            fieldNameElement.style.cursor = 'pointer';
+            fieldNameElement.title = 'Click to edit field value';
 
-        fieldNameElement.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            openEditCustomFieldModal(field);
-        });
+            fieldNameElement.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                openEditCustomFieldModal(field);
+            });
+        }
     }
 
     return label;
@@ -659,8 +744,8 @@ function createVirtualFieldItem(field) {
             />
         </div>
         ${field.isCustomField ? `
-            <button class="delete-custom-field" title="Delete custom field">
-                <i class="fas fa-trash"></i>
+            <button class="delete-custom-field" title="Delete custom field" style="font-size: 14px;">
+                🗑️
             </button>
         ` : ''}
     `;
@@ -766,6 +851,78 @@ function openEditCustomFieldModal(field) {
     modal.style.display = 'flex';
 }
 
+// Open modal to edit field label (LS → SF mapping)
+function openEditLabelModal(field) {
+    // Create modal dynamically if it doesn't exist
+    let modal = document.getElementById('editLabelModal');
+
+    if (!modal) {
+        const modalHTML = `
+            <div id="editLabelModal" class="modal" style="display: flex;">
+                <div class="modal-content">
+                    <div class="modal-header">Edit Field Label Mapping</div>
+                    <div class="form-group">
+                        <label class="form-label">LS Field Name</label>
+                        <input type="text" id="editLabelLsName" class="form-input" readonly style="background: #f9fafb;" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">SF Field Name *</label>
+                        <input type="text" id="editLabelSfName" class="form-input" placeholder="Enter Salesforce field name" />
+                        <p class="form-hint">Enter the Salesforce field name you want to map this field to. Leave empty to use the same name.</p>
+                    </div>
+                    <div class="modal-actions">
+                        <button class="btn btn-secondary" onclick="closeEditLabelModal()">Cancel</button>
+                        <button class="btn btn-primary" onclick="saveEditLabel()">Save</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        modal = document.getElementById('editLabelModal');
+    }
+
+    // Pre-fill with existing values
+    document.getElementById('editLabelLsName').value = field.name;
+    document.getElementById('editLabelSfName').value = field.sfLabel || field.name;
+
+    // Store field name for update
+    modal.dataset.editingFieldName = field.name;
+    modal.style.display = 'flex';
+}
+
+// Close edit label modal
+window.closeEditLabelModal = function() {
+    const modal = document.getElementById('editLabelModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+};
+
+// Save edited label mapping
+window.saveEditLabel = function() {
+    const modal = document.getElementById('editLabelModal');
+    const fieldName = modal.dataset.editingFieldName;
+    const sfLabel = document.getElementById('editLabelSfName').value.trim();
+
+    if (!fieldName) {
+        showNotification('Error: Field name not found', 'error');
+        return;
+    }
+
+    // Find the field and update its SF label
+    const field = allFields.find(f => f.name === fieldName);
+    if (field) {
+        field.sfLabel = sfLabel || field.name; // Use original name if empty
+        console.log(`📝 Updated field "${fieldName}" SF label to:`, field.sfLabel);
+
+        // Re-render fields to show updated mapping
+        renderFields();
+        showNotification('Label mapping updated (not saved yet)', 'success');
+    }
+
+    closeEditLabelModal();
+};
+
 // Legacy toggle function - kept for compatibility but not used anymore
 // Real-time toggle is now handled in createFieldItem()
 window.toggleField = function(fieldName, checked, isCustomField = false) {
@@ -808,7 +965,8 @@ window.saveAndContinue = async function() {
 
             const fieldConfigData = {
                 fieldName: field.name,
-                active: field.active
+                active: field.active,
+                sfLabel: field.sfLabel || field.name // Save SF label mapping
             };
 
             if (existingIndex >= 0) {
@@ -823,11 +981,12 @@ window.saveAndContinue = async function() {
             }
         }
 
-        // Update custom fields active state in memory
+        // Update custom fields active state AND value in memory
         for (const field of customFields) {
             const customField = fieldMappingService.getAllCustomFields().find(f => f.id === field.id);
             if (customField) {
                 customField.active = field.active;
+                customField.value = field.value; // Also save updated value
             }
         }
 
