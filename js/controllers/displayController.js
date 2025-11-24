@@ -309,7 +309,7 @@ async function applyFilters(entity, fields) {
       
       const formattedNextDay = formatDateForOData(nextDay);
       
-      // Find all events ending before the next day (thus including the entire specified day)
+      // Find all events ending before the next day
       filterParts.push(`EndDate lt datetime'${formattedNextDay}T00:00:00'`);
     }
   }
@@ -794,7 +794,9 @@ function init() {
   document.getElementById("viewLeadsButton").addEventListener("click", () => {
     if (selectedEventId) {
       sessionStorage.setItem("selectedEventId", selectedEventId);
-      window.location.href = "displayLsLead.html";
+      sessionStorage.setItem("selectedLeadSource", "lead");
+      // Redirect directly to lead display page (modal will show if no field mapping)
+      window.location.href = `displayLsLead.html`;
     } else {
       alert("Please select an event first.");
     }
@@ -803,7 +805,9 @@ function init() {
   document.getElementById("viewLeadReportsButton").addEventListener("click", () => {
     if (selectedEventId) {
       sessionStorage.setItem("selectedEventId", selectedEventId);
-      window.location.href = "displayLsLeadReport.html";
+      sessionStorage.setItem("selectedLeadSource", "leadReport");
+      // Redirect directly to lead report display page (modal will show if no field mapping)
+      window.location.href = `displayLsLeadReport.html`;
     } else {
       alert("Please select an event first.");
     }

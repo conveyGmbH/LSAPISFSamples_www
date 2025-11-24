@@ -46,6 +46,8 @@ bld/
 ./salesforce-backend/.env
 salesforce-backend/.env
 **/.env
+/docu/
+postman_collection.json
 
 
 # Visual Studio 2015/2017 cache/options directory

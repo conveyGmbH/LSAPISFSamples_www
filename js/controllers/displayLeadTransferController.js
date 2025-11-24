@@ -9,7 +9,7 @@ const USE_RERENDER_STRATEGY = false;
 // Backend API URL - used for Salesforce transfer operations
 const BACKEND_API_URL = window.location.hostname === 'localhost'
   ? 'http://localhost:3000'
-  : 'https://lsapisfbackenddev-gnfbema5gcaxdahz.germanywestcentral-01.azurewebsites.net';
+  : 'https://lsapisfbackend.convey.de/';
 
 // Connection persistence manager
 class ConnectionPersistenceManager {
@@ -936,9 +936,16 @@ async function handleTransferButtonClick() {
       successMessage += `Attachments: ${result.attachmentsTransferred} uploaded\n`;
     }
 
-    // Add validation warnings if any
+    // Add validation warnings if any (filter out automatic cleaning messages)
     if (result.validationWarnings && result.validationWarnings.length > 0) {
-      successMessage += `\nWarnings:\n${result.validationWarnings.map(w => `• ${w}`).join('\n')}`;
+      const importantWarnings = result.validationWarnings.filter(w =>
+        !w.includes('Cleaned phone number') &&
+        !w.includes('Added https://')
+      );
+
+      if (importantWarnings.length > 0) {
+        successMessage += `\nWarnings:\n${importantWarnings.map(w => `• ${w}`).join('\n')}`;
+      }
     }
 
     // Clean up BEFORE showing modal to prevent interruptions
@@ -956,16 +963,13 @@ async function handleTransferButtonClick() {
     console.log('🎉 About to show success modal...');
 
     if (typeof window.showSuccessModal === 'function') {
+      // Show success modal immediately
+      window.showSuccessModal(
+        'Transfer Successful!',
+        successMessage.trim()
+      );
 
-
-      setTimeout(() => {
-          window.showSuccessModal(
-          'Transfer Successful!',
-          successMessage.trim()
-      ); 
-    }, 1000);
-
-      
+      console.log('✅ Success modal displayed');
     } else {
       console.error('showSuccessModal function not found!');
       await showAlertDialog(
@@ -976,14 +980,6 @@ async function handleTransferButtonClick() {
     }
 
     console.log('📊 Transfer complete:', result);
-
-    // Save transfer status in background (fire-and-forget to not interfere with modal)
-    const leadId = window.selectedLeadData?.Id;
-    if (leadId && result.salesforceId) {
-      saveTransferStatus(leadId, result.salesforceId, 'Success').catch(err => {
-        console.error('Background status save failed:', err);
-      });
-    }
 
   } catch (error) {
     console.error('Transfer failed:', error);
@@ -1052,6 +1048,61 @@ async function handleTransferButtonClick() {
 
 
 // DISCONNECT & CONNECT HANDLERS
+
+/**
+ * Handle connect button click - Opens Salesforce OAuth popup
+ * Shows environment selector (Sandbox/Production)
+ */
+async function handleConnectClick() {
+  try {
+    // Save orgId for persistence
+    const orgId = 'default';
+    localStorage.setItem('orgId', orgId);
+
+    // Update UI to show connecting state
+    updateConnectionStatus("connecting", "Connecting to Salesforce...");
+
+    // Open Salesforce OAuth popup - user will select environment there
+    const authUrl = `${appConfig.apiBaseUrl.replace('/api', '/auth/salesforce')}?orgId=${encodeURIComponent(orgId)}`;
+    const popup = window.open(authUrl, 'salesforce-auth', 'width=500,height=650,scrollbars=no,resizable=no');
+
+    // Check if popup was blocked
+    if (!popup) {
+      throw new Error("Popup was blocked. Please allow popups for this site.");
+    }
+
+    // Listen for OAuth success message from popup
+    const messageListener = (event) => {
+      if (event.data && event.data.type === 'SALESFORCE_AUTH_SUCCESS') {
+        console.log('✅ OAuth success message received:', event.data);
+
+        const realOrgId = event.data.orgId;
+        localStorage.setItem('orgId', realOrgId);
+
+        popup.close();
+        clearInterval(checkClosed);
+        window.removeEventListener('message', messageListener);
+
+        checkAuthenticationStatus();
+      }
+    };
+
+    window.addEventListener('message', messageListener);
+
+    const checkClosed = setInterval(() => {
+      if (popup.closed) {
+        clearInterval(checkClosed);
+        window.removeEventListener('message', messageListener);
+        checkAuthenticationStatus();
+      }
+    }, 1000);
+
+  } catch (error) {
+    console.error("Connection error:", error);
+    showError("Failed to connect: " + error.message);
+    updateConnectionStatus("not-connected", "Connection failed");
+  }
+}
 
 /* Handle disconnect button click - using modern confirm dialog */
 async function handleDisconnectClick() {
@@ -1148,57 +1199,7 @@ function performDisconnect() {
   showSuccess("Successfully disconnected from Salesforce");
 }
 
-// Handle connect button click
-async function handleConnectClick() {
-  try {
-    // Save orgId for persistence 
-    const orgId = 'default';
-    localStorage.setItem('orgId', orgId);
-
-    // Update UI to show connecting state
-    updateConnectionStatus("connecting", "Connecting to Salesforce...");
-
-    // Open Salesforce OAuth popup - user will select environment there
-    const authUrl = `${appConfig.apiBaseUrl.replace('/api', '/auth/salesforce')}?orgId=${encodeURIComponent(orgId)}`;
-    const popup = window.open(authUrl, 'salesforce-auth', 'width=500,height=650,scrollbars=no,resizable=no');
-
-    // Check if popup was blocked
-    if (!popup) {
-      throw new Error("Popup was blocked. Please allow popups for this site.");
-    }
-
-    // Listen for OAuth success message from popup
-    const messageListener = (event) => {
-      if (event.data && event.data.type === 'SALESFORCE_AUTH_SUCCESS') {
-        console.log(' OAuth success message received:', event.data);
-
-        const realOrgId = event.data.orgId;
-        localStorage.setItem('orgId', realOrgId);
-
-        popup.close();
-        clearInterval(checkClosed);
-        window.removeEventListener('message', messageListener);
-
-        checkAuthenticationStatus();
-      }
-    };
-
-    window.addEventListener('message', messageListener);
-
-    const checkClosed = setInterval(() => {
-      if (popup.closed) {
-        clearInterval(checkClosed);
-        window.removeEventListener('message', messageListener);
-        checkAuthenticationStatus();
-      }
-    }, 1000);
-
-  } catch (error) {
-    console.error("Connection error:", error);
-    showError("Failed to connect: " + error.message);
-    updateConnectionStatus("not-connected", "Connection failed");
-  }
-}
+// REMOVED: Old popup-based connection - replaced by redirect to auth-start page (line 1060)
 
 
 // Check authentication status after popup closes
@@ -1296,6 +1297,15 @@ async function checkSalesforceConnection() {
         localStorage.setItem('sf_access_token', responseData.tokens.access_token);
         localStorage.setItem('sf_instance_url', responseData.tokens.instance_url);
         console.log('Tokens stored successfully');
+      }
+
+      // Check if success modal is currently visible - if so, defer ALL background updates to avoid interfering
+      const successModalExists = document.getElementById('persistent-success-modal');
+
+      if (successModalExists) {
+        console.log('⏸️ Success modal is visible - deferring ALL background verification updates (connection save and UI updates)');
+        // Don't save or update UI while success modal is showing
+        return;
       }
 
       // Save the verified connection and update orgId if different
@@ -1657,6 +1667,10 @@ function updateLeadInfoHeader(data) {
 }
 
 // Create a table row for a field (ListView)
+/**
+ * Create a read-only field table row (no editing, no toggle)
+ * Users must use fieldConfigurator.html to modify fields
+ */
 function createFieldTableRow(fieldName, fieldInfo) {
     const row = document.createElement('tr');
 
@@ -1692,9 +1706,10 @@ function createFieldTableRow(fieldName, fieldInfo) {
         }
     }
 
+    // READ-ONLY row - no Actions column, no edit buttons, no toggles
     row.innerHTML = `
         <td class="px-4 py-3 whitespace-nowrap">
-            <div class="flex items-center justify-between">
+            <div class="flex items-center">
                 <div class="flex-1">
                     <div class="flex items-center">
                         <span class="text-sm font-medium text-gray-900">${fieldInfo.label || fieldName}</span>
@@ -1704,9 +1719,6 @@ function createFieldTableRow(fieldName, fieldInfo) {
                         ${fieldNameDisplay}
                     </div>
                 </div>
-                <button class="edit-label-btn text-gray-400 hover:text-green-600 ml-2" title="Edit Salesforce field mapping">
-                    <i class="fas fa-tag text-xs"></i>
-                </button>
             </div>
         </td>
         <td class="px-4 py-3">
@@ -1717,158 +1729,7 @@ function createFieldTableRow(fieldName, fieldInfo) {
                 ${fieldInfo.active ? 'Active' : 'Inactive'}
             </span>
         </td>
-        <td class="px-4 py-3 whitespace-nowrap text-sm font-medium">
-            <button class="edit-field-btn text-blue-600 hover:text-blue-900 mr-3">
-                <i class="fas fa-edit mr-1"></i> Edit
-            </button>
-            <label class="toggle-switch inline-block align-middle">
-                <input id="${fieldName}-toggle" type="checkbox" ${fieldInfo.active ? 'checked' : ''}>
-                <span class="toggle-slider"></span>
-            </label>
-        </td>
     `;
-
-    // Add event listeners
-    const toggle = row.querySelector('input[type="checkbox"]');
-    const editBtn = row.querySelector('.edit-field-btn');
-    const editLabelBtn = row.querySelector('.edit-label-btn');
-
-    // Edit label button 
-    if (editLabelBtn) {
-        editLabelBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            openEditLabelModal(fieldName);
-        });
-    }
-
-    toggle.addEventListener('change', async (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-
-        const isChecked = toggle.checked;
-
-        if (isSystemField(fieldName)) {
-            toggle.checked = !isChecked; 
-            return;
-        }
-
-        // Check if this is a custom field
-        if (fieldInfo.isCustomField) {
-            const customFields = window.fieldMappingService?.getAllCustomFields() || [];
-            const customField = customFields.find(f => f.sfFieldName === fieldName);
-            if (customField && window.fieldMappingService) {
-                await window.fieldMappingService.toggleCustomField(customField.id);
-
-                // Update row styling
-                if (isChecked) {
-                    row.classList.remove('opacity-50', 'bg-gray-100', 'inactive');
-                    row.classList.add('active');
-                } else {
-                    row.classList.add('opacity-50', 'bg-gray-100', 'inactive');
-                    row.classList.remove('active');
-                }
-
-                // Update status badge
-                const statusBadge = row.querySelector('.px-2');
-                if (statusBadge) {
-                    statusBadge.className = `px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${isChecked ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`;
-                    statusBadge.textContent = isChecked ? 'Active' : 'Inactive';
-                }
-
-                // Sync with CardView
-                syncToggleWithCardView(fieldName, isChecked);
-
-                // Update stats
-                updateFieldStats();
-                updateTransferButtonState();
-            }
-            return;
-        }
-
-        fieldInfo.active = isChecked;
-
-        // Update in-memory data
-        if (window.selectedLeadData && window.selectedLeadData[fieldName]) {
-            if (typeof window.selectedLeadData[fieldName] === 'object') {
-                window.selectedLeadData[fieldName].active = isChecked;
-            }
-        }
-
-        // Save to FieldMappingService (only for non-system fields)
-        if (window.fieldMappingService) {
-            try {
-                await window.fieldMappingService.setFieldConfig(fieldName, { active: isChecked });
-            } catch (error) {
-                toggle.checked = !isChecked;
-                fieldInfo.active = !isChecked;
-                return;
-            }
-        }
-
-        // Update row styling and classes
-        if (isChecked) {
-            row.classList.remove('opacity-50', 'bg-gray-100', 'inactive');
-            row.classList.add('active');
-        } else {
-            row.classList.add('opacity-50', 'bg-gray-100', 'inactive');
-            row.classList.remove('active');
-        }
-
-        // Re-render to update status badge
-        const statusBadge = row.querySelector('.px-2');
-        statusBadge.className = `px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${isChecked ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`;
-        statusBadge.textContent = isChecked ? 'Active' : 'Inactive';
-
-        // Sync with CardView if exists
-        syncToggleWithCardView(fieldName, isChecked);
-
-        // Update stats and transfer button
-        updateFieldStats();
-        updateTransferButtonState();
-    });
-
-    // Add edit button listener - Opens inline editing or modal
-    editBtn.addEventListener('click', () => {
-        if (typeof window.openEditModal === 'function') {
-            window.openEditModal(fieldName, fieldInfo.label || fieldName, fieldInfo.value);
-        } else {
-            const valueCell = row.querySelector('.field-value');
-            const currentValue = fieldInfo.value || '';
-
-            // Create input
-            const input = document.createElement('input');
-            input.type = 'text';
-            input.value = currentValue;
-            input.className = 'w-full px-2 py-1 border border-blue-500 rounded focus:outline-none focus:ring-2 focus:ring-blue-500';
-
-            // Replace text with input
-            valueCell.innerHTML = '';
-            valueCell.appendChild(input);
-            input.focus();
-            input.select();
-
-            // Save on blur or enter
-            const saveEdit = () => {
-                const newValue = input.value;
-                fieldInfo.value = newValue;
-                valueCell.innerHTML = `<span class="text-sm text-gray-900">${newValue || '<span class="text-gray-400 italic">No value</span>'}</span>`;
-
-                // Trigger field save logic if available
-                if (typeof window.saveFieldValue === 'function') {
-                    window.saveFieldValue(fieldName, newValue);
-                }
-            };
-
-            input.addEventListener('blur', saveEdit);
-            input.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                    saveEdit();
-                } else if (e.key === 'Escape') {
-                    valueCell.innerHTML = `<span class="text-sm text-gray-900">${currentValue || '<span class="text-gray-400 italic">No value</span>'}</span>`;
-                }
-            });
-        }
-    });
 
     return row;
 }
@@ -3824,95 +3685,23 @@ function createEditLabelModal(fieldName) {
  */
 function initializeCustomFieldsTab() {
 
-    // Setup filter button click handlers
-    const filterButtons = document.querySelectorAll('.filter-btn');
-    filterButtons.forEach(btn => {
-        btn.addEventListener('click', handleTabSwitch);
-    });
+    // REMOVED: Filter buttons no longer exist in read-only transfer page
+    // Users must use fieldConfigurator.html to manage fields
 
-    // Setup add custom field button
-    const addCustomFieldBtn = document.getElementById('add-custom-field-btn');
-    if (addCustomFieldBtn) {
-        addCustomFieldBtn.addEventListener('click', openAddCustomFieldModal);
-    }
+    // REMOVED: Add custom field button - no longer available in transfer page
+    // Users must use fieldConfigurator.html to add custom fields
 
-    console.log('Custom Fields tab initialized');
+    console.log('Custom Fields tab functionality disabled - use fieldConfigurator.html instead');
 }
 
-// Handle tab switching between All/Active/Inactive/Custom Fields
- 
+/**
+ * Handle tab switching between All/Active/Inactive/Custom Fields
+ * REMOVED: Filter tabs no longer exist in read-only transfer page
+ * Users must use fieldConfigurator.html to filter and manage fields
+ */
 function handleTabSwitch(event) {
-    const filterValue = event.target.getAttribute('data-filter');
-
-    console.log(`🔄 Tab switched to: ${filterValue}`);
-
-    // Save filter to localStorage
-    localStorage.setItem('field-display-filter', filterValue);
-
-    // Update active tab styling
-    document.querySelectorAll('.filter-btn').forEach(btn => {
-        btn.classList.remove('active', 'text-blue-600', 'border-blue-600');
-        btn.classList.add('text-gray-600', 'border-transparent');
-    });
-    event.target.classList.add('active', 'text-blue-600', 'border-blue-600');
-    event.target.classList.remove('text-gray-600', 'border-transparent');
-
-    // Get containers
-    const listViewContainer = document.getElementById('list-view-container');
-    const cardViewContainer = document.getElementById('card-view-container');
-    const customFieldsContainer = document.getElementById('custom-fields-view-container');
-    const emptyState = document.getElementById('empty-state');
-
-    if (filterValue === 'custom') {
-        // Show custom fields tab
-        listViewContainer.style.display = 'none';
-        cardViewContainer.style.display = 'none';
-        emptyState.style.display = 'none';
-        customFieldsContainer.style.display = 'block';
-
-        // Render custom fields table
-        renderCustomFieldsTable();
-
-        // Update summary
-        const fieldsSummary = document.getElementById('fields-summary');
-        if (fieldsSummary) {
-            const customFields = window.fieldMappingService?.getAllCustomFields() || [];
-            fieldsSummary.textContent = `Showing ${customFields.length} custom field${customFields.length !== 1 ? 's' : ''}`;
-        }
-    } else {
-        // Show normal fields (all/active/inactive)
-        customFieldsContainer.style.display = 'none';
-
-        // Restore normal view based on current view mode
-        const isCardView = document.getElementById('cardViewBtn')?.classList.contains('active');
-        if (isCardView) {
-            listViewContainer.style.display = 'none';
-            cardViewContainer.style.display = 'grid';
-            emptyState.style.display = 'none';
-
-            // Regenerate card view with new filter
-            if (typeof generateCardView === 'function') {
-                generateCardView();
-            }
-        } else {
-            listViewContainer.style.display = 'block';
-            cardViewContainer.style.display = 'none';
-            emptyState.style.display = 'none';
-
-            // Regenerate list view with new filter
-            if (window.selectedLeadData) {
-                displayLeadData(window.selectedLeadData);
-            }
-        }
-    }
-
-    // Update statistics after filtering
-    if (typeof updateFieldStats === 'function') {
-        updateFieldStats();
-    }
-
-    // Update transfer button state
-    setTimeout(() => updateTransferButtonState(), 100);
+    // No longer needed - filter tabs removed from UI
+    console.log('⚠️ Tab switching disabled - use fieldConfigurator.html to manage fields');
 }
 
 
@@ -5053,6 +4842,10 @@ function generateCardView() {
 }
 
 // Create a field card element
+/**
+ * Create a read-only field card (no editing, no toggle)
+ * Users must use fieldConfigurator.html to modify fields
+ */
 function createFieldCard(fieldName, fieldLabel, fieldValue, isActive, isRequired, isCustomField = false) {
     const card = document.createElement('div');
 
@@ -5082,6 +4875,7 @@ function createFieldCard(fieldName, fieldLabel, fieldValue, isActive, isRequired
         }
     }
 
+    // READ-ONLY card - no edit buttons, no toggles
     card.innerHTML = `
         <div class="flex justify-between items-start mb-3">
             <div class="flex-1">
@@ -5093,119 +4887,19 @@ function createFieldCard(fieldName, fieldLabel, fieldValue, isActive, isRequired
                     ${fieldNameDisplay}
                 </div>
             </div>
-            <div class="flex items-center space-x-2">
-                <button class="edit-label-btn text-gray-400 hover:text-green-600" title="Edit Salesforce field mapping">
-                    <i class="fas fa-tag text-sm"></i>
-                </button>
-                <label class="toggle-switch">
-                    <input id="${escapeHtml(fieldName)}-toggle" type="checkbox" ${isActive ? 'checked' : ''} data-field="${escapeHtml(fieldName)}">
-                    <span class="toggle-slider"></span>
-                </label>
+            <div class="flex items-center">
+                <span class="px-2 py-1 text-xs font-semibold rounded-full ${isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                    ${isActive ? 'Active' : 'Inactive'}
+                </span>
             </div>
         </div>
-        <div class="mb-3">
+        <div class="mb-2">
             <p class="text-sm text-gray-700 break-words">${escapeHtml(fieldValue) || '<span class="text-gray-400 italic">No value</span>'}</p>
-        </div>
-        <div class="flex justify-end">
-            <button class="edit-field-btn text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center">
-                <i class="fas fa-edit mr-1"></i> Edit
-            </button>
         </div>
     `;
 
-    // Event listeners
-    const toggleInput = card.querySelector('input[type="checkbox"]');
-    const editLabelBtn = card.querySelector('.edit-label-btn');
-
-    if (editLabelBtn) {
-        editLabelBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (typeof openEditLabelModal === 'function') openEditLabelModal(fieldName);
-        });
-    }
-
-    toggleInput.addEventListener('change', async (e) => {
-        const isChecked = e.target.checked;
-
-        // Safety: Prevent saving system fields
-        if (isSystemField(fieldName)) {
-            console.warn(`⚠️ Cannot modify system field: ${fieldName}`);
-            toggleInput.checked = !isChecked; // Revert
-            return;
-        }
-
-        // Check if this is a custom field - handle differently
-        if (isCustomField) {
-            // Find the custom field by Salesforce name and toggle it
-            const customFields = window.fieldMappingService?.getAllCustomFields() || [];
-            const customField = customFields.find(f => f.sfFieldName === fieldName);
-            if (customField && window.fieldMappingService) {
-                await window.fieldMappingService.toggleCustomField(customField.id);
-                console.log(`Custom field ${fieldName} toggled to ${isChecked} from Card View`);
-
-                // Update card classes
-                card.classList.toggle('active-field', isChecked);
-                card.classList.toggle('inactive-field', !isChecked);
-
-                // Sync with ListView
-                syncToggleWithListView(fieldName, isChecked);
-
-                // Update stats and transfer button
-                updateFieldStats();
-                if (typeof updateTransferButtonState === 'function') updateTransferButtonState();
-            }
-            return;
-        }
-
-        // Update card classes (for standard fields)
-        card.classList.toggle('active-field', isChecked);
-        card.classList.toggle('inactive-field', !isChecked);
-
-        // Update in-memory data
-        if (window.selectedLeadData && window.selectedLeadData[fieldName]) {
-            if (typeof window.selectedLeadData[fieldName] === 'object') {
-                window.selectedLeadData[fieldName].active = isChecked;
-            }
-        }
-
-        // Save to FieldMappingService
-        if (window.fieldMappingService) {
-            try {
-                await window.fieldMappingService.setFieldConfig(fieldName, { active: isChecked });
-            } catch (error) {
-                console.error(`Failed to save ${fieldName}:`, error);
-                // Revert on error
-                toggleInput.checked = !isChecked;
-                card.classList.toggle('active-field', !isChecked);
-                card.classList.toggle('inactive-field', isChecked);
-                return;
-            }
-        }
-
-        // Sync with ListView
-        syncToggleWithListView(fieldName, isChecked);
-
-        // Update stats and transfer button
-        updateFieldStats();
-        if (typeof updateTransferButtonState === 'function') updateTransferButtonState();
-    });
-
-    // Edit button click
-    const editBtn = card.querySelector('.edit-field-btn');
-    if (editBtn) {
-        editBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            openEditModal(fieldName, fieldLabel, fieldValue);
-        });
-    }
-
-    // Card click (except toggle)
-    card.addEventListener('click', (e) => {
-        if (e.target.closest('.toggle-switch') || e.target.closest('.edit-field-btn') || e.target.closest('.edit-label-btn')) {
-            return;
-        }
-        openEditModal(fieldName, fieldLabel, fieldValue);
-    });
+    // Card click (no longer used for editing - read-only mode)
+    // Users must go to fieldConfigurator.html to edit
 
     return card;
 }
@@ -5736,23 +5430,10 @@ function updateAPIStatus() {
 
 /**
  * Setup stats cards click handlers
+ * REMOVED: Stats cards have been removed from the UI - read-only transfer page
  */
 function setupStatsCardsClickHandlers() {
-    const cards = [
-        { id: 'active-stats-card', filter: 'active' },
-        { id: 'inactive-stats-card', filter: 'inactive' },
-        { id: 'total-stats-card', filter: 'all' }
-    ];
-
-    cards.forEach(({ id, filter }) => {
-        const card = document.getElementById(id);
-        if (card) {
-            card.addEventListener('click', () => {
-                const btn = document.querySelector(`.filter-btn[data-filter="${filter}"]`);
-                if (btn) btn.click();
-            });
-        }
-    });
+    // No longer needed - stats cards removed
 }
 
 // Setup disconnect button

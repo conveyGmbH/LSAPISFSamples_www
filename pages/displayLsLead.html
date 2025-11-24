@@ -11,9 +11,178 @@
 
     <link href="../css/displayLsLead.css" rel="stylesheet">
     <link rel="icon" type="image/x-icon" href="../images/api-sf.ico">
+
+    <style>
+        .modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000;
+}
+
+.modal-container {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  padding: 20px;
+  max-width: 800px;
+  width: 90%;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #e0e0e0;
+  padding-bottom: 10px;
+  margin-bottom: 20px;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 24px;
+  color: #333;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 28px;
+  cursor: pointer;
+  color: #999;
+}
+
+.close-btn:hover {
+  color: #333;
+}
+
+.info-message {
+  background: #e3f2fd;
+  border-left: 4px solid #2196f3;
+  padding: 12px;
+  margin-bottom: 20px;
+  border-radius: 4px;
+}
+
+.field-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.tab-btn {
+  padding: 10px 20px;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  font-size: 16px;
+  color: #666;
+  transition: all 0.3s;
+}
+
+.tab-btn.active {
+  color: #2196f3;
+  border-bottom-color: #2196f3;
+  font-weight: 600;
+}
+
+.tab-content {
+  display: none;
+}
+
+.tab-content.active {
+  display: block;
+}
+
+.fields-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 15px;
+  max-height: 500px;
+  overflow-y: auto;
+  padding: 10px;
+}
+
+.field-row {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.field-label {
+  font-weight: 600;
+  color: #333;
+  font-size: 14px;
+}
+
+.field-input {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  transition: border-color 0.3s;
+}
+
+.field-input:focus {
+  outline: none;
+  border-color: #2196f3;
+  box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.1);
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background-color 0.3s;
+}
+
+.btn-primary {
+  background: #2196f3;
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #1976d2;
+}
+
+.btn-secondary {
+  background: #e0e0e0;
+  color: #333;
+}
+
+.btn-secondary:hover {
+  background: #d0d0d0;
+}
+
+.no-data {
+  text-align: center;
+  padding: 40px;
+  color: #999;
+  font-style: italic;
+}
+    </style>
 </head>
 
-<body>
+<body data-page="lead">
     <header class="main-header">
         <div class="logo">
             <img src="../images/leadsuccess_white.svg" />
@@ -66,7 +235,19 @@
                     </svg>
                     <span>Back</span>
                 </button>
+                <button id="changeFieldMappingBtn" class="action-button">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 20h9"></path>
+                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                    </svg>
+                    <span>Change Field Mapping</span>
+                </button>
                 <button id="showAttachmentButton" class="action-button" disabled>Show Attachment (0)</button>
+                <div id="configButtonContainer" style="display: none;">
+                    <button id="showConfigBtn" class="btn btn-primary" onclick="showFieldConfiguration()">
+                        <i class="fas fa-cog"></i> Show Configuration
+                    </button>
+                </div>
             </div>
 
         </section>
@@ -91,9 +272,661 @@
     <div id="errorMessage" class="error-message"></div>
 
 
+    <script src="/js/services/mapping/FieldMappingService.js"></script>
+    <script>
+        // Initialize global FieldMappingService instance if not already created
+        if (!window.fieldMappingService) {
+            window.fieldMappingService = new window.FieldMappingService();
+        }
+    </script>
+    <script src="../js/services/fakeDataGenerator.js"></script>
+    <script src="../js/controllers/virtualDataModal.js"></script>
     <script src="../js/controllers/headerController.js" type="module" defer></script>
     <script src="/js/controllers/displayLsLeadController.js" type="module" defer></script>
     <script type="module" src="../js/controllers/postman-integration.js"></script>
+
+
+    <!-- Field Configuration Modal -->
+    <div id="fieldConfigModal" class="modal">
+        <div class="modal-content" style="max-width: 1200px; max-height: 90vh;">
+            <div class="modal-header">
+                <h2>Configure Fields for Salesforce</h2>
+                <button id="closeFieldConfigModal" class="close-btn">&times;</button>
+            </div>
+
+            <div class="modal-body">
+                <!-- Search -->
+                <div class="search-container">
+                    <input type="text" id="fieldSearchInput" placeholder="Search fields..." />
+                </div>
+
+                <!-- Filter Tabs -->
+                <div class="filter-tabs">
+                    <button class="filter-tab" data-filter="all">All Fields</button>
+                    <button class="filter-tab active" data-filter="active">Active Fields</button>
+                    <button class="filter-tab" data-filter="inactive">Inactive Fields</button>
+                    <button class="filter-tab" data-filter="required">Required</button>
+                    <button class="filter-tab" data-filter="custom">Custom Fields</button>
+                </div>
+
+                <!-- Add Custom Field Button (shown only when Custom Fields tab is active) -->
+                <button id="addCustomFieldBtnModal" class="add-custom-field-btn" style="display: none;">
+                    <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
+                    </svg>
+                    Add Custom Field
+                </button>
+
+                <!-- Bulk Actions -->
+                <div class="bulk-actions">
+                    <button id="selectAllFields">Select All</button>
+                    <button id="deselectAllFields">Deselect All</button>
+                </div>
+
+                <!-- Fields Grid -->
+                <div id="fieldsGrid" class="fields-grid">
+                    <!-- Fields will be populated here -->
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button id="cancelFieldConfig" class="btn-secondary">Cancel</button>
+                <button id="saveFieldConfig" class="btn-primary">Save & Continue</button>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        /* Reset */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* Principal Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal.show {
+            display: flex !important;
+            opacity: 1;
+        }
+
+        .modal-content {
+             background: white;
+            border-radius: 12px;
+            max-width: 1200px;
+            width: 90%;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            border: 1px solid #e5e7eb;
+            transform: scale(0.95);
+            transition: transform 0.3s ease;
+        }
+
+        .modal.show .modal-content {
+            transform: scale(1);
+        }
+
+        /* Header Modal */
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 24px 32px;
+            border-bottom: 1px solid #f3f4f6;
+            border-radius: 12px 12px 0 0;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: -0.025em;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 28px;
+            cursor: pointer;
+            color: inherit;
+            line-height: 1;
+        }
+
+        .close-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: rotate(90deg);
+        }
+
+        .modal-body {
+            padding: 24px;
+            flex: 1;
+            overflow-y: auto;
+            /* background: #fafafa; */
+        }
+
+        /* Footer */
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            padding: 20px 24px;
+            border-top: 1px solid #f3f4f6;
+            background: white;
+            border-radius: 0 0 12px 12px;
+        }
+
+        /* Search */
+        .search-container {
+            margin-bottom: 20px;
+            position: relative;
+
+        }
+
+        /* #fieldSearchInput {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+        } */
+
+        #fieldSearchInput {
+            width: 100%;
+            padding: 16px 20px 16px 48px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 500;
+            background: white;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        #fieldSearchInput:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+            transform: translateY(-1px);
+        }
+
+        /* Filter Tabs */
+        .filter-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 8px;
+        }
+
+        .filter-tab {
+            background: none;
+            border: none;
+            padding: 8px 16px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #000000;
+            cursor: pointer;
+            border-radius: 6px 6px 0 0;
+            transition: all 0.2s;
+        }
+
+        .filter-tab.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .filter-tab:hover:not(.active) {
+            background: #f3f4f6;
+        }
+
+        /* Add Custom Field Button */
+        .add-custom-field-btn {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            background: #8b5cf6;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 16px;
+            transition: background 0.2s;
+        }
+
+        .add-custom-field-btn:hover {
+            background: #7c3aed;
+        }
+
+        /* Bulk Actions */
+        .bulk-actions {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .bulk-actions button {
+            padding: 8px 16px;
+            border: 1px solid #e2e8f0;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: #4a5568;
+            transition: all 0.2s;
+        }
+
+        .bulk-actions button:hover {
+            background: #f3f4f6;
+            border-color: #cbd5e0;
+        }
+
+        /* Fields Grid - Card Layout */
+        .fields-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+            gap: 16px;
+            max-height: 500px;
+            overflow-y: auto;
+            padding: 4px;
+        }
+
+        /* Field Card */
+        .field-card {
+            background: white;
+            border: 1px solid #5e86bb;
+            border-radius: 8px;
+            padding: 16px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .field-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+            transform: translateY(-1px);
+        }
+
+        .field-card.inactive {
+            opacity: 0.6;
+            background: #f9fafb;
+        }
+
+        .field-card input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: #667eea;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .field-card input[type="checkbox"]:disabled {
+            cursor: not-allowed;
+        }
+
+        .field-card-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .field-card-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .field-card-name {
+            font-weight: 600;
+            font-size: 14px;
+            color: black
+        }
+
+        .field-card-badges {
+            display: flex;
+            gap: 6px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .badge.required {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge.active {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .badge.inactive {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .badge.custom {
+            background: #ede9fe;
+            color: #5b21b6;
+        }
+
+        .field-mapping {
+            font-size: 12px;
+            margin-bottom: 4px;
+        }
+
+        .field-mapping-ls {
+            color: #3b82f6;
+            font-weight: 500;
+        }
+
+        .field-mapping-sf {
+            color: #8b5cf6;
+            font-weight: 500;
+        }
+
+        .field-default-value {
+            font-size: 11px;
+            color: #000000;
+            font-style: italic;
+            margin-top: 4px;
+        }
+
+        .field-edit-btn {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: none;
+            border: none;
+            color: #9ca3af;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .field-edit-btn:hover {
+            background: #f3f4f6;
+            color: #667eea;
+        }
+
+        .field-delete-btn {
+            position: absolute;
+            top: 16px;
+            right: 48px;
+            background: none;
+            border: none;
+            color: #9ca3af;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .field-delete-btn:hover {
+            background: #fee2e2;
+            color: #ef4444;
+        }
+
+        /* Buttons */
+        .btn-primary {
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            padding: 10px 20px;
+            border: 1px solid #e2e8f0;
+            background: white;
+            color: #4a5568;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .btn-secondary:hover {
+            background: #f3f4f6;
+        }
+
+        /* Custom Field Modal */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: #4a5568;
+            margin-bottom: 8px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-hint {
+            font-size: 12px;
+            color: #000000;
+            margin-top: 6px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 24px;
+        }
+
+        /* Toast Notification */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 16px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            z-index: 10000;
+            animation: slideIn 0.3s ease-out;
+            min-width: 300px;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .toast.success {
+            border-left: 4px solid #48bb78;
+        }
+
+        .toast.error {
+            border-left: 4px solid #f56565;
+        }
+
+        .toast-message {
+            flex: 1;
+            font-size: 14px;
+            color: #1a202c;
+        }
+
+        .toast-close {
+            background: none;
+            border: none;
+            color: #9ca3af;
+            cursor: pointer;
+            font-size: 18px;
+            line-height: 1;
+        }
+
+        .toast-close:hover {
+            color: #1f2937;
+        }
+
+        /* Scrollbar */
+        .fields-grid::-webkit-scrollbar,
+        .modal-body::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .fields-grid::-webkit-scrollbar-track,
+        .modal-body::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+
+        .fields-grid::-webkit-scrollbar-thumb,
+        .modal-body::-webkit-scrollbar-thumb {
+            background: #cbd5e0;
+            border-radius: 4px;
+        }
+
+        .fields-grid::-webkit-scrollbar-thumb:hover,
+        .modal-body::-webkit-scrollbar-thumb:hover {
+            background: #a0aec0;
+        }
+    </style>
+
+    <!-- Edit Field Mapping Modal -->
+    <div id="editFieldMappingModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>Edit Field Mapping</h2>
+                <button id="closeEditFieldMappingBtn" class="close-btn">&times;</button>
+            </div>
+
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label" for="editLsFieldName">LS Field Name</label>
+                    <input type="text" id="editLsFieldName" class="form-input" readonly style="background: #f9fafb; cursor: not-allowed;" />
+                    <p class="form-hint">Field name from LeadSuccess API (read-only)</p>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="editSfFieldName">Salesforce Field Name *</label>
+                    <input type="text" id="editSfFieldName" class="form-input" placeholder="e.g., First_Name" />
+                    <p class="form-hint">This will be the field name in Salesforce</p>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button id="cancelEditFieldMapping" class="btn-secondary">Cancel</button>
+                <button id="saveEditFieldMapping" class="btn-primary">
+                    <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" style="display: inline; margin-right: 6px; vertical-align: middle;">
+                        <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
+                    </svg>
+                    Save Mapping
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Field Modal -->
+    <div id="customFieldModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>Add Custom Field</h2>
+                <button id="closeCustomFieldModalBtn" class="close-btn">&times;</button>
+            </div>
+
+            <div class="modal-body">
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #1f2937;">Field Name *</label>
+                    <input type="text" id="customFieldName" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;" placeholder="e.g., Zone" />
+                    <p style="margin-top: 6px; font-size: 12px; color: #6b7280;">
+                        You must first verify the exact field name in Salesforce and enter it here without spaces. 
+                        Custom fields must follow Salesforce naming conventions: use only letters, numbers, and underscores, 
+                        and ensure the name is unique within the same object. 
+                        In the API, custom field names are identified by a suffix of two underscores followed by a lowercase "c". 
+                        For example, a custom object labeled "Issue" appears as Issue__c, and a custom field labeled "Hire Date" appears as Hire_Date__c.
+                    </p>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #1f2937;">Default Value</label>
+                    <textarea id="customFieldValue" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;" rows="3" placeholder="e.g., Germany, France"></textarea>
+                    <p style="margin-top: 6px; font-size: 12px; color: #6b7280;">Optional: Set a default value for this field</p>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button id="cancelCustomField" class="btn-secondary">Cancel</button>
+                <button id="saveCustomFieldBtn" class="btn-primary">
+                    <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" style="display: inline; margin-right: 6px; vertical-align: middle;">
+                        <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
+                    </svg>
+                    Save Field
+                </button>
+            </div>
+        </div>
+    </div>
+
 </body>
 
 </html>

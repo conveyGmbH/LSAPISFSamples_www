@@ -6,20 +6,11 @@
  * - FieldMappingService.js
  * - LeadEditsManager.js
  * - transferModals.js
- *
- * Self-contained, no external dependencies, WinJS Promise compatible
- * For integration into LSPortal
- *
- * Version: 1.0.0
- * @license MIT
  */
 
 (function() {
     'use strict';
-
-    // ========================================
     // CSS INJECTION
-    // ========================================
     function injectCSS() {
         const cssContent = `
 /* Smooth transitions */
@@ -241,9 +232,7 @@ input:checked + .toggle-slider:before {
         }
     }
 
-    // ========================================
-    // WINJS PROMISE COMPATIBILITY
-    // ========================================
+    // WINJS PROMISE COMPATIBILITY    
     function toWinJSPromise(promise) {
         if (typeof WinJS !== 'undefined' && WinJS.Promise) {
             return new WinJS.Promise(function (complete, error) {
@@ -253,9 +242,8 @@ input:checked + .toggle-slider:before {
         return promise;
     }
 
-    // ========================================
-    // CONNECTION PERSISTENCE MANAGER
-    // ========================================
+    
+    // CONNECTION PERSISTENCE MANAGER    
     class ConnectionPersistenceManager {
         static CONNECTION_KEY = 'sf_connection_status';
         static USER_INFO_KEY = 'sf_user_info';
@@ -360,9 +348,8 @@ input:checked + .toggle-slider:before {
         }
     }
 
-    // ========================================
-    // LEAD EDITS MANAGER
-    // ========================================
+    
+    // LEAD EDITS MANAGER    
     class LeadEditsManager {
         constructor(options = {}) {
             this.MAX_LEADS = options.maxLeads || 30;
@@ -643,9 +630,8 @@ input:checked + .toggle-slider:before {
         }
     }
 
-    // ========================================
-    // FIELD MAPPING SERVICE
-    // ========================================
+    
+    // FIELD MAPPING SERVICE    
     class FieldMappingService {
         constructor(config = {}) {
             this.fieldConfig = this.loadConfig();
@@ -957,7 +943,6 @@ input:checked + .toggle-slider:before {
                 try {
                     await this.createApiService().request('DELETE', `LS_FieldMappings(${recordId})`);
                 } catch (deleteError) {
-                    // Continue with create
                 }
 
                 const createResult = await this.createRecord(configData);
@@ -1591,9 +1576,8 @@ input:checked + .toggle-slider:before {
         }
     }
 
-    // ========================================
-    // MODAL FUNCTIONS
-    // ========================================
+    
+    // MODAL FUNCTIONS    
     function showTransferLoadingModal(message = 'Processing...') {
         const modal = document.createElement('div');
         modal.className = 'sf-lib-transfer-loading-modal';
@@ -2103,9 +2087,9 @@ input:checked + .toggle-slider:before {
         });
     }
 
-    // ========================================
+    
     // UTILITY FUNCTIONS
-    // ========================================
+    
     function formatFieldLabel(fieldName) {
         return fieldName
             .replace(/([A-Z])/g, ' $1')
@@ -2231,16 +2215,16 @@ input:checked + .toggle-slider:before {
         return systemFields.includes(fieldName);
     }
 
-    // ========================================
+    
     // MAIN LIBRARY CLASS
-    // ========================================
+    
     class SalesforceLeadLib {
         constructor(config = {}) {
             this.version = '1.0.0';
             this.config = {
                 backendUrl: config.backendUrl || (window.location.hostname === 'localhost'
                     ? 'http://localhost:3000'
-                    : 'https://lsapisfbackenddev-gnfbema5gcaxdahz.germanywestcentral-01.azurewebsites.net'),
+                    : 'https://lsapisfbackend.convey.de/'),
                 serverName: config.serverName || 'lstest.convey.de',
                 apiName: config.apiName || 'apisftest',
                 ...config
@@ -2265,7 +2249,7 @@ input:checked + .toggle-slider:before {
             console.log(`SalesforceLeadLib v${this.version} initialized`);
         }
 
-        // PUBLIC API: Initialize library with container and lead data
+        // Initialize library with container and lead data
         async initialize(container, leadData, credentials, options = {}) {
             try {
                 this.currentContainer = container;
@@ -2288,7 +2272,7 @@ input:checked + .toggle-slider:before {
             }
         }
 
-        // PUBLIC API: Load lead into container
+        // Load lead into container
         async loadLead(container, leadData, eventId) {
             try {
                 this.currentContainer = container;
@@ -2311,7 +2295,7 @@ input:checked + .toggle-slider:before {
             }
         }
 
-        // PUBLIC API: Transfer lead to Salesforce
+        // Transfer lead to Salesforce
         async transferLead(leadData) {
             try {
                 if (this.isTransferInProgress) {
@@ -2365,7 +2349,7 @@ input:checked + .toggle-slider:before {
             }
         }
 
-        // PUBLIC API: Get transfer status for a lead
+        // Get transfer status for a lead
         async getStatus(leadId) {
             try {
                 const response = await fetch(`${this.config.backendUrl}/api/leads/transfer-status/${leadId}`, {
@@ -2389,7 +2373,7 @@ input:checked + .toggle-slider:before {
             }
         }
 
-        // PUBLIC API: Connect to Salesforce
+        //  Connect to Salesforce
         async connect(credentials) {
             try {
                 if (credentials) {
@@ -2439,7 +2423,7 @@ input:checked + .toggle-slider:before {
             }
         }
 
-        // PUBLIC API: Disconnect from Salesforce
+        // Disconnect from Salesforce
         async disconnect() {
             try {
                 this.connectionManager.clearConnection();
@@ -2461,7 +2445,7 @@ input:checked + .toggle-slider:before {
             }
         }
 
-        // PUBLIC API: Save field mapping configuration
+        //  Save field mapping configuration
         async saveFieldMapping(config) {
             try {
                 if (config.fieldName && config.label) {
@@ -2480,7 +2464,7 @@ input:checked + .toggle-slider:before {
             }
         }
 
-        // PUBLIC API: Get field mapping for event
+        // Get field mapping for event
         async getFieldMapping(eventId) {
             try {
                 await this.fieldMappingService.loadFieldMappingsFromAPI(eventId);
@@ -2498,7 +2482,7 @@ input:checked + .toggle-slider:before {
             }
         }
 
-        // PUBLIC API: Clear container
+        // Clear container
         clear(container) {
             if (container) {
                 container.innerHTML = '';
@@ -2507,7 +2491,7 @@ input:checked + .toggle-slider:before {
             this.currentContainer = null;
         }
 
-        // PRIVATE: Generate HTML for lead display
+        // Generate HTML for lead display
         _generateLeadHTML(leadData) {
             return `
                 <div class="sf-lib-container">
@@ -2522,7 +2506,7 @@ input:checked + .toggle-slider:before {
             `;
         }
 
-        // PRIVATE: Generate HTML for fields
+        // Generate HTML for fields
         _generateFieldsHTML(leadData) {
             const processedData = this.fieldMappingService.applyCustomLabels(leadData);
             let html = '';
@@ -2547,7 +2531,7 @@ input:checked + .toggle-slider:before {
             return html;
         }
 
-        // PRIVATE: Attach event listeners
+        // Attach event listeners
         _attachEventListeners() {
             if (!this.currentContainer) return;
 
@@ -2576,7 +2560,7 @@ input:checked + .toggle-slider:before {
             });
         }
 
-        // PRIVATE: Collect active fields only
+        // Collect active fields only
         _collectActiveFieldsOnly(leadData) {
             const salesforceData = {};
             const excludedFields = new Set([
@@ -2609,7 +2593,7 @@ input:checked + .toggle-slider:before {
             return salesforceData;
         }
 
-        // PRIVATE: Transfer to Salesforce backend
+        // Transfer to Salesforce backend
         async _transferToSalesforce(leadData) {
             const apiUrl = `${this.config.backendUrl}/api/salesforce/leads`;
             const orgId = localStorage.getItem('orgId') || 'default';
@@ -2653,7 +2637,7 @@ input:checked + .toggle-slider:before {
             };
         }
 
-        // PRIVATE: Check authentication status
+        // Check authentication status
         async _checkAuthenticationStatus() {
             const orgId = localStorage.getItem('orgId') || 'default';
 
@@ -2684,7 +2668,7 @@ input:checked + .toggle-slider:before {
             }
         }
 
-        // PUBLIC API: Build complete interface matching displayLeadTransfer.html
+        // Build complete interface matching displayLeadTransfer.html
         buildCompleteInterface(container) {
             const html = `
 <div class="flex h-screen flex-col">
@@ -3135,9 +3119,9 @@ input:checked + .toggle-slider:before {
         }
     }
 
-    // ========================================
+    
     // GLOBAL EXPOSURE
-    // ========================================
+    
 
     // Expose to window
     window.SalesforceLeadLib = SalesforceLeadLib;
@@ -3152,6 +3136,6 @@ input:checked + .toggle-slider:before {
     window.SalesforceLeadLib.showConfirmDialog = showConfirmDialog;
     window.SalesforceLeadLib.showAlertDialog = showAlertDialog;
 
-    console.log('SalesforceLeadLib v1.0.0 loaded and ready');
+    console.log('SalesforceLeadLib loaded and ready');
 
 })();
