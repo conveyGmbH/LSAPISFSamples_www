@@ -84,14 +84,25 @@ function configureUIForMode(mode, eventId) {
 
     if (mode === 'virtual') {
         // Virtual mode UI
-        if (pageTitle) pageTitle.textContent = 'Test Data Configuration';
+        if (pageTitle) {
+            pageTitle.innerHTML = `
+                Test Data Configuration
+                <img src="../images/salesforcelogo.png" alt="Salesforce" style="height: 32px; width: auto; vertical-align: middle; margin-right: 12px;">
+                
+            `;
+        }
         if (eventInfo) eventInfo.style.display = 'none';
         if (virtualModeInfo) virtualModeInfo.style.display = 'block';
         if (normalModeButtons) normalModeButtons.style.display = 'none';
         if (virtualModeButtons) virtualModeButtons.style.display = 'flex';
     } else {
         // Normal mode UI
-        if (pageTitle) pageTitle.textContent = 'Field Configurator';
+        if (pageTitle) {
+            pageTitle.innerHTML = `
+            Field Configurator
+                <img src="../images/salesforcelogo.png" alt="Salesforce" style="height: 32px; width: auto; vertical-align: middle; margin-right: 12px;">
+            `;
+        }
         if (eventInfo) {
             eventInfo.style.display = 'block';
             eventInfo.textContent = `Configure which fields will be transferred to Salesforce for Event ${eventId}. Required fields (LastName, Company) are always included.`;
