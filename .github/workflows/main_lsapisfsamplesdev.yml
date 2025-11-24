@@ -54,3 +54,6 @@ jobs:
           app-name: 'lsapisfsamplesdev'
           slot-name: 'Production'
           package: .
+        env:
+          SCM_DO_BUILD_DURING_DEPLOYMENT: false
+          WEBSITE_RUN_FROM_PACKAGE: 0
