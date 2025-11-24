@@ -10,6 +10,9 @@ require('dotenv').config();
 // Import new service modules
 const salesforceService = require('./salesforce');
 const { authMiddleware, setupOrgMiddleware } = require('./middleware/auth');
+const { transferLeadWithAutoFieldCreation } = require('./leadTransferService');
+const fieldConfigStorage = require('./fieldConfigStorage');
+const leadTransferStatusService = require('./leadTransferStatusService');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -30,7 +33,7 @@ function determineEnvironmentAndConfig() {
     // Determine redirect URI based on environment
     let redirectUri;
     if (isProduction) {
-        redirectUri = process.env.SF_REDIRECT_URI_PRODUCTION || 'https://lsapisfsamples.convey.de/oauth-callback.html';
+        redirectUri = process.env.SF_REDIRECT_URI_PRODUCTION || 'https://lsapisfbackend.convey.de/oauth/callback';
     } else {
         redirectUri = process.env.SF_REDIRECT_URI_DEV || `http://localhost:${port}/oauth/callback`;
     }
@@ -52,8 +55,9 @@ const config = {
         isProduction: envConfig.isProduction
     },
     salesforce: {
-        clientId: process.env.SF_CLIENT_ID,
-        clientSecret: process.env.SF_CLIENT_SECRET,
+        // Optional default credentials (for backward compatibility)
+        clientId: process.env.SF_CLIENT_ID || null,
+        clientSecret: process.env.SF_CLIENT_SECRET || null,
         redirectUri: envConfig.redirectUri,
         loginUrl: process.env.SF_LOGIN_URL || 'https://login.salesforce.com'
     },
@@ -62,17 +66,19 @@ const config = {
         resave: false,
         saveUninitialized: false,
         cookie: {
-            secure: envConfig.isProduction, // Secure cookies in production
+            secure: envConfig.isProduction,
             httpOnly: true,
-            maxAge: 24 * 60 * 60 * 1000 // 24 hours
+            maxAge: 24 * 60 * 60 * 1000, // 24 hours
+            sameSite: envConfig.isProduction ? 'none' : 'lax', 
+            domain: envConfig.isProduction ? undefined : 'localhost' 
         }
     }
 };
 
-// Validate required environment variables
-if (!config.salesforce.clientId || !config.salesforce.clientSecret) {
-    console.error('❌ Missing required Salesforce credentials. Please check your .env file.');
-    process.exit(1);
+// Log configuration status
+if (config.salesforce.clientId && config.salesforce.clientSecret) {
+} else {
+    console.log('ℹ️  No default Salesforce credentials - clients will provide their own credentials');
 }
 
 app.use(cors({
@@ -82,16 +88,15 @@ app.use(cors({
     const allowedOrigins = [
     // Development origins
     'http://127.0.0.1:5504',
-    'http://localhost:5504', 
-    'http://localhost:3000', 
+    'http://localhost:5504',
+    'http://localhost:3000',
     'https://leadsuccess.convey.de/apisflsm/',
-    'https://leadsuccess.convey.de',    
-  
+    'https://leadsuccess.convey.de',
+
     // Production origins
-    'https://delightful-desert-016e2a610.4.azurestaticapps.net',
-    'https://brave-bush-0041ef403.6.azurestaticapps.net',
     'https://lsapisfsamples.convey.de',
-    'https://lsapisfbackend.convey.de'
+    'https://lstest.convey.de',
+    'https://lsapisfbackend.convey.de',
   ]; 
 
   if(!origin) return callback(null, true);
@@ -117,19 +122,24 @@ app.use(session(config.session));
 // Static files
 app.use(express.static(path.join(__dirname, '../')));
 
-// ============================================================================
+// ==============================================
 // SALESFORCE CONNECTION MANAGER
-// ============================================================================
+// ==============================================
 
-const connections = new Map(); // orgId -> connection data
+const connections = new Map(); 
 
 function createConnection(sessionData) {
+    // Use client-specific credentials if available, otherwise fall back to default
+    const clientId = sessionData.clientId || config.salesforce.clientId;
+    const clientSecret = sessionData.clientSecret || config.salesforce.clientSecret;
+    const loginUrl = sessionData.loginUrl || config.salesforce.loginUrl;
+
     const conn = new jsforce.Connection({
         oauth2: {
-            clientId: config.salesforce.clientId,
-            clientSecret: config.salesforce.clientSecret,
+            clientId: clientId,
+            clientSecret: clientSecret,
             redirectUri: config.salesforce.redirectUri,
-            loginUrl: config.salesforce.loginUrl
+            loginUrl: loginUrl
         },
         accessToken: sessionData.accessToken,
         refreshToken: sessionData.refreshToken,
@@ -174,7 +184,6 @@ function getUserInfo(orgId) {
 
 function removeConnection(orgId) {
     connections.delete(orgId);
-    console.log(`🗑️ Removed connection for org: ${orgId}`);
 }
 
 // UTILITY FUNCTIONS
@@ -295,72 +304,280 @@ function validateAndFixLeadData(leadData) {
 
 // AUTHENTICATION ROUTES
 
-// Start OAuth flow
+// Show environment selection page
 app.get('/auth/salesforce', (req, res) => {
+    res.sendFile(path.join(__dirname, 'views', 'auth-start.html'));
+});
+
+// OAuth redirect with environment selection
+app.get('/auth/salesforce/redirect', (req, res) => {
     try {
         const orgId = req.query.orgId || 'default';
+        const clientId = req.query.clientId || config.salesforce.clientId;
+        const clientSecret = req.query.clientSecret || config.salesforce.clientSecret;
+        const loginUrl = req.query.loginUrl || config.salesforce.loginUrl;
+
+        // Validate that credentials are available (either from params or config)
+        if (!clientId || !clientSecret) {
+            console.error('❌ No credentials available - neither from query params nor from environment');
+            return res.status(400).send(`
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Configuration Error</title>
+                    <style>
+                        * { margin: 0; padding: 0; box-sizing: border-box; }
+                        body {
+                            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                            min-height: 100vh;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            color: #333;
+                        }
+                        .container {
+                            max-width: 480px;
+                            width: 90%;
+                            background: rgba(255, 255, 255, 0.95);
+                            backdrop-filter: blur(20px);
+                            border-radius: 24px;
+                            padding: 40px;
+                            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+                            text-align: center;
+                        }
+                        .error-icon {
+                            width: 80px;
+                            height: 80px;
+                            margin: 0 auto 24px;
+                            background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+                            border-radius: 50%;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                        }
+                        .error-icon svg {
+                            width: 40px;
+                            height: 40px;
+                            color: white;
+                        }
+                        h2 {
+                            font-size: 28px;
+                            font-weight: 700;
+                            margin-bottom: 16px;
+                            color: #D97706;
+                        }
+                        p {
+                            color: #92400E;
+                            margin-bottom: 12px;
+                            line-height: 1.6;
+                            font-size: 16px;
+                        }
+                        button {
+                            background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+                            color: white;
+                            border: none;
+                            padding: 12px 32px;
+                            border-radius: 12px;
+                            font-size: 16px;
+                            font-weight: 600;
+                            cursor: pointer;
+                            transition: transform 0.2s;
+                            margin-top: 16px;
+                        }
+                        button:hover {
+                            transform: scale(1.05);
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="error-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                                <line x1="12" y1="9" x2="12" y2="13"/>
+                                <line x1="12" y1="17" x2="12.01" y2="17"/>
+                            </svg>
+                        </div>
+                        <h2>⚠️ Configuration Error</h2>
+                        <p>Salesforce Client ID and Client Secret are required.</p>
+                        <p>Please configure SF_CLIENT_ID and SF_CLIENT_SECRET in your environment variables.</p>
+                        <button onclick="window.close()">Close Window</button>
+                    </div>
+                    <script>setTimeout(() => window.close(), 5000);</script>
+                </body>
+                </html>
+            `);
+        }
+
         const state = `${generateState()}:${orgId}`;
         req.session.oauthState = state;
 
+        // Store client credentials in session for callback
+        req.session.clientCredentials = {
+            clientId,
+            clientSecret,
+            loginUrl
+        };
+
         const oauth2 = new jsforce.OAuth2({
-            clientId: config.salesforce.clientId,
-            clientSecret: config.salesforce.clientSecret,
+            clientId: clientId,
+            clientSecret: clientSecret,
             redirectUri: config.salesforce.redirectUri,
-            loginUrl: config.salesforce.loginUrl
+            loginUrl: loginUrl
         });
 
         const authUrl = oauth2.getAuthorizationUrl({
             scope: 'api refresh_token',
             state: state
         });
-
-        console.log('🔗 Redirecting to Salesforce OAuth:', authUrl);
         res.redirect(authUrl);
 
     } catch (error) {
         console.error('❌ OAuth initiation failed:', error);
         res.status(500).send(`
-            <html><body>
-                <h2>Authentication Error</h2>
-                <p>Failed to start authentication: ${error.message}</p>
-                <script>window.close();</script>
-            </body></html>
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Authentication Error</title>
+                <style>
+                    * { margin: 0; padding: 0; box-sizing: border-box; }
+                    body {
+                        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        min-height: 100vh;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        color: #333;
+                    }
+                    .container {
+                        max-width: 480px;
+                        width: 90%;
+                        background: rgba(255, 255, 255, 0.95);
+                        backdrop-filter: blur(20px);
+                        border-radius: 24px;
+                        padding: 40px;
+                        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+                        text-align: center;
+                    }
+                    .error-icon {
+                        width: 80px;
+                        height: 80px;
+                        margin: 0 auto 24px;
+                        background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
+                        border-radius: 50%;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                    }
+                    .error-icon svg {
+                        width: 40px;
+                        height: 40px;
+                        color: white;
+                    }
+                    h2 {
+                        font-size: 28px;
+                        font-weight: 700;
+                        margin-bottom: 16px;
+                        color: #DC2626;
+                    }
+                    p {
+                        color: #B91C1C;
+                        margin-bottom: 12px;
+                        line-height: 1.6;
+                        font-size: 16px;
+                    }
+                    .error-message {
+                        background: rgba(239, 68, 68, 0.1);
+                        border-radius: 12px;
+                        padding: 16px;
+                        margin: 20px 0;
+                        font-family: monospace;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="error-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"/>
+                            <line x1="15" y1="9" x2="9" y2="15"/>
+                            <line x1="9" y1="9" x2="15" y2="15"/>
+                        </svg>
+                    </div>
+                    <h2>Authentication Error</h2>
+                    <div class="error-message">
+                        <p>${error.message}</p>
+                    </div>
+                    <p>This window will close automatically...</p>
+                </div>
+                <script>setTimeout(() => window.close(), 3000);</script>
+            </body>
+            </html>
         `);
     }
 });
 
 // OAuth callback
 app.get('/oauth/callback', async (req, res) => {
+
     try {
         const { code, state, error } = req.query;
 
         if (error) {
+            console.log('❌ OAuth error from Salesforce:', error);
             throw new Error(`OAuth error: ${error}`);
         }
 
         if (!code) {
+            console.log('❌ No authorization code received');
             throw new Error('No authorization code received');
         }
 
-        if (state !== req.session.oauthState) {
-            throw new Error('Invalid state parameter');
+        // Validate state exists
+        if (!state) {
+            console.log('❌ State parameter is missing');
+            throw new Error('Invalid state parameter - missing state');
         }
 
-        // Extract orgId from state (format: "randomState:orgId")
+        // Extract orgId from state
+        // Supports multiple formats for backward compatibility:
+        // - New format: "randomState:orgId" (e.g., "abc123:client_a")
+        // - Legacy format: "randomState" (e.g., "abc123") → defaults to 'default'
         const orgId = state.includes(':') ? state.split(':')[1] : 'default';
 
+        console.log('🔍 State parameter analysis:');
+        console.log('   - Format detected:', state.includes(':') ? 'Multi-org (state:orgId)' : 'Legacy (state only)');
+        console.log('   - Extracted orgId:', orgId);
+        console.log('   - State value:', state.substring(0, 20) + '...');
+
+        // Use default credentials from environment variables (Azure config)
+        // This avoids session dependency which causes issues with load balancing
+        const clientId = config.salesforce.clientId;
+        const clientSecret = config.salesforce.clientSecret;
+        const loginUrl = config.salesforce.loginUrl;
+
+        if (!clientId || !clientSecret) {
+            console.log('❌ Client credentials not found');
+            throw new Error('Client credentials not found in session');
+        }
+
         const oauth2 = new jsforce.OAuth2({
-            clientId: config.salesforce.clientId,
-            clientSecret: config.salesforce.clientSecret,
+            clientId: clientId,
+            clientSecret: clientSecret,
             redirectUri: config.salesforce.redirectUri,
-            loginUrl: config.salesforce.loginUrl
+            loginUrl: loginUrl
         });
+
 
         // Exchange code for tokens
         const conn = new jsforce.Connection({ oauth2 });
         const userInfo = await conn.authorize(code);
-
-        console.log(' OAuth successful for user:', userInfo.id);
 
         // Get detailed user info from Salesforce API
         let fullUserInfo = userInfo;
@@ -382,24 +599,43 @@ app.get('/oauth/callback', async (req, res) => {
                 };
             }
         } catch (apiError) {
-            console.log('⚠️ Could not fetch detailed user info, using basic info:', apiError.message);
+            console.log('Could not fetch detailed user info, using basic info:', apiError.message);
         }
 
-        // Store session data
+        // Store session data with client credentials
         const sessionData = {
             accessToken: conn.accessToken,
             refreshToken: conn.refreshToken,
             instanceUrl: conn.instanceUrl,
             organizationId: userInfo.organizationId,
             userId: userInfo.id,
-            userInfo: fullUserInfo
+            userInfo: fullUserInfo,
+            // Store client-specific credentials
+            clientId: clientId,
+            clientSecret: clientSecret,
+            loginUrl: loginUrl,
+            // Store the orgId from state parameter for mapping
+            stateOrgId: orgId
         };
 
         // Store in session and connection manager
         req.session.salesforce = sessionData;
-        req.session.currentOrgId = userInfo.organizationId;
+        req.session.currentOrgId = orgId; 
         req.session.authenticated = true;
-        storeConnection(sessionData);
+
+        // Store with BOTH identifiers for flexibility
+        storeConnection(sessionData); 
+
+        // Also store with the state orgId (default, custom, etc.)
+        if (orgId !== userInfo.organizationId) {
+            const conn = createConnection(sessionData);
+            connections.set(orgId, {
+                ...sessionData,
+                connection: conn,
+                connectedAt: new Date(),
+                lastRefresh: new Date()
+            });
+        }
 
         // Also store in the new multi-org service for better persistence
         try {
@@ -412,44 +648,168 @@ app.get('/oauth/callback', async (req, res) => {
                 conn.instanceUrl,
                 conn.accessToken
             );
-            console.log(`✅ Multi-org connection stored for org: ${userInfo.organizationId}`);
         } catch (multiOrgError) {
             console.warn('⚠️ Failed to store multi-org connection:', multiOrgError.message);
         }
 
         res.send(`
-            <html>
-                <head><title>Authentication Successful</title></head>
-                <body style="text-align: center; padding: 50px; font-family: Arial, sans-serif;">
-                    <h2 style="color: #0176D3;"> Authentication Successful!</h2>
-                    <p>Welcome, ${fullUserInfo.display_name || fullUserInfo.username || 'User'}</p>
-                    <p>Organization: ${fullUserInfo.organization_name || 'Your Organization'}</p>
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Authentication Successful</title>
+                <style>
+                    body {
+                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+                        background: #f5f5f5;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        min-height: 100vh;
+                        margin: 0;
+                        padding: 20px;
+                    }
+                    .container {
+                        background: white;
+                        border-radius: 8px;
+                        padding: 40px;
+                        max-width: 400px;
+                        width: 100%;
+                        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                        text-align: center;
+                    }
+                    .icon {
+                        font-size: 48px;
+                        margin-bottom: 20px;
+                    }
+                    h2 {
+                        color: #059669;
+                        margin: 0 0 16px 0;
+                        font-size: 20px;
+                    }
+                    .info-box {
+                        background: #f0fdf4;
+                        border: 1px solid #bbf7d0;
+                        border-radius: 4px;
+                        padding: 16px;
+                        margin: 16px 0;
+                        font-size: 14px;
+                    }
+                    .info-box p {
+                        margin: 8px 0;
+                        color: #166534;
+                    }
+                    p {
+                        color: #666;
+                        margin: 8px 0;
+                        font-size: 14px;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="icon">✅</div>
+                    <h2>Authentication Successful!</h2>
+                    <div class="info-box">
+                        <p><strong>${fullUserInfo.display_name || fullUserInfo.username || 'User'}</strong></p>
+                        <p>${fullUserInfo.organization_name || 'Your Organization'}</p>
+                    </div>
                     <p>This window will close automatically...</p>
-                    <script>
-                        // Send organization ID to parent window
-                        if (window.opener) {
-                            window.opener.postMessage({
-                                type: 'SALESFORCE_AUTH_SUCCESS',
-                                orgId: '${userInfo.organizationId}',
-                                userInfo: ${JSON.stringify(fullUserInfo)}
-                            }, '*');
-                        }
-                        setTimeout(() => window.close(), 2000);
-                    </script>
-                </body>
+                </div>
+                <script>
+                    if (window.opener) {
+                        window.opener.postMessage({
+                            type: 'SALESFORCE_AUTH_SUCCESS',
+                            orgId: '${userInfo.organizationId}',
+                            userInfo: ${JSON.stringify(fullUserInfo)}
+                        }, '*');
+                    }
+                    setTimeout(() => window.close(), 2000);
+                </script>
+            </body>
             </html>
         `);
 
     } catch (error) {
         console.error('❌ OAuth callback failed:', error);
         res.status(500).send(`
-            <html>
-                <head><title>Authentication Failed</title></head>
-                <body style="text-align: center; padding: 50px; font-family: Arial, sans-serif;">
-                    <h2 style="color: #EA001E;">❌ Authentication Failed</h2>
-                    <p>Error: ${error.message}</p>
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Authentication Failed</title>
+                <style>
+                    body {
+                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+                        background: #f5f5f5;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        min-height: 100vh;
+                        margin: 0;
+                        padding: 20px;
+                    }
+                    .container {
+                        background: white;
+                        border-radius: 8px;
+                        padding: 40px;
+                        max-width: 400px;
+                        width: 100%;
+                        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                        text-align: center;
+                    }
+                    .icon {
+                        font-size: 48px;
+                        margin-bottom: 20px;
+                    }
+                    h2 {
+                        color: #dc2626;
+                        margin: 0 0 16px 0;
+                        font-size: 20px;
+                    }
+                    .error-box {
+                        background: #fee;
+                        border: 1px solid #fcc;
+                        border-radius: 4px;
+                        padding: 12px;
+                        margin: 16px 0;
+                        font-size: 14px;
+                        color: #c00;
+                    }
+                    p {
+                        color: #666;
+                        margin: 8px 0;
+                        font-size: 14px;
+                    }
+                    button {
+                        background: #dc2626;
+                        color: white;
+                        border: none;
+                        padding: 10px 24px;
+                        border-radius: 4px;
+                        font-size: 14px;
+                        cursor: pointer;
+                        margin-top: 16px;
+                    }
+                    button:hover {
+                        background: #b91c1c;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="icon">❌</div>
+                    <h2>Authentication Failed</h2>
+                    <div class="error-box">${error.message}</div>
+                    <p>Please close this window and try again.</p>
                     <button onclick="window.close()">Close Window</button>
-                </body>
+                </div>
+                <script>
+                    setTimeout(() => window.close(), 5000);
+                </script>
+            </body>
             </html>
         `);
     }
@@ -458,7 +818,6 @@ app.get('/oauth/callback', async (req, res) => {
 // API ROUTES
 
 // NEW MULTI-ORG AUTHENTICATION API ROUTES
-// =======================================================================
 
 // Setup new organization connection
 app.post('/api/orgs/setup', setupOrgMiddleware, (req, res) => {
@@ -663,17 +1022,44 @@ app.post('/api/orgs/:orgId/leads/check-duplicate', authMiddleware, async (req, r
 // LEGACY API ROUTES (for backward compatibility)
 // =======================================================================
 
-// Get Salesforce auth URL
+// Get Salesforce auth URL (supports both GET and POST)
 app.get('/api/salesforce/auth', (req, res) => {
     try {
-        const state = generateState();
-        req.session.oauthState = state;
+        // Get credentials from query params or use defaults
+        const clientId = req.query.clientId || config.salesforce.clientId;
+        const clientSecret = req.query.clientSecret || config.salesforce.clientSecret;
+        const loginUrl = req.query.loginUrl || config.salesforce.loginUrl;
+        const orgId = req.query.orgId; // Optional orgId for multi-org support
+
+        if (!clientId || !clientSecret) {
+            return res.status(400).json({
+                message: 'Salesforce Client ID and Client Secret are required',
+                hint: 'Provide clientId and clientSecret as query parameters'
+            });
+        }
+
+        const randomState = generateState();
+
+        // Build state parameter
+        // If orgId provided: "randomState:orgId" (multi-org)
+        // If not provided: just "randomState" (single org, backward compatible)
+        const state = orgId ? `${randomState}:${orgId}` : randomState;
+
+        req.session.oauthState = randomState; // Store only random part for CSRF validation
+
+        // Store credentials in session for callback (fallback if needed)
+        req.session.clientCredentials = {
+            clientId,
+            clientSecret,
+            loginUrl,
+            orgId: orgId || 'default'
+        };
 
         const oauth2 = new jsforce.OAuth2({
-            clientId: config.salesforce.clientId,
-            clientSecret: config.salesforce.clientSecret,
+            clientId: clientId,
+            clientSecret: clientSecret,
             redirectUri: config.salesforce.redirectUri,
-            loginUrl: config.salesforce.loginUrl
+            loginUrl: loginUrl
         });
 
         const authUrl = oauth2.getAuthorizationUrl({
@@ -681,7 +1067,11 @@ app.get('/api/salesforce/auth', (req, res) => {
             state: state
         });
 
-        res.json({ authUrl });
+        console.log(`🔗 Generated auth URL (GET) - orgId: ${orgId || 'default'}`);
+        res.json({
+            authUrl,
+            orgId: orgId || 'default'
+        });
 
     } catch (error) {
         console.error('❌ Failed to generate auth URL:', error);
@@ -689,41 +1079,177 @@ app.get('/api/salesforce/auth', (req, res) => {
     }
 });
 
-// Check Salesforce connection status
-app.get('/api/salesforce/check', (req, res) => {
-    try {
-        const orgId = getCurrentOrgId(req);
-        const userInfo = getUserInfo(orgId);
-        const conn = getConnection(orgId);
+// POST version for sending credentials in body (more secure)
+app.post('/api/salesforce/auth', (req, res) => {
+    console.log('\n========================================');
+    console.log('📨 POST /api/salesforce/auth - Request received');
+    console.log('========================================');
 
-        if (!userInfo || !conn || !req.session.authenticated) {
-            return res.status(401).json({
-                connected: false,
-                message: 'Not connected to Salesforce'
+    try {
+        const { clientId, clientSecret, loginUrl, orgId } = req.body;
+
+        console.log('📋 Request body:', {
+            clientId: clientId ? `${clientId.substring(0, 20)}...` : 'missing',
+            clientSecret: clientSecret ? '***HIDDEN***' : 'missing',
+            loginUrl: loginUrl || 'using default',
+            orgId: orgId || 'not provided (will use "default")'
+        });
+
+        if (!clientId || !clientSecret) {
+            console.log('❌ Missing credentials');
+            return res.status(400).json({
+                message: 'Salesforce Client ID and Client Secret are required',
+                hint: 'Provide clientId and clientSecret in request body'
             });
         }
 
-        res.json({
-            connected: true,
-            userInfo: {
-                username: userInfo.username,
-                display_name: userInfo.display_name,
-                organization_name: userInfo.organization_name,
-                organization_id: userInfo.organizationId,
-                user_id: userInfo.id
-            },
-            // Add tokens for direct API calls
-            tokens: {
-                access_token: req.session.salesforce?.accessToken,
-                instance_url: req.session.salesforce?.instanceUrl
-            }
+        const randomState = generateState();
+        // Include orgId in state for multi-org support (format: "randomState:orgId")
+        const orgIdentifier = orgId || 'default';
+        const state = `${randomState}:${orgIdentifier}`;
+
+        console.log('🔐 Generated state parameter:');
+        console.log('   - Random part:', randomState.substring(0, 16) + '...');
+        console.log('   - OrgId:', orgIdentifier);
+        console.log('   - Full state:', `${randomState.substring(0, 16)}...:${orgIdentifier}`);
+
+        req.session.oauthState = randomState; // Store only random part for validation
+
+        // Store credentials in session for callback
+        req.session.clientCredentials = {
+            clientId,
+            clientSecret,
+            loginUrl: loginUrl || config.salesforce.loginUrl,
+            orgId: orgIdentifier
+        };
+
+        const oauth2 = new jsforce.OAuth2({
+            clientId: clientId,
+            clientSecret: clientSecret,
+            redirectUri: config.salesforce.redirectUri,
+            loginUrl: loginUrl || config.salesforce.loginUrl
         });
+
+        const authUrl = oauth2.getAuthorizationUrl({
+            scope: 'api refresh_token',
+            state: state
+        });
+
+        console.log('✅ Auth URL generated successfully');
+        console.log('🔗 Redirect URI:', config.salesforce.redirectUri);
+        console.log('🌐 Login URL:', loginUrl || config.salesforce.loginUrl);
+        console.log('🎯 State format:', state.includes(':') ? 'Multi-org (state:orgId)' : 'Legacy (state only)');
+        console.log('========================================\n');
+
+        res.json({ authUrl, orgId: orgIdentifier });
+
+    } catch (error) {
+        console.error('❌ Failed to generate auth URL:', error);
+        console.log('========================================\n');
+        res.status(500).json({ message: 'Failed to generate auth URL' });
+    }
+});
+
+// Check Salesforce connection status
+app.get('/api/salesforce/check', async (req, res) => {
+    console.log('\n========================================');
+    console.log('🔍 GET /api/salesforce/check - Checking connection');
+    console.log('========================================');
+
+    try {
+        // Get orgId from header (sent by frontend after OAuth success)
+        const orgId = req.headers['x-org-id'] || 'default';
+
+        console.log('📋 Request info:');
+        console.log('   - OrgId from header:', orgId);
+
+        // Check if connection exists in local connections Map (supports both default and Salesforce orgId)
+        try {
+            console.log('🔎 Looking for connection in local Map...');
+            const conn = getConnection(orgId);
+
+            if (!conn) {
+                throw new Error('Connection object is null');
+            }
+
+            console.log('✅ Connection found!');
+            console.log('   - Connection type:', typeof conn);
+            console.log('   - Has identity method:', typeof conn.identity);
+            console.log('   - Access token present:', !!conn.accessToken);
+            console.log('   - Instance URL:', conn.instanceUrl);
+            console.log('🔄 Verifying connection with identity call...');
+
+            // Verify connection is valid by calling identity
+            let identity;
+            try {
+                identity = await conn.identity();
+            } catch (identityError) {
+                console.error('❌ Identity call failed:', identityError.message);
+                // If identity fails, still return connection info if we have accessToken
+                if (conn.accessToken && conn.instanceUrl) {
+                    console.log('⚠️ Using cached connection info (identity call failed but tokens exist)');
+                    const connData = connections.get(orgId);
+                    if (connData && connData.userInfo) {
+                        return res.json({
+                            connected: true,
+                            userInfo: connData.userInfo,
+                            tokens: {
+                                access_token: conn.accessToken,
+                                instance_url: conn.instanceUrl
+                            }
+                        });
+                    }
+                }
+                throw identityError;
+            }
+
+            console.log('✅ Identity verified successfully');
+
+            // Extract user info from identity response
+            const userInfo = {
+                username: identity.username,
+                display_name: identity.display_name,
+                organization_name: identity.organization_name || 'Unknown Org',
+                organization_id: identity.organization_id,
+                user_id: identity.user_id
+            };
+
+            console.log('👤 User info:');
+            console.log('   - Username:', userInfo.username);
+            console.log('   - Display name:', userInfo.display_name);
+            console.log('   - Organization:', userInfo.organization_name);
+            console.log('   - Org ID:', userInfo.organization_id);
+            console.log('========================================\n');
+
+            res.json({
+                connected: true,
+                userInfo: userInfo,
+                // Add tokens for direct API calls
+                tokens: {
+                    access_token: conn.accessToken,
+                    instance_url: conn.instanceUrl
+                }
+            });
+
+        } catch (connError) {
+            console.log('❌ Connection not found or invalid:', connError.message);
+            console.log('========================================\n');
+
+            // Connection doesn't exist or is invalid
+            return res.status(401).json({
+                connected: false,
+                message: `No valid Salesforce connection for org: ${orgId}`
+            });
+        }
 
     } catch (error) {
         console.error('❌ Connection check failed:', error);
+        console.log('========================================\n');
+
         res.status(500).json({
             connected: false,
-            message: 'Connection check failed'
+            message: 'Connection check failed',
+            error: error.message
         });
     }
 });
@@ -749,6 +1275,81 @@ app.get('/api/salesforce/userinfo', (req, res) => {
     } catch (error) {
         console.error('❌ User info failed:', error);
         res.status(500).json({ message: 'Failed to get user info' });
+    }
+});
+
+// Refresh Salesforce access token using refresh token
+app.post('/api/salesforce/refresh', async (req, res) => {
+    console.log('\n========================================');
+    console.log('🔄 POST /api/salesforce/refresh - Refreshing token');
+    console.log('========================================');
+
+    try {
+        const orgId = req.headers['x-org-id'] || req.body.orgId || 'default';
+
+        console.log('📋 Request info:');
+        console.log('   - OrgId from header:', req.headers['x-org-id'] || 'not provided');
+        console.log('   - OrgId from body:', req.body.orgId || 'not provided');
+        console.log('   - Using orgId:', orgId);
+
+        // Get existing connection from local Map (supports both default and Salesforce orgId)
+        console.log('🔎 Looking for existing connection in local Map...');
+        const conn = getConnection(orgId);
+
+        if (!conn || !conn.refreshToken) {
+            console.log('❌ No refresh token found for org:', orgId);
+            console.log('========================================\n');
+            return res.status(401).json({
+                success: false,
+                message: 'No refresh token available. Please re-authenticate.'
+            });
+        }
+
+        console.log('✅ Connection found with refresh token');
+        console.log('   - Refresh token:', conn.refreshToken.substring(0, 20) + '...');
+
+        // Use jsforce to refresh the token
+        try {
+            console.log('🔄 Calling Salesforce to refresh token...');
+            await conn.oauth2.refreshToken(conn.refreshToken);
+
+            console.log('✅ Token refreshed successfully!');
+            console.log('   - New access token:', conn.accessToken.substring(0, 20) + '...');
+            console.log('   - Instance URL:', conn.instanceUrl);
+            console.log('========================================\n');
+
+            res.json({
+                success: true,
+                message: 'Token refreshed successfully',
+                tokens: {
+                    access_token: conn.accessToken,
+                    instance_url: conn.instanceUrl
+                }
+            });
+
+        } catch (refreshError) {
+            console.error('❌ Token refresh failed:', refreshError.message);
+            console.log('🗑️  Clearing invalid connection for org:', orgId);
+            console.log('========================================\n');
+
+            // If refresh fails, clear the connection from local Map
+            connections.delete(orgId);
+
+            return res.status(401).json({
+                success: false,
+                message: 'Token refresh failed. Please re-authenticate.',
+                error: refreshError.message
+            });
+        }
+
+    } catch (error) {
+        console.error('❌ Refresh endpoint error:', error);
+        console.log('========================================\n');
+        res.status(500).json({
+            success: false,
+            message: 'Failed to refresh token',
+            error: error.message
+        });
     }
 });
 
@@ -852,8 +1453,8 @@ app.post('/api/leads', async (req, res) => {
         const duplicateQuery = `
             SELECT Id, FirstName, LastName, Company, Email
             FROM Lead
-            WHERE LastName = '${cleanLeadData.LastName.replace(/'/g, "\\'")}'
-            AND Company = '${cleanLeadData.Company.replace(/'/g, "\\'")}'
+            WHERE LastName = '${leadData.LastName.replace(/'/g, "\\'")}'
+            AND Company = '${leadData.Company.replace(/'/g, "\\'")}'
             LIMIT 1
         `;
 
@@ -903,6 +1504,258 @@ app.post('/api/leads', async (req, res) => {
         console.error('❌ Failed to create lead:', error);
         res.status(500).json({
             message: 'Failed to create lead',
+            error: error.message
+        });
+    }
+});
+
+// Update existing lead
+app.put('/api/leads/:id', async (req, res) => {
+    try {
+        const orgId = getCurrentOrgId(req);
+        const conn = getConnection(orgId);
+
+        if (!conn) {
+            return res.status(401).json({ message: 'Not connected to Salesforce' });
+        }
+
+        const { id } = req.params;
+        const leadData = req.body;
+
+        // Validate required fields
+        if (!leadData.LastName || !leadData.Company) {
+            return res.status(400).json({
+                message: 'Last Name and Company are required fields'
+            });
+        }
+
+        // Validate state if provided
+        if (leadData.State) {
+            const validStates = validateStateCode([leadData.State]);
+            if (validStates.length === 0) {
+                leadData.Street = leadData.Street ?
+                    `${leadData.Street}, ${leadData.State}` :
+                    leadData.State;
+                delete leadData.State;
+            } else {
+                leadData.State = validStates[0].toUpperCase();
+            }
+        }
+
+        // Update lead
+        const result = await conn.sobject('Lead').update({
+            Id: id,
+            ...leadData
+        });
+
+        if (result.success) {
+            console.log(`✅ Lead updated successfully: ${id}`);
+            res.json({
+                success: true,
+                id: id,
+                message: 'Lead updated successfully'
+            });
+        } else {
+            throw new Error('Failed to update lead: ' + JSON.stringify(result.errors));
+        }
+
+    } catch (error) {
+        console.error('❌ Failed to update lead:', error);
+        res.status(500).json({
+            message: 'Failed to update lead',
+            error: error.message
+        });
+    }
+});
+
+// Delete lead
+app.delete('/api/leads/:id', async (req, res) => {
+    try {
+        const orgId = getCurrentOrgId(req);
+        const conn = getConnection(orgId);
+
+        if (!conn) {
+            return res.status(401).json({ message: 'Not connected to Salesforce' });
+        }
+
+        const { id } = req.params;
+
+        // Delete lead
+        const result = await conn.sobject('Lead').delete(id);
+
+        if (result.success) {
+            console.log(`✅ Lead deleted successfully: ${id}`);
+            res.json({
+                success: true,
+                id: id,
+                message: 'Lead deleted successfully'
+            });
+        } else {
+            throw new Error('Failed to delete lead: ' + JSON.stringify(result.errors));
+        }
+
+    } catch (error) {
+        console.error('❌ Failed to delete lead:', error);
+        res.status(500).json({
+            message: 'Failed to delete lead',
+            error: error.message
+        });
+    }
+});
+
+// Check which fields exist in Salesforce Lead object
+app.post('/api/salesforce/fields/check', async (req, res) => {
+    try {
+        const orgId = getCurrentOrgId(req);
+        const conn = getConnection(orgId);
+
+        if (!conn) {
+            return res.status(401).json({ message: 'Not connected to Salesforce' });
+        }
+
+        const { fieldNames } = req.body;
+
+        if (!fieldNames || !Array.isArray(fieldNames)) {
+            return res.status(400).json({ message: 'fieldNames array is required' });
+        }
+
+        console.log(`🔍 Checking ${fieldNames.length} fields in Salesforce Lead object`);
+
+        // Describe Lead object to get all fields
+        const leadMetadata = await conn.sobject('Lead').describe();
+
+        // Create a map of field names (both with and without __c suffix)
+        const existingFieldsMap = new Map();
+        leadMetadata.fields.forEach(f => {
+            existingFieldsMap.set(f.name, f);
+            // Also store without __c suffix for easier lookup
+            const baseName = f.name.replace(/__c$/i, '');
+            existingFieldsMap.set(baseName, f);
+        });
+
+        // Check which fields exist and which don't
+        const results = {
+            existing: [],
+            missing: []
+        };
+
+        fieldNames.forEach(fieldName => {
+            const baseName = fieldName.replace(/__c$/i, '');
+
+            // Check both exact match and base name match
+            if (existingFieldsMap.has(fieldName) || existingFieldsMap.has(baseName)) {
+                results.existing.push(fieldName);
+                console.log(`✅ Field exists: ${fieldName}`);
+            } else {
+                results.missing.push(fieldName);
+                console.log(`❌ Field missing: ${fieldName}`);
+            }
+        });
+
+        console.log(`✅ Found ${results.existing.length} existing fields, ${results.missing.length} missing fields`);
+
+        res.json({
+            success: true,
+            existing: results.existing,
+            missing: results.missing
+        });
+
+    } catch (error) {
+        console.error('❌ Failed to check fields:', error);
+        res.status(500).json({
+            message: 'Failed to check fields',
+            error: error.message
+        });
+    }
+});
+
+// Create custom fields in Salesforce using Tooling API
+app.post('/api/salesforce/fields/create', async (req, res) => {
+    try {
+        const orgId = getCurrentOrgId(req);
+        const conn = getConnection(orgId);
+
+        if (!conn) {
+            return res.status(401).json({ message: 'Not connected to Salesforce' });
+        }
+
+        const { fields } = req.body;
+
+        if (!fields || !Array.isArray(fields)) {
+            return res.status(400).json({ message: 'fields array is required' });
+        }
+
+        console.log(`🛠️  Creating ${fields.length} custom fields in Salesforce`);
+
+        const results = {
+            created: [],
+            failed: []
+        };
+
+        // Create each custom field using Metadata API
+        for (const field of fields) {
+            try {
+                const { apiName, label } = field;
+
+                // Create custom field metadata
+                // For Metadata API, FullName should be just the field name for custom fields
+                // Format: FieldName__c (not Lead.FieldName__c)
+                const customField = {
+                    fullName: `Lead.${apiName}`,  // Object.FieldName format for Salesforce
+                    label: label || apiName.replace(/__c$/, '').replace(/_/g, ' '),
+                    type: 'Text',
+                    length: 255,
+                    required: false,
+                    externalId: false,
+                    unique: false
+                };
+
+                console.log(`Creating field: Lead.${apiName} (${customField.label})`);
+
+                const result = await conn.metadata.create('CustomField', [customField]);
+
+                // Result is an array when passing array to create()
+                const fieldResult = Array.isArray(result) ? result[0] : result;
+
+                if (fieldResult.success) {
+                    results.created.push({
+                        apiName,
+                        label: customField.label,
+                        success: true
+                    });
+                    console.log(`✅ Field created: ${apiName}`);
+                } else {
+                    results.failed.push({
+                        apiName,
+                        label: customField.label,
+                        error: fieldResult.errors ? JSON.stringify(fieldResult.errors) : 'Unknown error'
+                    });
+                    console.error(`❌ Field creation failed: ${apiName}`, fieldResult.errors);
+                }
+
+            } catch (fieldError) {
+                results.failed.push({
+                    apiName: field.apiName,
+                    label: field.label,
+                    error: fieldError.message
+                });
+                console.error(`❌ Field creation error: ${field.apiName}`, fieldError);
+            }
+        }
+
+        console.log(`📊 Field creation results: ${results.created.length} created, ${results.failed.length} failed`);
+
+        res.json({
+            success: results.failed.length === 0,
+            created: results.created,
+            failed: results.failed,
+            message: `Created ${results.created.length} field(s), ${results.failed.length} failed`
+        });
+
+    } catch (error) {
+        console.error('❌ Failed to create custom fields:', error);
+        res.status(500).json({
+            message: 'Failed to create custom fields',
             error: error.message
         });
     }
@@ -970,7 +1823,32 @@ app.post('/api/leads/check-duplicate', async (req, res) => {
     }
 });
 
-// Transfer lead with attachments
+// Cache for Lead object valid fields
+let leadObjectFieldsCache = null;
+let leadObjectFieldsCacheTimestamp = 0;
+const LEAD_FIELDS_CACHE_TTL = 60 * 60 * 1000; // 1 hour cache TTL
+
+// Function to fetch Lead object fields metadata from Salesforce
+async function fetchLeadObjectFields(conn) {
+    const now = Date.now();
+    if (leadObjectFieldsCache && (now - leadObjectFieldsCacheTimestamp) < LEAD_FIELDS_CACHE_TTL) {
+        return leadObjectFieldsCache;
+    }
+    try {
+        const metadata = await conn.describe('Lead');
+        const fields = metadata.fields.map(f => f.name);
+        leadObjectFieldsCache = new Set(fields);
+        leadObjectFieldsCacheTimestamp = now;
+        console.log(`Fetched ${fields.length} Lead object fields from Salesforce metadata`);
+        return leadObjectFieldsCache;
+    } catch (error) {
+        console.error('Failed to fetch Lead object fields metadata:', error);
+        // Fallback: return null to skip filtering
+        return null;
+    }
+}
+
+// Transfer lead with attachments - enhanced with field filtering and detailed error
 app.post('/api/salesforce/leads', async (req, res) => {
     try {
         const orgId = getCurrentOrgId(req);
@@ -984,18 +1862,32 @@ app.post('/api/salesforce/leads', async (req, res) => {
 
         console.log('📝 Creating lead with data:', leadData);
 
-        
+        // Process lead data - frontend already filtered active fields
+        // Backend should not filter again to avoid desynchronization
         const processedLeadData = {};
+
         Object.keys(leadData).forEach(field => {
             const value = leadData[field];
-            if (value !== null && value !== undefined) {
-                processedLeadData[field] = value;
+
+            // Include all fields sent by frontend (already filtered)
+            // Only exclude if explicitly null/undefined for non-Question/Answers/Text fields
+            const isQuestionAnswerTextField = /^(Question|Answers|Text)\d{2}(__c)?$/.test(field);
+
+            if (isQuestionAnswerTextField) {
+                // Include Question/Answers/Text fields even if null (allows clearing in Salesforce)
+                processedLeadData[field] = value !== undefined ? value : null;
+                console.log(`✅ Including field: ${field} = ${value}`);
+            } else {
+                // For standard fields, only include if not null/undefined
+                if (value !== null && value !== undefined) {
+                    processedLeadData[field] = value;
+                }
             }
         });
 
-        
+        // Validate and fix lead data
         const validationResults = validateAndFixLeadData(processedLeadData);
-        const validatedLeadData = validationResults.data;
+        let validatedLeadData = validationResults.data;
 
         // Check for blocking validation errors
         if (validationResults.errors.length > 0) {
@@ -1004,6 +1896,43 @@ app.post('/api/salesforce/leads', async (req, res) => {
                 errors: validationResults.errors,
                 warnings: validationResults.warnings
             });
+        }
+
+        // Fetch valid Lead fields from Salesforce metadata
+        const validLeadFields = await fetchLeadObjectFields(conn);
+
+        let unknownFields = [];
+        if (validLeadFields) {
+            // Get all fields that don't exist in Salesforce
+            unknownFields = Object.keys(validatedLeadData).filter(field => !validLeadFields.has(field));
+
+            if (unknownFields.length > 0) {
+                console.error(`❌ Field(s) not found in Salesforce: ${unknownFields.join(', ')}`);
+
+                // Build detailed error message with helpful guidance
+                const errorMessage = [
+                    `The following fields do not exist in Salesforce: ${unknownFields.join(', ')}`,
+                    '',
+                    'Please ensure field names match exactly as they appear in Salesforce.',
+                    '',
+                    'Important notes:',
+                    '• Field names are case-sensitive',
+                    '• Custom fields must end with __c (e.g., MyField__c)',
+                    '• Spaces in field names are not allowed (use underscores instead)',
+                    '• Standard field names must match exactly (e.g., "Department" not "Department New")',
+                    '',
+                    'Documentation: https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/custom_fields.htm'
+                ].join('\n');
+
+                return res.status(400).json({
+                    success: false,
+                    message: errorMessage,
+                    missingFields: unknownFields,
+                    error: 'MISSING_FIELDS'
+                });
+            }
+        } else {
+            console.warn('Skipping Lead field filtering due to metadata fetch failure');
         }
 
         // Check for duplicates
@@ -1048,7 +1977,38 @@ app.post('/api/salesforce/leads', async (req, res) => {
         const leadResult = await conn.sobject('Lead').create(validatedLeadData);
 
         if (!leadResult.success) {
-            throw new Error('Failed to create lead: ' + JSON.stringify(leadResult.errors));
+            // Include detailed Salesforce errors if available
+            let detailedError = 'Failed to create lead in Salesforce';
+            let missingFields = [];
+
+            if (leadResult.errors && Array.isArray(leadResult.errors) && leadResult.errors.length > 0) {
+                // Check for missing field errors
+                leadResult.errors.forEach(err => {
+                    const errorMsg = err.message || JSON.stringify(err);
+
+                    // Detect missing field errors
+                    if (errorMsg.includes('No such column') || errorMsg.includes('Invalid field') ||
+                        errorMsg.includes('does not exist') || errorMsg.includes('INVALID_FIELD')) {
+
+                        // Extract field name from error message
+                        const fieldMatch = errorMsg.match(/['"]?(\w+__c)['"]?/) || errorMsg.match(/column ['"](\w+)['"]/);
+                        if (fieldMatch && fieldMatch[1]) {
+                            missingFields.push(fieldMatch[1]);
+                        }
+                    }
+                });
+
+                if (missingFields.length > 0) {
+                    detailedError = `Custom field(s) not found in Salesforce: ${missingFields.join(', ')}.\n\n` +
+                                   `Please create these custom fields in your Salesforce org before transferring leads, or deactivate them in the field configuration.`;
+                } else {
+                    detailedError += ':\n' + leadResult.errors.map(e => e.message || JSON.stringify(e)).join('\n');
+                }
+            } else {
+                detailedError += ': ' + JSON.stringify(leadResult.errors);
+            }
+
+            throw new Error(detailedError);
         }
 
         const leadId = leadResult.id;
@@ -1061,10 +2021,14 @@ app.post('/api/salesforce/leads', async (req, res) => {
 
             for (const attachment of attachments) {
                 try {
+                    // Support both old format (filename/content) and new format (Name/Body)
+                    const fileName = attachment.filename || attachment.Name || 'Untitled';
+                    const fileContent = attachment.content || attachment.Body;
+
                     const contentVersion = {
-                        Title: attachment.filename,
-                        PathOnClient: attachment.filename,
-                        VersionData: attachment.content,
+                        Title: fileName,
+                        PathOnClient: fileName,
+                        VersionData: fileContent,
                         FirstPublishLocationId: leadId
                     };
 
@@ -1072,22 +2036,22 @@ app.post('/api/salesforce/leads', async (req, res) => {
 
                     if (attachResult.success) {
                         attachmentResults.push({
-                            filename: attachment.filename,
+                            filename: fileName,
                             salesforceId: attachResult.id,
                             success: true
                         });
-                        console.log(` Attachment uploaded: ${attachment.filename}`);
+                        console.log(`✅ Attachment uploaded: ${fileName}`);
                     } else {
                         attachmentResults.push({
-                            filename: attachment.filename,
+                            filename: fileName,
                             success: false,
                             error: JSON.stringify(attachResult.errors)
                         });
                     }
                 } catch (attachError) {
-                    console.error(`❌ Attachment upload failed for ${attachment.filename}:`, attachError);
+                    console.error(`❌ Attachment upload failed for ${fileName}:`, attachError);
                     attachmentResults.push({
-                        filename: attachment.filename,
+                        filename: fileName,
                         success: false,
                         error: attachError.message
                     });
@@ -1115,19 +2079,199 @@ app.post('/api/salesforce/leads', async (req, res) => {
 
     } catch (error) {
         console.error('❌ Lead transfer failed:', error);
+
+        // Include detailed error info if available
+        let errorMessage = error.message || 'Unknown error';
+        if (error.errors && Array.isArray(error.errors)) {
+            errorMessage += ': ' + error.errors.map(e => e.message || JSON.stringify(e)).join('; ');
+        }
         res.status(500).json({
             success: false,
-            message: 'Failed to transfer lead to Salesforce',
-            error: error.message
+            message: errorMessage,  // Send detailed error message to frontend
+            error: errorMessage
         });
     }
 });
 
 
+// NEW ENDPOINT: Check and prepare fields before transfer
+app.post('/api/salesforce/leads/prepare', async (req, res) => {
+    try {
+        const orgId = getCurrentOrgId(req);
+        const conn = getConnection(orgId);
+
+        if (!conn) {
+            return res.status(401).json({ message: 'Not connected to Salesforce' });
+        }
+
+        const { leadData } = req.body;
+
+        if (!leadData) {
+            return res.status(400).json({ message: 'leadData is required' });
+        }
+
+        console.log('🔍 Preparing lead transfer - checking fields...');
+
+        // Get active fields for this client
+        const activeFields = fieldConfigStorage.getActiveFields(orgId);
+        console.log(`📋 Client has ${activeFields.length} active fields configured`);
+
+        // Use the new service to check and create fields (with active fields filter)
+        const result = await transferLeadWithAutoFieldCreation(conn, leadData, activeFields);
+
+        res.json(result);
+
+    } catch (error) {
+        console.error('❌ Lead preparation failed:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to prepare lead transfer',
+            error: error.message
+        });
+    }
+});
+
+// Get field configuration for current client
+app.get('/api/salesforce/field-config', (req, res) => {
+    try {
+        const orgId = getCurrentOrgId(req);
+
+        if (!orgId) {
+            return res.status(401).json({ message: 'Not connected to Salesforce' });
+        }
+
+        const config = fieldConfigStorage.getFieldConfig(orgId);
+        res.json(config);
+
+    } catch (error) {
+        console.error('Failed to get field config:', error);
+        res.status(500).json({ message: 'Failed to get field configuration', error: error.message });
+    }
+});
+
+// Set field configuration for current client
+app.post('/api/salesforce/field-config', async (req, res) => {
+    try {
+        const orgId = getCurrentOrgId(req);
+
+        if (!orgId) {
+            return res.status(401).json({ message: 'Not connected to Salesforce' });
+        }
+
+        const { activeFields, customLabels } = req.body;
+
+        if (!activeFields || !Array.isArray(activeFields)) {
+            return res.status(400).json({ message: 'activeFields array is required' });
+        }
+
+        const config = await fieldConfigStorage.setFieldConfig(orgId, activeFields, customLabels);
+
+        res.json({
+            success: true,
+            message: `Field configuration saved for ${activeFields.length} active fields`,
+            config
+        });
+
+    } catch (error) {
+        console.error('Failed to set field config:', error);
+        res.status(500).json({ message: 'Failed to save field configuration', error: error.message });
+    }
+});
+
+// ========================================
+// LEAD TRANSFER STATUS ENDPOINTS
+// ========================================
+
+// Get transfer status for a specific lead (with Salesforce verification)
+app.get('/api/leads/transfer-status/:leadId', async (req, res) => {
+    try {
+        const orgId = getCurrentOrgId(req);
+        if (!orgId) {
+            return res.status(401).json({ message: 'Not connected to Salesforce' });
+        }
+
+        const { leadId } = req.params;
+        const conn = getConnection(orgId);
+
+        // Get enhanced status with Salesforce verification
+        const enhancedStatus = await leadTransferStatusService.getEnhancedLeadStatus(conn, orgId, leadId);
+
+        res.json(enhancedStatus);
+    } catch (error) {
+        console.error('Failed to get lead status:', error);
+        res.status(500).json({ message: 'Failed to get lead status', error: error.message });
+    }
+});
+
+// Get transfer statuses for multiple leads (batch with Salesforce verification)
+app.post('/api/leads/transfer-status/batch', async (req, res) => {
+    try {
+        const orgId = getCurrentOrgId(req);
+        if (!orgId) {
+            return res.status(401).json({ message: 'Not connected to Salesforce' });
+        }
+
+        const { leadIds } = req.body;
+
+        if (!Array.isArray(leadIds)) {
+            return res.status(400).json({ message: 'leadIds must be an array' });
+        }
+
+        const conn = getConnection(orgId);
+        const enhancedStatuses = {};
+
+        // Get enhanced status for each lead
+        for (const leadId of leadIds) {
+            enhancedStatuses[leadId] = await leadTransferStatusService.getEnhancedLeadStatus(conn, orgId, leadId);
+        }
+
+        res.json(enhancedStatuses);
+    } catch (error) {
+        console.error('Failed to get batch statuses:', error);
+        res.status(500).json({ message: 'Failed to get batch statuses', error: error.message });
+    }
+});
+
+// Set transfer status for a lead
+app.post('/api/leads/transfer-status', async (req, res) => {
+    try {
+        const orgId = getCurrentOrgId(req);
+        if (!orgId) {
+            return res.status(401).json({ message: 'Not connected to Salesforce' });
+        }
+
+        const { leadId, status, salesforceId, errorMessage } = req.body;
+
+        if (!leadId || !status) {
+            return res.status(400).json({ message: 'leadId and status are required' });
+        }
+
+        if (!['Success', 'Failed', 'Pending'].includes(status)) {
+            return res.status(400).json({ message: 'status must be Success, Failed, or Pending' });
+        }
+
+        const savedStatus = await leadTransferStatusService.setLeadStatus(orgId, leadId, {
+            status,
+            salesforceId,
+            errorMessage
+        });
+
+        res.json({
+            success: true,
+            message: 'Transfer status saved',
+            data: savedStatus
+        });
+
+    } catch (error) {
+        console.error('Failed to set lead status:', error);
+        res.status(500).json({ message: 'Failed to save transfer status', error: error.message });
+    }
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
     res.json({
-        status: 'healthy',
+        status: 'healthy server run',
         timestamp: new Date().toISOString(),
         connections: connections.size
     });
@@ -1301,8 +2445,6 @@ app.get('/api/dashboard/leads', async (req, res) => {
 
 
 // LEAD FIELD UPDATES API
-
-
 const fs = require('fs').promises;
 const leadUpdatesFile = path.join(__dirname, 'lead-field-updates.json');
 
@@ -1354,14 +2496,14 @@ app.get('/api/lead-field-updates/:eventId', async (req, res) => {
 });
 
 // POST save lead field updates for a specific EventId
-app.post('/api/lead-field-updates', async (req, res) => {
+app.post('/v1/test', async (req, res) => {
     try {
         const { eventId, fieldUpdates } = req.body;
 
         if (!eventId) {
             return res.status(400).json({
                 success: false,
-                message: 'EventId is required'
+                message: 'EventId is required 111'
             });
         }
 
@@ -1460,14 +2602,46 @@ app.use((req, res, next) => {
 });
 
 app.use((error, req, res, next) => {
+    console.error('❌ Unhandled error:', error);
     res.status(500).json({
         message: 'Internal server error',
-        error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
+        error: error.message || 'Something went wrong',
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
 });
 
 
+// ==============================================
+// HOME PAGE ROUTE
+// ==============================================
+
+// Set up views directory
+app.set('views', path.join(__dirname, 'views'));
+
+// Serve homepage at root
+app.get('/', (_req, res) => {
+    const indexPath = path.join(__dirname, 'views', 'index.html');
+    console.log('Serving index.html from:', indexPath);
+    res.sendFile(indexPath, (err) => {
+        if (err) {
+            console.error('Error serving index.html:', err);
+            res.status(500).json({
+                message: 'Error loading homepage',
+                path: indexPath,
+                error: err.message
+            });
+        }
+    });
+});
+
 // SERVER STARTUP
+
+// Initialize field configuration storage
+fieldConfigStorage.initializeStorage().then(() => {
+    console.log('✅ Field configuration storage initialized');
+}).catch(error => {
+    console.error('❌ Failed to initialize field configuration storage:', error);
+});
 
 app.listen(port, () => {
     console.log('\n🚀 Salesforce Lead Manager Backend');

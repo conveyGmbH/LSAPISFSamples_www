@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SalesforceLeadLib - Usage Example</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f0f2f5;
+            padding: 20px;
+        }
+
+        .demo-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .demo-header {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        .demo-header h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .demo-header p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .demo-controls {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .demo-controls h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .control-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .control-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 5px;
+        }
+
+        .control-group input,
+        .control-group select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .control-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+
+        .btn-secondary:hover {
+            background: #f3f4f6;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .lib-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+            min-height: 500px;
+        }
+
+        .code-example {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-top: 20px;
+        }
+
+        .code-example h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        pre {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .note {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 6px;
+        }
+
+        .note strong {
+            color: #92400e;
+        }
+
+        .note p {
+            color: #78350f;
+            margin-top: 5px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-container">
+        <div class="demo-header">
+            <h1>📦 SalesforceLeadLib - Usage Example</h1>
+            <p>Autonomous Salesforce Lead Transfer Module for LSPortal Integration</p>
+        </div>
+
+        <div class="demo-controls">
+            <h3>Configuration</h3>
+
+            <div class="control-group">
+                <div>
+                    <label>Backend URL</label>
+                    <input type="text" id="backendUrl" value="http://localhost:3000">
+                </div>
+                <div>
+                    <label>Username</label>
+                    <input type="text" id="username" value="demo@leadsuccess.com">
+                </div>
+                <div>
+                    <label>Org ID</label>
+                    <input type="text" id="orgId" value="00D5g000000abcd">
+                </div>
+                <div>
+                    <label>Event ID</label>
+                    <input type="text" id="eventId" value="12345">
+                </div>
+            </div>
+
+            <h3 style="margin-top: 20px;">Sample Lead Data</h3>
+
+            <div class="control-group">
+                <div>
+                    <label>First Name</label>
+                    <input type="text" id="firstName" value="John">
+                </div>
+                <div>
+                    <label>Last Name</label>
+                    <input type="text" id="lastName" value="Doe">
+                </div>
+                <div>
+                    <label>Company</label>
+                    <input type="text" id="company" value="Acme Corporation">
+                </div>
+                <div>
+                    <label>Email</label>
+                    <input type="email" id="email" value="john.doe@acme.com">
+                </div>
+                <div>
+                    <label>Phone</label>
+                    <input type="tel" id="phone" value="+1 555-0123">
+                </div>
+                <div>
+                    <label>Title</label>
+                    <input type="text" id="title" value="Marketing Director">
+                </div>
+            </div>
+
+            <div class="control-buttons">
+                <button class="btn btn-primary" onclick="initializeModule()">
+                    <i class="fas fa-play"></i> Initialize Module
+                </button>
+                <button class="btn btn-secondary" onclick="loadNewLead()">
+                    <i class="fas fa-sync"></i> Load Different Lead
+                </button>
+                <button class="btn btn-danger" onclick="clearModule()">
+                    <i class="fas fa-times"></i> Clear Module
+                </button>
+            </div>
+        </div>
+
+        <!-- Library Container -->
+        <div id="salesforceContainer" class="lib-container"></div>
+
+        <!-- Code Examples -->
+        <div class="code-example">
+            <h3>💻 Basic Usage</h3>
+            <pre><code>// 1. Include the library
+&lt;script src="salesforceLeadLib.js"&gt;&lt;/script&gt;
+
+// 2. Initialize the module
+const container = document.getElementById('salesforceContainer');
+
+const leadData = {
+    FirstName: 'John',
+    LastName: 'Doe',
+    Company: 'Acme Corporation',
+    Email: 'john.doe@acme.com',
+    Phone: '+1 555-0123',
+    Title: 'Marketing Director',
+    EventId: '12345'
+};
+
+const credentials = {
+    username: 'demo@leadsuccess.com',
+    orgId: '00D5g000000abcd',
+    backendUrl: 'http://localhost:3000'
+};
+
+const options = {
+    title: 'Salesforce Lead Transfer',
+    eventId: '12345',
+    onDisconnect: () => {
+        console.log('User clicked disconnect');
+    },
+    onDisconnected: () => {
+        console.log('Module cleared after disconnect');
+    }
+};
+
+// Initialize (returns Promise or WinJS.Promise)
+SalesforceLeadLib.initialize(container, leadData, credentials, options)
+    .then(result => {
+        console.log('Module initialized:', result);
+    })
+    .catch(error => {
+        console.error('Initialization failed:', error);
+    });</code></pre>
+        </div>
+
+        <div class="code-example">
+            <h3>🔄 Loading Different Leads</h3>
+            <pre><code>// Load a different lead after initialization
+const newLeadData = {
+    FirstName: 'Jane',
+    LastName: 'Smith',
+    Company: 'Tech Corp',
+    Email: 'jane.smith@techcorp.com',
+    EventId: '12345'
+};
+
+SalesforceLeadLib.loadLead(container, newLeadData, '12345')
+    .then(result => {
+        console.log('New lead loaded:', result);
+    });</code></pre>
+        </div>
+
+        <div class="code-example">
+            <h3>🚀 Programmatic Transfer</h3>
+            <pre><code>// Transfer a lead programmatically (without UI interaction)
+SalesforceLeadLib.transferLead(leadData)
+    .then(result => {
+        console.log('Transfer successful:', result);
+        console.log('Salesforce ID:', result.salesforceId);
+    })
+    .catch(error => {
+        console.error('Transfer failed:', error);
+    });</code></pre>
+        </div>
+
+        <div class="code-example">
+            <h3>📊 Check Transfer Status</h3>
+            <pre><code>// Check if a lead has been transferred
+const leadId = 'KontaktViewId_123';
+
+SalesforceLeadLib.getStatus(leadId)
+    .then(status => {
+        console.log('Transfer status:', status);
+        // status = { status: 'Success', salesforceId: '00Q...', ... }
+    });</code></pre>
+        </div>
+
+        <div class="code-example">
+            <h3>🧹 Cleanup</h3>
+            <pre><code>// Clear the module and cleanup resources
+SalesforceLeadLib.clear(container);</code></pre>
+        </div>
+
+        <div class="code-example">
+            <h3>🎯 WinJS Integration (LSPortal)</h3>
+            <pre><code>// In LSPortal (WinJS application)
+(function () {
+    "use strict";
+
+    WinJS.UI.Pages.define("/pages/salesforceLead/salesforceLead.html", {
+        ready: function (element, options) {
+            const container = element.querySelector('#sfContainer');
+
+            // Get lead data from your data source
+            const leadData = AppData.getCurrentLead();
+
+            const credentials = {
+                username: AppData.currentUser.email,
+                orgId: AppData.salesforceOrgId,
+                backendUrl: 'https://your-backend.com'
+            };
+
+            // Initialize the module (returns WinJS.Promise automatically)
+            SalesforceLeadLib.initialize(container, leadData, credentials, {
+                eventId: leadData.EventId,
+                onDisconnect: () => {
+                    // Handle disconnect
+                    WinJS.Navigation.back();
+                }
+            }).then(
+                function (result) {
+                    console.log('SF Module ready:', result);
+                },
+                function (error) {
+                    console.error('SF Module failed:', error);
+                    // Show error page
+                }
+            );
+        },
+
+        unload: function () {
+            // Cleanup when page unloads
+            const container = document.querySelector('#sfContainer');
+            if (container) {
+                SalesforceLeadLib.clear(container);
+            }
+        }
+    });
+})();</code></pre>
+        </div>
+
+        <div class="note">
+            <strong>⚡ Important Notes:</strong>
+            <p>1. The module automatically detects WinJS and returns WinJS.Promise when available</p>
+            <p>2. All CSS is injected automatically - no external stylesheet needed</p>
+            <p>3. Backend APIs remain unchanged - this is frontend-only module</p>
+            <p>4. The module validates required fields (LastName AND Company) before enabling transfer</p>
+            <p>5. Success modal displays for 15 seconds with auto-close countdown</p>
+        </div>
+    </div>
+
+    <!-- Include the library -->
+    <script src="salesforceLeadLib.js"></script>
+
+    <script>
+        // Demo functions
+        function initializeModule() {
+            const container = document.getElementById('salesforceContainer');
+
+            const leadData = {
+                FirstName: document.getElementById('firstName').value,
+                LastName: document.getElementById('lastName').value,
+                Company: document.getElementById('company').value,
+                Email: document.getElementById('email').value,
+                Phone: document.getElementById('phone').value,
+                Title: document.getElementById('title').value,
+                EventId: document.getElementById('eventId').value,
+                KontaktViewId: 'DEMO_' + Date.now()
+            };
+
+            const credentials = {
+                username: document.getElementById('username').value,
+                orgId: document.getElementById('orgId').value,
+                backendUrl: document.getElementById('backendUrl').value
+            };
+
+            const options = {
+                title: 'Salesforce Lead Transfer',
+                eventId: document.getElementById('eventId').value,
+                onDisconnect: () => {
+                    if (confirm('Disconnect from Salesforce?')) {
+                        alert('Disconnect clicked - would normally clear session');
+                    }
+                },
+                onDisconnected: () => {
+                    console.log('Module disconnected and cleared');
+                }
+            };
+
+            SalesforceLeadLib.initialize(container, leadData, credentials, options)
+                .then(result => {
+                    console.log('✅ Module initialized:', result);
+                    alert('Module initialized successfully! Check the container below.');
+                })
+                .catch(error => {
+                    console.error('❌ Initialization failed:', error);
+                    alert('Initialization failed: ' + error.message);
+                });
+        }
+
+        function loadNewLead() {
+            const container = document.getElementById('salesforceContainer');
+
+            const newLeadData = {
+                FirstName: 'Jane',
+                LastName: 'Smith',
+                Company: 'Tech Innovations Inc',
+                Email: 'jane.smith@techinnovations.com',
+                Phone: '+1 555-9999',
+                Title: 'CEO',
+                EventId: document.getElementById('eventId').value,
+                KontaktViewId: 'DEMO_' + Date.now()
+            };
+
+            SalesforceLeadLib.loadLead(container, newLeadData, document.getElementById('eventId').value)
+                .then(result => {
+                    console.log('✅ New lead loaded:', result);
+                    alert('New lead loaded successfully!');
+                })
+                .catch(error => {
+                    console.error('❌ Load failed:', error);
+                    alert('Load failed: ' + error.message);
+                });
+        }
+
+        function clearModule() {
+            const container = document.getElementById('salesforceContainer');
+            SalesforceLeadLib.clear(container);
+            console.log('✅ Module cleared');
+            alert('Module cleared successfully!');
+        }
+
+        // Auto-initialize on page load
+        window.addEventListener('load', () => {
+            console.log('📦 SalesforceLeadLib loaded, version:', SalesforceLeadLib.version);
+            console.log('👉 Click "Initialize Module" to start the demo');
+        });
+    </script>
+</body>
+</html>

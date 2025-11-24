@@ -1,7 +1,6 @@
-// ===== LEAD EDITING SYSTEM CORRIGÉ =====
 
 /**
- * Afficher les données de lead avec système d'édition inline
+ * Display lead data with inline editing system
  */
 function displayLeadData(data) {
     console.log('🎨 Displaying lead data with inline editing system');
@@ -19,7 +18,7 @@ function displayLeadData(data) {
         return;
     }
 
-    // Traiter les données avec les labels personnalisés
+    // Process data with custom labels
     const processedData = window.fieldMappingService?.applyCustomLabels(data) ||
         Object.fromEntries(Object.entries(data).map(([key, value]) => [key, {
             value,
@@ -27,21 +26,21 @@ function displayLeadData(data) {
             active: true
         }]));
 
-    // Créer la grille d'informations
+    // Create information grid
     const infoGrid = document.createElement("div");
     infoGrid.className = "lead-info-grid";
 
-    // Filtrer et afficher les champs selon leur statut
+    // Filter and display fields according to their status
     const filterValue = document.getElementById('field-display-filter')?.value || 'all';
 
     Object.keys(processedData).forEach((fieldName) => {
         const fieldInfo = processedData[fieldName];
 
-        // Appliquer le filtre
+        // Apply filter
         if (filterValue === 'active' && !fieldInfo.active) return;
         if (filterValue === 'inactive' && fieldInfo.active) return;
 
-        // Exclure les champs système
+        // Exclude system fields
         if (isSystemField(fieldName)) return;
 
         const fieldElement = createFieldElement(fieldName, fieldInfo);
@@ -50,12 +49,12 @@ function displayLeadData(data) {
 
     leadDataContainer.appendChild(infoGrid);
 
-    // Mettre à jour les statistiques
+    // Update statistics
     setTimeout(() => updateFieldStats(), 100);
 }
 
 /**
- * Vérifier si c'est un champ système (non éditable)
+ * Check if field is a system field (non-editable)
  */
 function isSystemField(fieldName) {
     const systemFields = [
@@ -67,23 +66,23 @@ function isSystemField(fieldName) {
 }
 
 /**
- * Créer un élément de champ avec édition inline
+ * Create field element with inline editing
  */
 function createFieldElement(fieldName, fieldInfo) {
     const fieldElement = document.createElement("div");
     fieldElement.className = `lead-field ${fieldInfo.active ? '' : 'field-inactive'}`;
     fieldElement.dataset.fieldName = fieldName;
 
-    // Configuration Salesforce pour le champ
+    // Salesforce configuration for the field
     const salesforceConfig = getSalesforceFieldConfig(fieldName);
 
-    // Header du champ
+    // Field header
     const fieldHeader = createFieldHeader(fieldName, fieldInfo.label, salesforceConfig);
 
-    // Contenu du champ avec logique d'édition
+    // Field content with editing logic
     const fieldContent = createFieldContent(fieldName, fieldInfo.value, salesforceConfig);
 
-    // Footer avec toggle actif/inactif
+    // Footer with active/inactive toggle
     const fieldFooter = createFieldFooter(fieldName, fieldInfo.active);
 
     fieldElement.appendChild(fieldHeader);
@@ -94,7 +93,7 @@ function createFieldElement(fieldName, fieldInfo) {
 }
 
 /**
- * Créer le header du champ
+ * Create field header
  */
 function createFieldHeader(fieldName, label, config) {
     const header = document.createElement("div");
@@ -107,7 +106,7 @@ function createFieldHeader(fieldName, label, config) {
     labelText.className = "field-label";
     labelText.textContent = label;
 
-    // Ajouter indicateur requis
+    // Add required indicator
     if (config.required) {
         labelText.innerHTML += ' <span class="required-indicator">*</span>';
     }
@@ -119,7 +118,7 @@ function createFieldHeader(fieldName, label, config) {
     labelContainer.appendChild(labelText);
     labelContainer.appendChild(apiName);
 
-    // Bouton d'édition du label
+    // Label edit button
     const editLabelBtn = document.createElement("button");
     editLabelBtn.className = "edit-label-btn";
     editLabelBtn.innerHTML = '✏️';
@@ -133,7 +132,7 @@ function createFieldHeader(fieldName, label, config) {
 }
 
 /**
- * Créer le contenu du champ avec logique d'édition
+ * Create field content with editing logic
  */
 function createFieldContent(fieldName, value, config) {
     const content = document.createElement("div");
@@ -142,16 +141,16 @@ function createFieldContent(fieldName, value, config) {
     const isEmpty = !value || value === null || value === 'null' || value === '';
 
     if (isEmpty || isAlwaysEditable(fieldName)) {
-        // Affichage direct de l'input pour les champs vides ou toujours éditables
+        // Direct input display for empty or always-editable fields
         const input = createSalesforceInput(fieldName, value, config);
         content.appendChild(input);
     } else {
-        // Affichage avec possibilité d'édition via icône
+        // Display with edit icon
         const displayContainer = createDisplayWithEditIcon(fieldName, value, config);
         content.appendChild(displayContainer);
     }
 
-    // Élément d'erreur pour la validation
+    // Error element for validation
     const errorElement = document.createElement("div");
     errorElement.className = "field-error";
     errorElement.id = `error-${fieldName}`;
@@ -161,7 +160,7 @@ function createFieldContent(fieldName, value, config) {
 }
 
 /**
- * Créer un input selon le type Salesforce
+ * Create input according to Salesforce type
  */
 function createSalesforceInput(fieldName, value, config) {
     let input;
@@ -196,14 +195,14 @@ function createSalesforceInput(fieldName, value, config) {
     input.className += ' field-input';
     input.dataset.fieldName = fieldName;
 
-    // Ajouter les événements de sauvegarde
+    // Add save events
     addSaveEvents(input, fieldName);
 
     return input;
 }
 
 /**
- * Vérifier si un champ est en lecture seule (système)
+ * Check if field is read-only (system)
  */
 function isReadOnlyField(fieldName) {
     const readOnlyFields = [
@@ -214,25 +213,25 @@ function isReadOnlyField(fieldName) {
 }
 
 /**
- * Créer un affichage avec icône d'édition
+ * Create display with edit icon
  */
 function createDisplayWithEditIcon(fieldName, value, config) {
     const container = document.createElement("div");
     container.className = "field-value-container";
 
-    // Vérifier si le champ est en lecture seule
+    // Check if field is read-only
     const isReadOnly = isReadOnlyField(fieldName);
 
-    // Valeur affichée
+    // Displayed value
     const displayValue = document.createElement("div");
     displayValue.className = "field-value";
     displayValue.textContent = formatDisplayValue(value, config);
 
     container.appendChild(displayValue);
 
-    // Si le champ n'est pas en lecture seule, ajouter l'icône d'édition
+    // If field is not read-only, add edit icon
     if (!isReadOnly) {
-        // Icône d'édition
+        // Edit icon
         const editIcon = document.createElement("button");
         editIcon.className = "field-edit-icon";
         editIcon.innerHTML = `
@@ -250,7 +249,7 @@ function createDisplayWithEditIcon(fieldName, value, config) {
 
         container.appendChild(editIcon);
     } else {
-        // Indicateur de lecture seule
+        // Read-only indicator
         const readOnlyIndicator = document.createElement("span");
         readOnlyIndicator.className = "read-only-indicator";
         readOnlyIndicator.innerHTML = `
@@ -268,7 +267,7 @@ function createDisplayWithEditIcon(fieldName, value, config) {
 }
 
 /**
- * Basculer vers le mode édition
+ * Switch to edit mode
  */
 function switchToEditMode(fieldName, currentValue, config) {
     const fieldElement = document.querySelector(`[data-field-name="${fieldName}"]`);
@@ -620,7 +619,6 @@ function createFieldFooter(fieldName, isActive) {
     return footer;
 }
 
-// Exporter les fonctions principales pour l'intégration
 window.leadEditingSystem = {
     displayLeadData,
     createFieldElement,
