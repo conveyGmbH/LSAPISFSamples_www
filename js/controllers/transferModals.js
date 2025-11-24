@@ -285,26 +285,14 @@ function showSuccessModal(title, message) {
     const closeBtn = modal.querySelector('#close-success-modal');
     const countdownSpan = modal.querySelector('#auto-close-countdown');
 
-    // Auto-close after 15 seconds with countdown (increased to prevent premature close)
-    let secondsLeft = 15;
-    countdownSpan.textContent = `Auto-closing in ${secondsLeft}s...`;
+    // NO AUTO-CLOSE - User must manually close the modal
+    countdownSpan.textContent = 'Click Close button to dismiss';
 
-    const countdownInterval = setInterval(() => {
-        secondsLeft--;
-        if (secondsLeft > 0) {
-            countdownSpan.textContent = `Auto-closing in ${secondsLeft}s...`;
-        } else {
-            clearInterval(countdownInterval);
-            console.log('🔔 Success modal auto-closing after 15 seconds');
-            modal.remove();
-        }
-    }, 1000);
+    console.log('✅ Success modal created (NO auto-close enabled)');
 
-    console.log('✅ Success modal created with 15 second timer');
-
-    // Manual close - clear the auto-close timer
+    // Manual close only
     const closeModal = () => {
-        clearInterval(countdownInterval);
+        console.log('🔘 User manually closed success modal');
         modal.remove();
     };
 

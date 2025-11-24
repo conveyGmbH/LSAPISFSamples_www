@@ -922,7 +922,7 @@ async function getTransferStatus(leadId) {
   try {
     const BACKEND_API_URL = window.location.hostname === 'localhost'
       ? 'http://localhost:3000'
-      : 'https://lsapisfbackenddev-gnfbema5gcaxdahz.germanywestcentral-01.azurewebsites.net';
+      : 'https://lsapisfbackend.convey.de/';
 
     const orgId = localStorage.getItem('orgId') || 'default';
 
@@ -999,7 +999,7 @@ async function refreshTransferStatuses() {
   try {
     const BACKEND_API_URL = window.location.hostname === 'localhost'
       ? 'http://localhost:3000'
-      : 'https://lsapisfbackenddev-gnfbema5gcaxdahz.germanywestcentral-01.azurewebsites.net';
+      : 'https://lsapisfbackend.convey.de';
 
     const orgId = localStorage.getItem('orgId') || 'default';
     await fetch(`${BACKEND_API_URL}/api/leads/transfer-status/sync`, {

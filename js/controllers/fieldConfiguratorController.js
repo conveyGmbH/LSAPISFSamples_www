@@ -1,6 +1,11 @@
+import { formatDate } from '../utils/helper.js';
+
 const REQUIRED_FIELDS = ['LastName', 'Company'];
 
-// Default active fields 
+// Fields to exclude from display
+const EXCLUDED_FIELDS = ['KontaktViewId', '__metadata'];
+
+// Default active fields
 const DEFAULT_ACTIVE_FIELDS = [
     'FirstName', 'LastName', 'Email', 'Company', 'Phone', 'MobilePhone',
     'Street', 'City', 'PostalCode', 'State', 'Country',
@@ -97,20 +102,20 @@ function configureUIForMode(mode, eventId) {
     }
 }
 
-// Initialize virtual mode
+// Initialize virtual mode (NO contacts exist - use fake data with Test_ prefix)
 async function initVirtualMode(eventId, entityType) {
-    console.log('🧪 Initializing Virtual Mode...');
+    console.log('🧪 Initializing Virtual Mode (no contacts - using Test_ prefix data)...');
 
     // Fetch metadata from API
     await fetchMetadata(entityType);
 
-    // Generate virtual data using FakeDataGenerator
+    // Generate fake data with Test_ prefix (no real contacts available)
     generateVirtualData();
 
     // Load custom fields from FieldMappingService
     await loadCustomFields();
 
-    console.log('✅ Virtual mode initialized with fake data');
+    console.log('✅ Virtual mode initialized with Test_ prefixed fake data');
 }
 
 // Initialize normal mode
@@ -160,8 +165,8 @@ async function loadSampleContact(eventId) {
 
         const data = await response.json();
 
-        if (data.value && data.value.length > 0) {
-            const sampleContact = data.value[0];
+        if (data.d && data.d.results && data.d.results.length > 0) {
+            const sampleContact = data.d.results[0];
 
             // Store sample contact data in virtualData (we reuse the same storage)
             virtualData = { ...sampleContact };
@@ -221,6 +226,12 @@ async function fetchMetadata(entityType = 'LS_Lead') {
 
         for (let prop of properties) {
             const name = prop.getAttribute('Name');
+
+            // Skip excluded fields
+            if (EXCLUDED_FIELDS.includes(name)) {
+                continue;
+            }
+
             const type = prop.getAttribute('Type');
             const nullable = prop.getAttribute('Nullable') !== 'false';
             const maxLength = prop.getAttribute('MaxLength');
@@ -247,93 +258,34 @@ async function fetchMetadata(entityType = 'LS_Lead') {
     }
 }
 
-// Generate virtual data using FakeDataGenerator
+// Generate virtual fake data with Test_ prefix (for events with NO contacts)
 function generateVirtualData() {
-    if (!metadata || !window.FakeDataGenerator) {
-        console.error('❌ Metadata or FakeDataGenerator not available');
+    if (!metadata) {
+        console.error('❌ Metadata not available');
         return;
     }
 
-    const fakeGenerator = new window.FakeDataGenerator();
+    console.log('🧪 Generating virtual data with Test_ prefix for', metadata.length, 'fields');
+
+    // Create virtualData object with Test_ prefixed values
     virtualData = {};
 
     metadata.forEach(field => {
-        switch (field.name) {
-            case 'Salutation':
-                virtualData[field.name] = fakeGenerator.generateSalutation ? fakeGenerator.generateSalutation() : 'Mr.';
-                break;
-            case 'FirstName':
-                virtualData[field.name] = fakeGenerator.generateFirstName();
-                break;
-            case 'LastName':
-                virtualData[field.name] = fakeGenerator.generateLastName();
-                break;
-            case 'Email':
-                const firstName = virtualData['FirstName'] || 'test';
-                const lastName = virtualData['LastName'] || 'user';
-                virtualData[field.name] = fakeGenerator.generateEmail(firstName, lastName);
-                break;
-            case 'Company':
-                virtualData[field.name] = fakeGenerator.generateCompany();
-                break;
-            case 'Phone':
-                virtualData[field.name] = fakeGenerator.generatePhone();
-                break;
-            case 'MobilePhone':
-                virtualData[field.name] = fakeGenerator.generateMobilePhone();
-                break;
-            case 'Title':
-                virtualData[field.name] = fakeGenerator.generateTitle();
-                break;
-            case 'Street':
-                virtualData[field.name] = fakeGenerator.generateStreet();
-                break;
-            case 'City':
-                virtualData[field.name] = fakeGenerator.generateCity();
-                break;
-            case 'PostalCode':
-                virtualData[field.name] = fakeGenerator.generatePostalCode();
-                break;
-            case 'State':
-                virtualData[field.name] = fakeGenerator.generateState();
-                break;
-            case 'Industry':
-                virtualData[field.name] = fakeGenerator.generateIndustry();
-                break;
-            case 'Website':
-                const company = virtualData['Company'] || 'Example Company';
-                virtualData[field.name] = fakeGenerator.generateWebsite(company);
-                break;
-            case 'Description':
-                virtualData[field.name] = fakeGenerator.generateDescription();
-                break;
-            default:
-                virtualData[field.name] = generateDefaultValue(field);
+        const fieldName = field.name;
+
+        // Generate Test_ prefix value based on field name
+        if (fieldName === 'Country') {
+            // Special case: Country uses ISO code
+            virtualData[fieldName] = 'DE';
+        } else {
+            // All other fields: Test_ + FieldName
+            virtualData[fieldName] = `Test_${fieldName}`;
         }
     });
 
-    console.log('🧪 Virtual data generated:', virtualData);
+    console.log('✅ Virtual data generated:', virtualData);
 }
 
-// Generate default value based on field type (fallback)
-// For unknown fields (like Question01, Question02, etc.), use the field name as the value
-function generateDefaultValue(field) {
-    switch (field.type) {
-        case 'Edm.String':
-            // Use the field name as default value for string fields (e.g., Question01 → "Question01")
-            // This gives the client some default test data for fields not in FakeDataGenerator
-            return field.name || 'Sample Text';
-        case 'Edm.Int32':
-        case 'Edm.Int64':
-            return 0;
-        case 'Edm.DateTime':
-            return new Date().toISOString();
-        case 'Edm.Boolean':
-            return false;
-        default:
-            return field.name || '';
-    }
-}
 
 // Load fields dynamically from API
 
@@ -384,8 +336,12 @@ async function loadFieldsFromAPI(eventId) {
         // Extract field names from first record
         const firstRecord = results[0];
 
-        // Show ALL fields from the API - no exclusions
-        const availableFields = Object.keys(firstRecord);
+        // Filter out excluded fields (KontaktViewId, __metadata)
+        const availableFields = Object.keys(firstRecord).filter(fieldName =>
+            !EXCLUDED_FIELDS.includes(fieldName)
+        );
+
+        console.log('📊 Available fields from API (after exclusions):', availableFields);
 
 
         // Create field objects (all fields from API, no categorization)
@@ -536,9 +492,15 @@ function createFieldItem(field) {
     label.dataset.fieldId = field.id || '';
 
     // Get value from virtualData (which now contains sample contact in normal mode)
-    const fieldValue = field.isCustomField
-        ? (field.value || '')
-        : (virtualData[field.name] || '');
+    // Display values as-is from API (including null values)
+    let fieldValue = field.isCustomField
+        ? (field.value ?? '')
+        : (virtualData[field.name] ?? '');
+
+    // Format date fields using helper function
+    if (fieldValue && (field.name.includes('Date') || field.name === 'SystemModstamp')) {
+        fieldValue = formatDate(fieldValue);
+    }
 
     // Field name display
     const fieldLabel = field.isCustomField
@@ -711,9 +673,15 @@ function createVirtualFieldItem(field) {
     label.dataset.fieldId = field.id || '';
 
     // Get value from virtualData or field.value (for custom fields)
-    const fieldValue = field.isCustomField
-        ? (field.value || '')
-        : (virtualData[field.name] || '');
+    // Display values as-is from API (including null values)
+    let fieldValue = field.isCustomField
+        ? (field.value ?? '')
+        : (virtualData[field.name] ?? '');
+
+    // Format date fields using helper function
+    if (fieldValue && (field.name.includes('Date') || field.name === 'SystemModstamp')) {
+        fieldValue = formatDate(fieldValue);
+    }
 
     // Field name display - NO "LS:" prefix in virtual mode (fields not modified yet)
     const fieldLabel = field.isCustomField
@@ -1186,16 +1154,22 @@ function showConfirmDialog(title, message, options = {}) {
             type = 'danger' // warning, danger, info
         } = options;
 
-        const typeColors = {
-            warning: 'bg-yellow-500 hover:bg-yellow-600',
-            danger: 'bg-red-500 hover:bg-red-600',
-            info: 'bg-blue-500 hover:bg-blue-600'
+        const typeStyles = {
+            warning: 'background: #eab308; color: white;',
+            danger: 'background: #ef4444; color: white;',
+            info: 'background: #3b82f6; color: white;'
+        };
+
+        const typeHoverStyles = {
+            warning: '#ca8a04',
+            danger: '#dc2626',
+            info: '#2563eb'
         };
 
         const typeIcons = {
-            warning: '<i class="fas fa-exclamation-triangle text-yellow-500 text-4xl mb-4"></i>',
-            danger: '<i class="fas fa-trash-alt text-red-500 text-4xl mb-4"></i>',
-            info: '<i class="fas fa-info-circle text-blue-500 text-4xl mb-4"></i>'
+            warning: '<i class="fas fa-exclamation-triangle" style="color: #eab308; font-size: 3rem; margin-bottom: 1rem; display: block;"></i>',
+            danger: '<i class="fas fa-trash-alt" style="color: #ef4444; font-size: 3rem; margin-bottom: 1rem; display: block;"></i>',
+            info: '<i class="fas fa-info-circle" style="color: #3b82f6; font-size: 3rem; margin-bottom: 1rem; display: block;"></i>'
         };
 
         const escapeHtml = (text) => {
@@ -1205,17 +1179,70 @@ function showConfirmDialog(title, message, options = {}) {
         };
 
         const modalHTML = `
-            <div id="modern-confirm-modal" class="fixed inset-0 z-[9999] flex items-center justify-center" style="background: rgba(0, 0, 0, 0.5); animation: fadeIn 0.2s ease-out;">
-                <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 transform" style="animation: slideUp 0.3s ease-out;">
-                    <div class="p-6 text-center">
+            <div id="modern-confirm-modal" style="
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                z-index: 9999;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: rgba(0, 0, 0, 0.5);
+                animation: fadeIn 0.2s ease-out;
+            ">
+                <div style="
+                    background: white;
+                    border-radius: 16px;
+                    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+                    max-width: 28rem;
+                    width: 100%;
+                    margin: 0 1rem;
+                    animation: slideUp 0.3s ease-out;
+                ">
+                    <div style="padding: 1.5rem; text-align: center;">
                         ${typeIcons[type]}
-                        <h3 class="text-xl font-bold text-gray-900 mb-2">${escapeHtml(title)}</h3>
-                        <p class="text-gray-600 mb-6 whitespace-pre-line">${escapeHtml(message)}</p>
-                        <div class="flex gap-3 justify-center">
-                            <button id="modal-cancel-btn" class="px-6 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-medium transition-colors">
+                        <h3 style="
+                            font-size: 1.25rem;
+                            font-weight: 700;
+                            color: #111827;
+                            margin-bottom: 0.5rem;
+                        ">${escapeHtml(title)}</h3>
+                        <p style="
+                            color: #6b7280;
+                            margin-bottom: 1.5rem;
+                            white-space: pre-line;
+                            line-height: 1.5;
+                        ">${escapeHtml(message)}</p>
+                        <div style="
+                            display: flex;
+                            gap: 0.75rem;
+                            justify-content: center;
+                        ">
+                            <button id="modal-cancel-btn" style="
+                                padding: 0.625rem 1.5rem;
+                                background: #e5e7eb;
+                                color: #374151;
+                                border: none;
+                                border-radius: 0.5rem;
+                                font-weight: 500;
+                                cursor: pointer;
+                                transition: background-color 0.2s;
+                                font-size: 0.9375rem;
+                            " onmouseover="this.style.background='#d1d5db'" onmouseout="this.style.background='#e5e7eb'">
                                 ${escapeHtml(cancelText)}
                             </button>
-                            <button id="modal-confirm-btn" class="px-6 py-2.5 ${typeColors[type]} text-white rounded-lg font-medium transition-colors">
+                            <button id="modal-confirm-btn" style="
+                                padding: 0.625rem 1.5rem;
+                                ${typeStyles[type]}
+                                border: none;
+                                border-radius: 0.5rem;
+                                font-weight: 500;
+                                cursor: pointer;
+                                transition: background-color 0.2s;
+                                font-size: 0.9375rem;
+                            " onmouseover="this.style.background='${typeHoverStyles[type]}'" onmouseout="this.style.background='${typeStyles[type].match(/background: ([^;]+)/)[1]}'">
                                 ${escapeHtml(confirmText)}
                             </button>
                         </div>

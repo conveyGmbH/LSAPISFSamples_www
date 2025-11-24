@@ -2224,7 +2224,7 @@ input:checked + .toggle-slider:before {
             this.config = {
                 backendUrl: config.backendUrl || (window.location.hostname === 'localhost'
                     ? 'http://localhost:3000'
-                    : 'https://lsapisfbackenddev-gnfbema5gcaxdahz.germanywestcentral-01.azurewebsites.net'),
+                    : 'https://lsapisfbackend.convey.de/'),
                 serverName: config.serverName || 'lstest.convey.de',
                 apiName: config.apiName || 'apisftest',
                 ...config

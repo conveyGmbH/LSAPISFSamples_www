@@ -254,11 +254,6 @@ class FakeDataGenerator {
         const processedData = { ...leadData };
         const filledFields = [];
 
-        // Generate consistent fake person data
-        let fakeFirstName = null;
-        let fakeLastName = null;
-        let fakeCompany = null;
-
         // Check and fill required fields
         for (const fieldName of requiredFields) {
             if (this.isEmpty(processedData[fieldName])) {
@@ -266,87 +261,81 @@ class FakeDataGenerator {
 
                 switch (fieldName) {
                     case 'FirstName':
-                        fakeFirstName = this.generateFirstName();
-                        fakeValue = fakeFirstName;
+                        fakeValue = 'Test_FirstName';
                         break;
 
                     case 'LastName':
-                        fakeLastName = this.generateLastName();
-                        fakeValue = fakeLastName;
+                        fakeValue = 'Test_LastName';
                         break;
 
                     case 'Company':
-                        fakeCompany = this.generateCompany();
-                        fakeValue = fakeCompany;
+                        fakeValue = 'Test_Company';
                         break;
 
                     case 'Email':
-                        // Generate email based on name if available
-                        const firstName = processedData.FirstName || fakeFirstName || this.generateFirstName();
-                        const lastName = processedData.LastName || fakeLastName || this.generateLastName();
-                        fakeValue = this.generateEmail(firstName, lastName);
+                        fakeValue = 'Test_Email';
                         break;
 
                     case 'Phone':
-                        fakeValue = this.generatePhone();
+                        fakeValue = 'Test_Phone';
                         break;
 
                     case 'MobilePhone':
-                        fakeValue = this.generateMobilePhone();
+                        fakeValue = 'Test_MobilePhone';
                         break;
 
                     case 'Title':
-                        fakeValue = this.generateTitle();
+                        fakeValue = 'Test_Title';
                         break;
 
                     case 'Street':
-                        fakeValue = this.generateStreet();
+                        fakeValue = 'Test_Street';
                         break;
 
                     case 'City':
-                        fakeValue = this.generateCity();
+                        fakeValue = 'Test_City';
                         break;
 
                     case 'PostalCode':
-                        fakeValue = this.generatePostalCode();
+                        fakeValue = 'Test_PostalCode';
                         break;
 
                     case 'State':
-                        fakeValue = this.generateState();
+                        fakeValue = 'Test_State';
                         break;
 
                     case 'Country':
-                        fakeValue = 'Germany';
+                        // Use ISO country code (Salesforce State and Country Picklist)
+                        fakeValue = 'DE';  // Germany ISO code
                         break;
 
                     case 'Industry':
-                        fakeValue = this.generateIndustry();
+                        fakeValue = 'Test_Industry';
                         break;
 
                     case 'Website':
-                        const company = processedData.Company || fakeCompany || 'Example Company';
-                        fakeValue = this.generateWebsite(company);
+                        fakeValue = 'Test_Website';
                         break;
 
                     case 'LeadSource':
-                        fakeValue = this.generateLeadSource();
+                        fakeValue = 'Test_LeadSource';
                         break;
 
                     case 'Description':
-                        fakeValue = this.generateDescription();
+                        fakeValue = 'Test_Description';
                         break;
 
                     case 'AnnualRevenue':
-                        fakeValue = this.generateAnnualRevenue();
+                        fakeValue = 'Test_AnnualRevenue';
                         break;
 
                     case 'NumberOfEmployees':
-                        fakeValue = this.generateNumberOfEmployees();
+                        fakeValue = 'Test_NumberOfEmployees';
                         break;
 
                     default:
-                        // For unknown fields, generate a generic placeholder
-                        fakeValue = `Auto-generated value`;
+                        // For unknown fields, use field name with Test_ prefix
+                        fakeValue = `Test_${fieldName}`;
                         break;
                 }
 
@@ -391,6 +380,6 @@ class FakeDataGenerator {
 // Create singleton instance
 const fakeDataGenerator = new FakeDataGenerator();
 
-// Export for use in other modules
+// Export for use in other modules (window global only, no ES6 exports)
 window.FakeDataGenerator = FakeDataGenerator;
 window.fakeDataGenerator = fakeDataGenerator;

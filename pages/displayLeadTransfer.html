@@ -4,7 +4,7 @@
     <title>LeadSuccess - Transfer to Salesforce</title>
     <meta charset="utf-8" />
     <meta http-equiv="Content-Security-Policy"
-    content="default-src 'self' data: gap: https://ssl.gstatic.com 'unsafe-eval' 'unsafe-inline' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com https://delightful-desert-016e2a610.4.azurestaticapps.net/ https://lsapisamplesbackend-bhesadgtbja4dmgq.germanywestcentral-01.azurewebsites.net/ https://lsapisfbackenddev-gnfbema5gcaxdahz.germanywestcentral-01.azurewebsites.net/; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com; media-src 'self' data: https://*.convey.de http://*.convey.de; object-src 'self' blob: data:; frame-src 'self' blob: data:; connect-src 'self' blob: http://*.convey.de https://*.convey.de ws://127.0.0.1:5504 http://localhost:3000 http://localhost:5504 ws://localhost:5504 https://brave-bush-0041ef403.6.azurestaticapps.net/ https://lsapisamplesbackend-bhesadgtbja4dmgq.germanywestcentral-01.azurewebsites.net/ https://lsapisfbackenddev-gnfbema5gcaxdahz.germanywestcentral-01.azurewebsites.net/ https://lsapisfbackend-hdasa3g8c4cah7d2.westeurope-01.azurewebsites.net/ https://lsapisfbackend.convey.de/ https://*.salesforce.com https://*.force.com https://*.my.salesforce.com; font-src 'self' https://cdnjs.cloudflare.com;" />
+    content="default-src 'self' data: gap: https://ssl.gstatic.com 'unsafe-eval' 'unsafe-inline' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com https://delightful-desert-016e2a610.4.azurestaticapps.net/ https://lsapisamplesbackend-bhesadgtbja4dmgq.germanywestcentral-01.azurewebsites.net/https://lsapisfbackend.convey.de/; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com; media-src 'self' data: https://*.convey.de http://*.convey.de; object-src 'self' blob: data:; frame-src 'self' blob: data:; connect-src 'self' blob: http://*.convey.de https://*.convey.de ws://127.0.0.1:5504 http://localhost:3000 http://localhost:5504 ws://localhost:5504 https://brave-bush-0041ef403.6.azurestaticapps.net/ https://lsapisamplesbackend-bhesadgtbja4dmgq.germanywestcentral-01.azurewebsites.net/ https://https://lsapisfbackend.convey.de/ https://lsapisfbackend-hdasa3g8c4cah7d2.westeurope-01.azurewebsites.net/ https://lsapisfbackend.convey.de/ https://*.salesforce.com https://*.force.com https://*.my.salesforce.com; font-src 'self' https://cdnjs.cloudflare.com;" />
     <meta name="viewport"
         content="user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, width=device-width" />
 
@@ -299,72 +299,18 @@
 
             <!-- Content -->
             <main class="flex-1 overflow-y-auto p-4">
-                <!-- Stats Cards -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                    <div id="active-stats-card" class="card rounded-xl p-4 cursor-pointer transition-shadow" data-filter="active">
-                        <div class="flex justify-between items-center">
-                            <div>
-                                <p class="text-sm font-medium text-gray-500">Active</p>
-                                <p id="active-field-count" class="text-lg font-bold text-green-600">0</p>
-                            </div>
-                            <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                                <i class="fas fa-check-circle text-green-500 text-xl"></i>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div id="inactive-stats-card" class="card rounded-xl p-4 cursor-pointer transition-shadow" data-filter="inactive">
-                        <div class="flex justify-between items-center">
-                            <div>
-                                <p class="text-sm font-medium text-gray-500">Inactive</p>
-                                <p id="inactive-field-count" class="text-lg font-bold text-red-600">0</p>
-                            </div>
-                            <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                                <i class="fas fa-times-circle text-red-500 text-xl"></i>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div id="total-stats-card" class="card rounded-xl p-4 cursor-pointer transition-shadow" data-filter="all">
-                        <div class="flex justify-between items-center">
-                            <div>
-                                <p class="text-sm font-medium text-gray-500">Total</p>
-                                <p id="total-field-count" class="text-lg font-bold text-blue-600">0</p>
-                            </div>
-                            <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                                <i class="fas fa-chart-bar text-blue-500 text-xl"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- Field Management Controls -->
                 <div class="card rounded-xl p-4 mb-4">
                     <div class="flex justify-between items-center mb-4">
                         <h2 class="text-lg font-bold text-gray-800">Field Management Controls</h2>
                         <div class="flex items-center space-x-3">
                             <!-- View Toggle -->
-                            <div class="flex items-center space-x-2 mr-4">
+                            <div class="flex items-center space-x-2">
                                 <button id="listViewBtn" class="view-toggle-btn active px-3 py-1 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded text-sm flex items-center">
                                     <i class="fas fa-list mr-1"></i> List
                                 </button>
                                 <button id="cardViewBtn" class="view-toggle-btn px-3 py-1 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded text-sm flex items-center">
                                     <i class="fas fa-th mr-1"></i> Cards
-                                </button>
-                            </div>
-                            <!-- Filter Buttons -->
-                            <div class="flex items-center space-x-2">
-                                <button data-filter="all" class="filter-btn px-3 py-1.5 text-gray-600 border-b-2 border-transparent text-sm font-medium hover:bg-gray-50">
-                                    All Fields
-                                </button>
-                                <button data-filter="active" class="filter-btn active px-3 py-1.5 text-blue-600 border-b-2 border-blue-600 text-sm font-medium hover:bg-blue-50">
-                                    Active Only
-                                </button>
-                                <button data-filter="inactive" class="filter-btn px-3 py-1.5 text-gray-600 border-b-2 border-transparent text-sm font-medium hover:bg-gray-50">
-                                    Inactive Only
-                                </button>
-                                <button data-filter="custom" class="filter-btn px-3 py-1.5 text-gray-600 border-b-2 border-transparent text-sm font-medium hover:bg-gray-50">
-                                    <i class="fas fa-plus-circle mr-1"></i> Custom Fields
                                 </button>
                             </div>
                         </div>
@@ -407,7 +353,6 @@
                                         <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b-2 border-gray-300">Field Name</th>
                                         <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b-2 border-gray-300">Value</th>
                                         <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b-2 border-gray-300">Status</th>
-                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b-2 border-gray-300">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody id="leadData" class="bg-white divide-y divide-gray-200">
@@ -442,7 +387,6 @@
                                         <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b-2 border-gray-300">Field Name</th>
                                         <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b-2 border-gray-300">Value</th>
                                         <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b-2 border-gray-300">Status</th>
-                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b-2 border-gray-300">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody id="custom-fields-table-body" class="bg-white divide-y divide-gray-200">
@@ -731,13 +675,34 @@
     <script type="module" src="/js/controllers/displayLeadTransferController.js"></script>
 
     <script>
-        // Field Configurator Button Event Listener
+        // Field Configurator Button Event Listener - Redirects with proper context
         document.addEventListener('DOMContentLoaded', function() {
             const fieldConfigBtn = document.getElementById('fieldConfiguratorBtn');
             if (fieldConfigBtn) {
                 fieldConfigBtn.addEventListener('click', function() {
-                    console.log('🎨 Opening Field Configurator...');
-                    window.location.href = 'fieldConfigurator.html';
+                    console.log('🎨 Opening Field Configurator with context...');
+
+                    // Get current context
+                    const eventId = sessionStorage.getItem('selectedEventId');
+                    const leadSource = sessionStorage.getItem('selectedLeadSource') || 'lead';
+
+                    // Check if we're in virtual mode
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const currentMode = urlParams.get('mode');
+
+                    // Determine entity type based on source
+                    const entityType = leadSource === 'leadReport' ? 'LS_LeadReport' : 'LS_Lead';
+
+                    // Build redirect URL
+                    let redirectUrl = `fieldConfigurator.html?eventId=${eventId}&source=${leadSource}&entityType=${entityType}`;
+
+                    // Preserve virtual mode
+                    if (currentMode === 'virtual') {
+                        redirectUrl += '&mode=virtual';
+                    }
+
+                    console.log(`🔗 Redirecting to: ${redirectUrl}`);
+                    window.location.href = redirectUrl;
                 });
             }
         });
