@@ -74,4 +74,7 @@ jobs:
           app-name: 'LSAPISFBackend'
           slot-name: 'Production'
           package: .
+        env:
+          SCM_DO_BUILD_DURING_DEPLOYMENT: false
+          ENABLE_ORYX_BUILD: false
           
