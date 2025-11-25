@@ -21,14 +21,17 @@ const port = process.env.PORT || 3000;
 // ENVIRONMENT DETECTION AND CONFIGURATION
 function determineEnvironmentAndConfig() {
     const isProd = process.env.NODE_ENV === 'production';
-    const hostname = process.env.HOSTNAME || '';
+    const hostname = process.env.HOSTNAME || process.env.WEBSITE_HOSTNAME || '';
+    const port = process.env.PORT || 3000;
 
-    // Auto-detect production environment based on hostname patterns
+    // Auto-detect production environment based on hostname patterns or Azure environment variables
+    const isAzure = process.env.WEBSITE_HOSTNAME || process.env.WEBSITE_SITE_NAME;
     const isProductionHost = hostname.includes('convey.de') ||
                            hostname.includes('azurewebsites.net') ||
-                           hostname.includes('azurestaticapps.net');
+                           hostname.includes('azurestaticapps.net') ||
+                           isAzure;
 
-    const isProduction = isProd || isProductionHost;
+    const isProduction = isProd || isProductionHost || port !== 3000;
 
     // Determine redirect URI based on environment
     let redirectUri;
@@ -39,6 +42,9 @@ function determineEnvironmentAndConfig() {
     }
 
     console.log(`🌍 Environment: ${isProduction ? 'PRODUCTION' : 'DEVELOPMENT'}`);
+    console.log(`📍 Hostname: ${hostname}`);
+    console.log(`🔌 Port: ${port}`);
+    console.log(`☁️  Azure: ${isAzure ? 'Yes' : 'No'}`);
     console.log(`🔗 OAuth Redirect URI: ${redirectUri}`);
 
     return {
