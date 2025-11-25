@@ -261,76 +261,80 @@ class FakeDataGenerator {
 
                 switch (fieldName) {
                     case 'FirstName':
-                        fakeValue = 'Test_FirstName';
+                        fakeValue = this.generateFirstName();
                         break;
 
                     case 'LastName':
-                        fakeValue = 'Test_LastName';
+                        fakeValue = this.generateLastName();
                         break;
 
                     case 'Company':
-                        fakeValue = 'Test_Company';
+                        fakeValue = this.generateCompany();
                         break;
 
                     case 'Email':
-                        fakeValue = 'Test_Email';
+                        // Generate realistic email based on existing or generated names
+                        const firstName = processedData.FirstName || this.generateFirstName();
+                        const lastName = processedData.LastName || this.generateLastName();
+                        fakeValue = this.generateEmail(firstName, lastName);
                         break;
 
                     case 'Phone':
-                        fakeValue = 'Test_Phone';
+                        fakeValue = this.generatePhone();
                         break;
 
                     case 'MobilePhone':
-                        fakeValue = 'Test_MobilePhone';
+                        fakeValue = this.generateMobilePhone();
                         break;
 
                     case 'Title':
-                        fakeValue = 'Test_Title';
+                        fakeValue = this.generateTitle();
                         break;
 
                     case 'Street':
-                        fakeValue = 'Test_Street';
+                        fakeValue = this.generateStreet();
                         break;
 
                     case 'City':
-                        fakeValue = 'Test_City';
+                        fakeValue = this.generateCity();
                         break;
 
                     case 'PostalCode':
-                        fakeValue = 'Test_PostalCode';
+                        fakeValue = this.generatePostalCode();
                         break;
 
                     case 'State':
-                        fakeValue = 'Test_State';
+                        fakeValue = this.generateState();
                         break;
 
                     case 'Country':
                         // Use ISO country code (Salesforce State and Country Picklist)
-                        fakeValue = 'DE';  // Germany ISO code
+                        fakeValue = 'Germany';  // Salesforce accepts full country name
                         break;
 
                     case 'Industry':
-                        fakeValue = 'Test_Industry';
+                        fakeValue = this.generateIndustry();
                         break;
 
                     case 'Website':
-                        fakeValue = 'Test_Website';
+                        const company = processedData.Company || this.generateCompany();
+                        fakeValue = this.generateWebsite(company);
                         break;
 
                     case 'LeadSource':
-                        fakeValue = 'Test_LeadSource';
+                        fakeValue = this.generateLeadSource();
                         break;
 
                     case 'Description':
-                        fakeValue = 'Test_Description';
+                        fakeValue = this.generateDescription();
                         break;
 
                     case 'AnnualRevenue':
-                        fakeValue = 'Test_AnnualRevenue';
+                        fakeValue = this.generateAnnualRevenue();
                         break;
 
                     case 'NumberOfEmployees':
-                        fakeValue = 'Test_NumberOfEmployees';
+                        fakeValue = this.generateNumberOfEmployees();
                         break;
 
                     default:
