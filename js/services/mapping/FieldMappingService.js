@@ -1053,9 +1053,13 @@ async bulkSaveToDatabase() {
 
     /**
      * Get all custom fields
+     * @param {boolean} forceReload - If true, reload from localStorage before returning
      * @returns {Array} Array of custom field objects
      */
-    getAllCustomFields() {
+    getAllCustomFields(forceReload = false) {
+        if (forceReload) {
+            this.loadCustomFields();
+        }
         return this.customFields || [];
     }
 

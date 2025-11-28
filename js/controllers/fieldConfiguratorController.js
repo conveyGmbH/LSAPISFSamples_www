@@ -457,8 +457,9 @@ async function loadCustomFields() {
             return;
         }
 
-        const loadedCustomFields = fieldMappingService.getAllCustomFields();
-        console.log('📋 Raw custom fields from service:', loadedCustomFields);
+        // Force reload from localStorage to ensure sync
+        const loadedCustomFields = fieldMappingService.getAllCustomFields(true);
+        console.log('📋 Raw custom fields from service (reloaded):', loadedCustomFields);
 
         customFields = loadedCustomFields.map(field => {
             console.log('🔍 Processing custom field:', field);
@@ -657,12 +658,19 @@ function createFieldItem(field) {
         });
     }
 
-    // Edit label button handler - Opens modal to edit SF label mapping
+    // Edit label button handler - Opens appropriate modal based on field type
     if (editLabelBtn) {
         editLabelBtn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            openEditLabelModal(field);
+
+            // Custom fields: edit both name and value
+            if (field.isCustomField) {
+                openEditCustomFieldModal(field);
+            } else {
+                // API fields: edit SF label mapping only
+                openEditLabelModal(field);
+            }
         });
     }
 
@@ -900,8 +908,10 @@ function createVirtualFieldItem(field) {
             if (confirm(`Delete custom field "${field.name}"?`)) {
                 try {
                     await fieldMappingService.deleteCustomField(field.id);
-                    // Remove from customFields array
-                    customFields = customFields.filter(f => f.id !== field.id);
+
+                    // Reload custom fields from service to ensure sync
+                    await loadCustomFields();
+
                     // Re-render fields
                     renderFields();
                     showNotification(`Custom field "${field.name}" deleted successfully`, 'success');
@@ -916,24 +926,50 @@ function createVirtualFieldItem(field) {
     return label;
 }
 
-// Open modal to edit custom field value
+// Open modal to edit custom field value and name
 function openEditCustomFieldModal(field) {
     const modal = document.getElementById('customFieldModal');
-    const modalHeader = modal?.querySelector('.modal-header');
     if (!modal) return;
 
-    // Update modal title
-    if (modalHeader) {
-        modalHeader.textContent = 'Edit Custom Field';
+    // Update modal title (look for h3 in the header div)
+    const modalTitle = modal.querySelector('.bg-blue-600 h3');
+    if (modalTitle) {
+        modalTitle.textContent = 'Edit Custom Field';
+    }
+
+    // Update field labels for custom field editing
+    const fieldNameLabel = modal.querySelector('label[for="customFieldName"]') ||
+                          Array.from(modal.querySelectorAll('label')).find(l => l.textContent.includes('Field Name'));
+    const fieldValueLabel = modal.querySelector('label[for="customFieldValue"]') ||
+                           Array.from(modal.querySelectorAll('label')).find(l => l.textContent.includes('Default Value'));
+
+    if (fieldNameLabel) {
+        fieldNameLabel.innerHTML = 'Custom Field Name *';
+    }
+    if (fieldValueLabel) {
+        fieldValueLabel.innerHTML = 'SF Field Name *';
     }
 
     // Pre-fill with existing values
-    document.getElementById('customFieldName').value = field.name;
-    document.getElementById('customFieldName').disabled = true; // Don't allow name change
-    document.getElementById('customFieldValue').value = field.value || '';
+    const fieldNameInput = document.getElementById('customFieldName');
+    const fieldValueInput = document.getElementById('customFieldValue');
+
+    if (fieldNameInput) {
+        fieldNameInput.value = field.name;
+        fieldNameInput.disabled = false; // Allow editing for custom fields
+        fieldNameInput.style.backgroundColor = '';
+        fieldNameInput.style.cursor = '';
+        fieldNameInput.placeholder = 'e.g., Area__c';
+    }
+
+    if (fieldValueInput) {
+        fieldValueInput.value = field.value || '';
+        fieldValueInput.placeholder = 'Enter Salesforce field name';
+    }
 
     // Store field ID for update
     modal.dataset.editingFieldId = field.id;
+    modal.classList.add('show');
     modal.style.display = 'flex';
 }
 
@@ -944,21 +980,30 @@ function openEditLabelModal(field) {
 
     if (!modal) {
         const modalHTML = `
-            <div id="editLabelModal" class="modal" style="display: flex;">
-                <div class="modal-content">
-                    <div class="modal-header">Edit Custom Field</div>
-                    <div class="form-group">
-                        <label class="form-label">LS Field Name</label>
-                        <input type="text" id="editLabelLsName" class="form-input" readonly style="background: #f9fafb;" />
+            <div id="editLabelModal" class="modal">
+                <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full mx-4">
+                    <div class="bg-blue-600 text-white p-4 rounded-t-xl flex justify-between items-center">
+                        <h3 class="text-lg font-bold">Edit Field</h3>
+                        <button onclick="closeEditLabelModal()" class="text-white hover:text-gray-200 text-2xl">&times;</button>
                     </div>
-                    <div class="form-group">
-                        <label class="form-label">SF Field Name *</label>
-                        <input type="text" id="editLabelSfName" class="form-input" placeholder="Enter Salesforce field name" />
-                        <p class="form-hint">Enter the Salesforce field name you want to map this field to. Leave empty to use the same name.</p>
-                    </div>
-                    <div class="modal-actions">
-                        <button class="btn btn-secondary" onclick="closeEditLabelModal()">Cancel</button>
-                        <button class="btn btn-primary" onclick="saveEditLabel()">Save</button>
+                    <div class="p-6">
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">LS Field Name</label>
+                            <input type="text" id="editLabelLsName" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" readonly style="background: #f9fafb; cursor: not-allowed;" />
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">SF Field Name *</label>
+                            <input type="text" id="editLabelSfName" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter Salesforce field name" />
+                            <p class="text-xs text-gray-500 mt-2">Enter the Salesforce field name you want to map this field to. Leave empty to use the same name.</p>
+                        </div>
+                        <div class="flex justify-end space-x-3">
+                            <button class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium" onclick="closeEditLabelModal()">
+                                Cancel
+                            </button>
+                            <button class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium flex items-center" onclick="saveEditLabel()">
+                                <i class="fas fa-check mr-2"></i> Save
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -973,6 +1018,7 @@ function openEditLabelModal(field) {
 
     // Store field name for update
     modal.dataset.editingFieldName = field.name;
+    modal.classList.add('show');
     modal.style.display = 'flex';
 }
 
@@ -980,6 +1026,7 @@ function openEditLabelModal(field) {
 window.closeEditLabelModal = function() {
     const modal = document.getElementById('editLabelModal');
     if (modal) {
+        modal.classList.remove('show');
         modal.style.display = 'none';
     }
 };
@@ -1153,10 +1200,47 @@ window.openAddCustomFieldModal = function() {
 window.closeCustomFieldModal = function() {
     const modal = document.getElementById('customFieldModal');
     if (modal) {
+        modal.classList.remove('show');
         modal.style.display = 'none';
+
+        // Reset modal title back to "Add Custom Field"
+        const modalTitle = modal.querySelector('.bg-blue-600 h3');
+        if (modalTitle) {
+            modalTitle.textContent = 'Add Custom Field';
+        }
+
+        // Reset field labels to default (for Add mode)
+        const fieldNameLabel = modal.querySelector('label[for="customFieldName"]') ||
+                              Array.from(modal.querySelectorAll('label')).find(l => l.textContent.includes('Field Name') || l.textContent.includes('Custom Field Name'));
+        const fieldValueLabel = modal.querySelector('label[for="customFieldValue"]') ||
+                               Array.from(modal.querySelectorAll('label')).find(l => l.textContent.includes('Default Value') || l.textContent.includes('SF Field Name'));
+
+        if (fieldNameLabel) {
+            fieldNameLabel.innerHTML = 'Field Name *';
+        }
+        if (fieldValueLabel) {
+            fieldValueLabel.innerHTML = 'Default Value';
+        }
+
         // Reset editing state
         delete modal.dataset.editingFieldId;
-        document.getElementById('customFieldName').disabled = false;
+
+        // Reset field name input
+        const fieldNameInput = document.getElementById('customFieldName');
+        if (fieldNameInput) {
+            fieldNameInput.value = '';
+            fieldNameInput.disabled = false;
+            fieldNameInput.style.backgroundColor = '';
+            fieldNameInput.style.cursor = '';
+            fieldNameInput.placeholder = 'e.g., Area__c';
+        }
+
+        // Reset field value input
+        const fieldValueInput = document.getElementById('customFieldValue');
+        if (fieldValueInput) {
+            fieldValueInput.value = '';
+            fieldValueInput.placeholder = 'e.g., Germany, France';
+        }
     }
 };
 
@@ -1191,23 +1275,25 @@ window.saveCustomField = async function() {
     try {
         if (editingFieldId) {
             // UPDATE existing custom field
-            console.log(`🔄 Updating custom field ${fieldName} with new value: ${fieldValue}`);
+            console.log(`🔄 Updating custom field ID ${editingFieldId} - Name: ${fieldName}, Value: ${fieldValue}`);
 
-            // Update in FieldMappingService
+            // Get the old field name for notification
+            const oldField = customFields.find(f => f.id === editingFieldId);
+            const oldFieldName = oldField ? oldField.name : fieldName;
+
+            // Update in FieldMappingService (both name and value can change)
             await fieldMappingService.updateCustomField(editingFieldId, {
+                sfFieldName: fieldName,  // Allow name update
                 value: fieldValue
             });
 
-            // Update in local array
-            const localField = customFields.find(f => f.id === editingFieldId);
-            if (localField) {
-                localField.value = fieldValue;
-            }
+            // Reload custom fields from service to ensure sync
+            await loadCustomFields();
 
-            showNotification(`Custom field "${fieldName}" updated successfully!`, 'success');
+            showNotification(`Custom field "${oldFieldName}" updated successfully!`, 'success');
             closeCustomFieldModal();
 
-            // Re-render to show updated value
+            // Re-render to show updated values
             renderFields();
 
         } else {
@@ -1219,20 +1305,14 @@ window.saveCustomField = async function() {
 
             // Save to FieldMappingService
             if (fieldMappingService && fieldMappingService.addCustomField) {
-                const newField = await fieldMappingService.addCustomField({
+                await fieldMappingService.addCustomField({
                     sfFieldName: sfFieldName,
                     value: fieldValue,
                     active: true
                 });
 
-                // Add to local customFields array
-                customFields.push({
-                    id: newField.id,
-                    name: sfFieldName,
-                    value: fieldValue,
-                    active: true,
-                    isCustomField: true
-                });
+                // Reload custom fields from service to ensure sync
+                await loadCustomFields();
 
                 // Stay on Custom Fields tab (do NOT switch to Active Fields)
                 currentFilter = 'custom';
