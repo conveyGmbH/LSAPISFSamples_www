@@ -3002,7 +3002,7 @@ input:checked + .toggle-slider:before {
 <!-- Missing Fields Modal -->
 <div id="missing-fields-modal" class="modal">
     <div class="modal-content">
-        <div class="bg-gradient-to-r from-purple-500 to-purple-600 text-white p-4 rounded-t-xl flex justify-between items-center">
+        <div class="bg-blue-600 text-white p-4 rounded-t-xl flex justify-between items-center">
             <h3 class="text-lg font-bold flex items-center">
                 <i class="fas fa-exclamation-triangle mr-2"></i>
                 Custom Fields Missing in Salesforce
@@ -3023,10 +3023,10 @@ input:checked + .toggle-slider:before {
             </div>
             <div class="flex justify-end space-x-3">
                 <button id="skip-field-creation-btn" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium flex items-center">
-                    <i class="fas fa-times mr-2"></i> Skip & Continue
+                    Skip & Continue
                 </button>
-                <button id="create-fields-btn" class="px-4 py-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg hover:from-purple-600 hover:to-purple-700 font-medium flex items-center">
-                    <i class="fas fa-check mr-2"></i> Create Fields
+                <button id="create-fields-btn" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium flex items-center">
+                     Create Fields
                 </button>
             </div>
         </div>
