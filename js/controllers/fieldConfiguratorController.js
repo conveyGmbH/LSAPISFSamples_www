@@ -486,8 +486,22 @@ async function loadCustomFields() {
 // Get all fields (API fields + custom fields) for rendering
 
 function getAllFieldsForRendering() {
-    // Combine API fields and custom fields
-    return [...allFields, ...customFields];
+    // Combine API fields and custom fields, avoiding duplicates
+    const fieldMap = new Map();
+
+    // Add all API fields first
+    allFields.forEach(field => {
+        fieldMap.set(field.name, field);
+    });
+
+    // Add custom fields (will overwrite if already exists by name)
+    customFields.forEach(field => {
+        // Use ID as key for custom fields to avoid name collision with API fields
+        const key = field.id ? `custom_${field.id}` : field.name;
+        fieldMap.set(key, field);
+    });
+
+    return Array.from(fieldMap.values());
 }
 
 // Render fields in the grid
