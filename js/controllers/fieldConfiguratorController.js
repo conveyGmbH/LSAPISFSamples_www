@@ -115,7 +115,7 @@ function configureUIForMode(mode, eventId) {
 
 // Initialize virtual mode (NO contacts exist - use fake data with Test_ prefix)
 async function initVirtualMode(eventId, entityType) {
-    console.log('🧪 Initializing Virtual Mode (no contacts - using Test_ prefix data)...');
+
 
     // Fetch metadata from API
     await fetchMetadata(entityType);
@@ -126,12 +126,11 @@ async function initVirtualMode(eventId, entityType) {
     // Load custom fields from FieldMappingService
     await loadCustomFields();
 
-    console.log('✅ Virtual mode initialized with Test_ prefixed fake data');
+    
 }
 
 // Initialize normal mode
 async function initNormalMode(eventId) {
-    console.log('📋 Initializing Normal Mode...');
 
     // Load fields from API
     await loadFieldsFromAPI(eventId);
@@ -142,14 +141,12 @@ async function initNormalMode(eventId) {
     // Load custom fields from FieldMappingService
     await loadCustomFields();
 
-    console.log('✅ Normal mode initialized');
 }
 
 // Load a sample contact to display real values in normal mode
 async function loadSampleContact(eventId) {
     try {
-        console.log('📊 Loading sample contact for event:', eventId);
-
+        
         const serverName = sessionStorage.getItem('serverName');
         const apiName = sessionStorage.getItem('apiName');
         const credentials = sessionStorage.getItem('credentials');
@@ -276,25 +273,81 @@ function generateVirtualData() {
         return;
     }
 
-    console.log('🧪 Generating virtual data with Test_ prefix for', metadata.length, 'fields');
+    console.log('🧪 Generating realistic virtual data for', metadata.length, 'fields');
 
-    // Create virtualData object with Test_ prefixed values
+    // Create virtualData object with realistic fake values
     virtualData = {};
 
     metadata.forEach(field => {
         const fieldName = field.name;
 
-        // Generate Test_ prefix value based on field name
-        if (fieldName === 'Country') {
-            // Special case: Country uses ISO code
-            virtualData[fieldName] = 'DE';
-        } else {
-            // All other fields: Test_ + FieldName
-            virtualData[fieldName] = `Test_${fieldName}`;
+        // Use FakeDataGenerator for realistic values
+        switch (fieldName) {
+            case 'FirstName':
+                virtualData[fieldName] = window.fakeDataGenerator.generateFirstName();
+                break;
+            case 'LastName':
+                virtualData[fieldName] = window.fakeDataGenerator.generateLastName();
+                break;
+            case 'Company':
+                virtualData[fieldName] = window.fakeDataGenerator.generateCompany();
+                break;
+            case 'Email':
+                const firstName = virtualData.FirstName || 'Test';
+                const lastName = virtualData.LastName || 'User';
+                virtualData[fieldName] = window.fakeDataGenerator.generateEmail(firstName, lastName);
+                break;
+            case 'Phone':
+                virtualData[fieldName] = window.fakeDataGenerator.generatePhone();
+                break;
+            case 'MobilePhone':
+                virtualData[fieldName] = window.fakeDataGenerator.generateMobilePhone();
+                break;
+            case 'Title':
+                virtualData[fieldName] = window.fakeDataGenerator.generateTitle();
+                break;
+            case 'Street':
+                virtualData[fieldName] = window.fakeDataGenerator.generateStreet();
+                break;
+            case 'City':
+                virtualData[fieldName] = window.fakeDataGenerator.generateCity();
+                break;
+            case 'PostalCode':
+                virtualData[fieldName] = window.fakeDataGenerator.generatePostalCode();
+                break;
+            case 'State':
+                virtualData[fieldName] = window.fakeDataGenerator.generateState();
+                break;
+            case 'Country':
+                virtualData[fieldName] = 'Germany';
+                break;
+            case 'Industry':
+                virtualData[fieldName] = window.fakeDataGenerator.generateIndustry();
+                break;
+            case 'Website':
+                const company = virtualData.Company || 'TestCompany';
+                virtualData[fieldName] = window.fakeDataGenerator.generateWebsite(company);
+                break;
+            case 'LeadSource':
+                virtualData[fieldName] = window.fakeDataGenerator.generateLeadSource();
+                break;
+            case 'Description':
+                virtualData[fieldName] = window.fakeDataGenerator.generateDescription();
+                break;
+            case 'AnnualRevenue':
+                virtualData[fieldName] = window.fakeDataGenerator.generateAnnualRevenue();
+                break;
+            case 'NumberOfEmployees':
+                virtualData[fieldName] = window.fakeDataGenerator.generateNumberOfEmployees();
+                break;
+            default:
+                // For unknown fields, use field name with Test_ prefix
+                virtualData[fieldName] = `Test_${fieldName}`;
+                break;
         }
     });
 
-    console.log('✅ Virtual data generated:', virtualData);
+    console.log('✅ Realistic virtual data generated:', virtualData);
 }
 
 
@@ -530,10 +583,10 @@ function createFieldItem(field) {
                ${field.required ? 'disabled' : ''} />
         <div class="field-info" style="flex: 1;">
             <div class="field-label-with-flags" style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
-                <span class="ls-flag" style="color: ${field.isCustomField ? '#805ad5' : '#718096'}; font-size: 0.75rem;">
+                <span class="ls-flag" style="color: ${field.isCustomField ? '#2563eb' : '#718096'}; font-size: 0.75rem;">
                     ${field.isCustomField ? 'Custom:' : 'LS:'}
                 </span>
-                <span style="color: ${field.isCustomField ? '#805ad5' : '#718096'};">${fieldLabel}</span>
+                <span style="color: ${field.isCustomField ? '#2563eb' : '#718096'};">${fieldLabel}</span>
                 ${hasCustomMapping ? `
                     <span class="arrow" style="color: #999;">→</span>
                     <span class="sf-flag" style="color: #009EDB; font-weight: 600; font-size: 0.75rem;">SF:</span>
@@ -699,16 +752,60 @@ function createVirtualFieldItem(field) {
         ? field.name  // Custom field: just the name
         : field.name; // Standard field: just the name
 
-    // Build HTML with checkbox + label + editable input
+    // Generate realistic placeholder based on field type
+    let placeholder = `Enter ${fieldLabel}`;
+    switch (field.name) {
+        case 'Email':
+            placeholder = 'e.g., test_john.smith@mail.com';
+            break;
+        case 'Phone':
+            placeholder = 'e.g., +49 (30) 1234567';
+            break;
+        case 'MobilePhone':
+            placeholder = 'e.g., +49 (151) 12345678';
+            break;
+        case 'FirstName':
+            placeholder = 'e.g., John';
+            break;
+        case 'LastName':
+            placeholder = 'e.g., Smith';
+            break;
+        case 'Company':
+            placeholder = 'e.g., TechVision GmbH';
+            break;
+        case 'Country':
+            placeholder = 'e.g., Germany';
+            break;
+        case 'City':
+            placeholder = 'e.g., Berlin';
+            break;
+        case 'Street':
+            placeholder = 'e.g., Hauptstraße 123';
+            break;
+        case 'PostalCode':
+            placeholder = 'e.g., 10115';
+            break;
+        case 'Website':
+            placeholder = 'e.g., https://www.company.com';
+            break;
+    }
+
+    // Build HTML with checkbox + label + editable input + edit button for custom fields
     label.innerHTML = `
         <input type="checkbox"
                class="field-checkbox"
                ${field.active ? 'checked' : ''}
                ${field.required ? 'disabled' : ''} />
         <div class="field-info" style="flex: 1;">
-            <div class="field-name">
-                ${fieldLabel}
+            <div class="field-name" style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
+                ${field.isCustomField ? '<span style="color: #2563eb; font-size: 0.75rem;">Custom:</span>' : ''}
+                <span style="color: ${field.isCustomField ? '#2563eb' : '#718096'};">${fieldLabel}</span>
                 ${field.required ? '<span class="required-badge">REQUIRED</span>' : ''}
+                ${field.isCustomField ? `
+                    <button class="edit-custom-field-btn" title="Edit custom field" style="margin-left: auto; background: none; border: none; color: #f97316; cursor: pointer; padding: 4px; font-size: 16px;">
+                        ✏️
+                    </button>
+                ` : ''}
             </div>
             <input
                 type="text"
@@ -717,13 +814,13 @@ function createVirtualFieldItem(field) {
                 ${field.isCustomField ? 'data-custom-field-id="' + (field.id || '') + '"' : ''}
                 ${field.isCustomField ? 'data-sf-field="' + field.name + '"' : ''}
                 value="${fieldValue}"
-                placeholder="Enter ${fieldLabel}"
-                style="width: 100%; padding: 8px 12px; border: 1px solid #C9C7C5; border-radius: 4px; font-size: 14px; margin-top: 6px;"
+                placeholder="${placeholder}"
+                style="width: 100%; padding: 8px 12px; border: 1px solid #C9C7C5; border-radius: 4px; font-size: 14px;"
                 onclick="event.stopPropagation()"
             />
         </div>
         ${field.isCustomField ? `
-            <button class="delete-custom-field" title="Delete custom field" style="font-size: 14px;">
+            <button class="delete-custom-field" title="Delete custom field" style="font-size: 14px; color: #9ca3af;">
                 🗑️
             </button>
         ` : ''}
@@ -732,6 +829,7 @@ function createVirtualFieldItem(field) {
     // Add event listeners
     const checkbox = label.querySelector('.field-checkbox');
     const input = label.querySelector('.field-input');
+    const editBtn = label.querySelector('.edit-custom-field-btn');
     const deleteBtn = label.querySelector('.delete-custom-field');
 
     // Checkbox toggle handler
@@ -783,6 +881,15 @@ function createVirtualFieldItem(field) {
         virtualData[fieldName] = e.target.value;
         console.log(`📝 Updated ${fieldName}:`, e.target.value);
     });
+
+    // Edit button handler for custom fields - Opens modal to edit field
+    if (editBtn) {
+        editBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            openEditCustomFieldModal(field);
+        });
+    }
 
     // Delete button for custom fields
     if (deleteBtn) {
@@ -839,7 +946,7 @@ function openEditLabelModal(field) {
         const modalHTML = `
             <div id="editLabelModal" class="modal" style="display: flex;">
                 <div class="modal-content">
-                    <div class="modal-header">Edit Field Label Mapping</div>
+                    <div class="modal-header">Edit Custom Field</div>
                     <div class="form-group">
                         <label class="form-label">LS Field Name</label>
                         <input type="text" id="editLabelLsName" class="form-input" readonly style="background: #f9fafb;" />
@@ -1332,7 +1439,8 @@ window.saveFakeDataDefaults = async function() {
             }
         });
 
-        // Collect custom field values (only from active fields)
+        // Collect custom field values (only from active fields) and save to database
+        const customFieldUpdates = [];
         document.querySelectorAll('.field-input[data-custom-field]').forEach(input => {
             const fieldId = input.dataset.customFieldId;
             const sfFieldName = input.dataset.sfField;
@@ -1340,11 +1448,34 @@ window.saveFakeDataDefaults = async function() {
             const customField = customFields.find(f => f.name === sfFieldName);
             if (customField && customField.active) {
                 virtualData[sfFieldName] = input.value;
+
+                // Save custom field value to database
+                if (fieldId) {
+                    customFieldUpdates.push(
+                        window.fieldMappingService.updateCustomField(fieldId, {
+                            value: input.value
+                        })
+                    );
+                }
             }
         });
 
-        // TODO: Save to database via API
-        // For now, just save to sessionStorage
+        // Wait for all custom field updates to complete
+        if (customFieldUpdates.length > 0) {
+            await Promise.all(customFieldUpdates);
+            console.log(`✅ Updated ${customFieldUpdates.length} custom field(s) in database`);
+
+            // Update the customFields array with new values
+            document.querySelectorAll('.field-input[data-custom-field]').forEach(input => {
+                const fieldId = input.dataset.customFieldId;
+                const customField = customFields.find(f => f.id === fieldId);
+                if (customField) {
+                    customField.value = input.value;
+                }
+            });
+        }
+
+        // Save to sessionStorage
         sessionStorage.setItem('virtualTestDataDefaults', JSON.stringify(virtualData));
 
         showNotification('Test data defaults saved successfully!', 'success');
@@ -1422,6 +1553,10 @@ window.testTransfer = async function() {
         // Determine redirect page based on entityType
         const entityType = apiEndpoint;
         const redirectPage = entityType === 'LS_LeadReport' ? 'displayLsLeadReport.html' : 'displayLsLead.html';
+
+        // Store entityType in sessionStorage so Cancel button knows where to return
+        sessionStorage.setItem('entityType', entityType);
+        console.log('📝 Entity type stored in sessionStorage:', entityType);
 
         showNotification('Redirecting to test with fake data...', 'success');
 

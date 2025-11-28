@@ -1689,15 +1689,15 @@ function createFieldTableRow(fieldName, fieldInfo) {
     const customSfFieldName = window.fieldMappingService?.customLabels?.[fieldName] || '';
     const sfNameWasModified = customSfFieldName && customSfFieldName !== fieldName;
 
-    // For custom fields: show "Custom" indicator
+    // For custom fields: show field name only (badge will show CUSTOM)
     // For API fields: show LS label, and SF label only if modified
     let fieldNameDisplay = '';
     if (hasInvalidName) {
         // Invalid field name: show warning
         fieldNameDisplay = `<span class="text-red-600 font-mono font-semibold">⚠️ Invalid Name (contains spaces)</span>`;
     } else if (fieldInfo.isCustomField) {
-        // Custom field: show "Custom" indicator
-        fieldNameDisplay = `<span class="text-purple-600 font-mono font-semibold">Custom</span>`;
+        // Custom field: show "Custom:" prefix with field name in blue
+        fieldNameDisplay = `<span class="text-blue-600 font-mono">Custom: ${fieldName}</span>`;
     } else {
         // API field: LS: name, and SF: name only if modified
         fieldNameDisplay = `<span class="text-gray-500 font-mono">LS: ${fieldName}</span>`;
@@ -1713,7 +1713,7 @@ function createFieldTableRow(fieldName, fieldInfo) {
                 <div class="flex-1">
                     <div class="flex items-center">
                         <span class="text-sm font-medium text-gray-900">${fieldInfo.label || fieldName}</span>
-                        ${isRequired ? '<span class="ml-1 text-red-500">*</span>' : ''}
+                        ${isRequired ? '<span class="required-badge">REQUIRED</span>' : ''}
                     </div>
                     <div class="flex items-center mt-1 text-xs">
                         ${fieldNameDisplay}
@@ -2924,9 +2924,13 @@ function updateConnectionStatus(status, message, userInfo = null) {
             window.updateAPIStatus();
         }
 
-        // Hide Connect button when connected
+        // Hide Connect button when connected (both desktop and mobile)
         if (connectButton) {
             connectButton.style.display = 'none';
+        }
+        const connectButtonMobile = document.getElementById('connectButton-mobile');
+        if (connectButtonMobile) {
+            connectButtonMobile.style.display = 'none';
         }
 
         // Enable transfer button ONLY if there are active fields
@@ -2960,9 +2964,13 @@ function updateConnectionStatus(status, message, userInfo = null) {
             window.updateAPIStatus();
         }
 
-        // Show Connect button when not connected
+        // Show Connect button when not connected (both desktop and mobile)
         if (connectButton) {
             connectButton.style.display = 'flex';
+        }
+        const connectButtonMobile = document.getElementById('connectButton-mobile');
+        if (connectButtonMobile) {
+            connectButtonMobile.style.display = 'inline-block';
         }
 
         if (transferBtn) {
@@ -3958,7 +3966,7 @@ function openAddCustomFieldModal() {
                         Cancel
                     </button>
                     <button id="save-add-custom-field" class="px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors font-medium text-sm flex items-center">
-                        <i class="fas fa-check mr-2"></i>
+
                         Add Field
                     </button>
                 </div>
@@ -4881,7 +4889,7 @@ function createFieldCard(fieldName, fieldLabel, fieldValue, isActive, isRequired
             <div class="flex-1">
                 <h3 class="text-sm font-semibold text-gray-800 mb-1">
                     ${escapeHtml(fieldLabel)}
-                    ${isRequired ? '<span class="text-red-500 ml-1">*</span>' : ''}
+                    ${isRequired ? '<span class="required-badge">REQUIRED</span>' : ''}
                 </h3>
                 <div class="text-xs mt-1">
                     ${fieldNameDisplay}
@@ -5356,16 +5364,20 @@ function updateFieldStats() {
 }
 
 /**
- * Update user profile in header
+ * Update user profile in header (combined card for desktop and mobile)
  */
 function updateUserProfileSidebar() {
-    const headerProfile = document.getElementById('user-profile-header');
+    // Desktop elements
+    const userProfileSection = document.getElementById('user-profile-section');
     const userName = document.getElementById('user-name-header');
-    const userEmail = document.getElementById('user-email-header');
     const userAvatar = document.getElementById('user-avatar-header');
     const disconnectBtn = document.getElementById('disconnect-sf-btn');
 
-    if (!headerProfile || !userName) return;
+    // Mobile elements
+    const userProfileSectionMobile = document.getElementById('user-profile-section-mobile');
+    const userNameMobile = document.getElementById('user-name-header-mobile');
+    const userAvatarMobile = document.getElementById('user-avatar-header-mobile');
+    const disconnectBtnMobile = document.getElementById('disconnect-sf-btn-mobile');
 
     let userInfo = null;
     try {
@@ -5374,18 +5386,33 @@ function updateUserProfileSidebar() {
     } catch (e) {}
 
     if (userInfo) {
-        headerProfile.style.display = 'flex';
+        // Desktop
+        if (userProfileSection) userProfileSection.style.display = 'flex';
         if (disconnectBtn) disconnectBtn.style.display = 'flex';
-        userName.textContent = userInfo.display_name || userInfo.username || 'User';
-        if (userEmail) userEmail.textContent = userInfo.username || '-';
+        if (userName) userName.textContent = userInfo.display_name || userInfo.username || 'User';
         if (userAvatar) {
             const initials = (userInfo.display_name || userInfo.username || 'U')
                 .split(' ').map(w => w[0]).join('').toUpperCase().substring(0, 2);
             userAvatar.textContent = initials;
         }
+
+        // Mobile
+        if (userProfileSectionMobile) userProfileSectionMobile.style.display = 'flex';
+        if (disconnectBtnMobile) disconnectBtnMobile.style.display = 'inline-block';
+        if (userNameMobile) userNameMobile.textContent = userInfo.display_name || userInfo.username || 'User';
+        if (userAvatarMobile) {
+            const initials = (userInfo.display_name || userInfo.username || 'U')
+                .split(' ').map(w => w[0]).join('').toUpperCase().substring(0, 2);
+            userAvatarMobile.textContent = initials;
+        }
     } else {
-        headerProfile.style.display = 'none';
+        // Desktop
+        if (userProfileSection) userProfileSection.style.display = 'none';
         if (disconnectBtn) disconnectBtn.style.display = 'none';
+
+        // Mobile
+        if (userProfileSectionMobile) userProfileSectionMobile.style.display = 'none';
+        if (disconnectBtnMobile) disconnectBtnMobile.style.display = 'none';
     }
 }
 
@@ -5395,10 +5422,17 @@ function setupAPIStatusIndicator() {
     setInterval(updateAPIStatus, 5000);
 }
 
-// Update API status
+// Update API status (combined card for desktop and mobile)
 function updateAPIStatus() {
-    const statusCard = document.getElementById('api-status-card');
-    if (!statusCard) return;
+    // Desktop elements
+    const statusIndicator = document.getElementById('api-status-indicator');
+    const statusText = document.getElementById('api-status-text');
+    const statusCard = document.getElementById('api-status-user-card');
+
+    // Mobile elements
+    const statusIndicatorMobile = document.getElementById('api-status-indicator-mobile');
+    const statusTextMobile = document.getElementById('api-status-text-mobile');
+    const statusCardMobile = document.getElementById('api-status-user-card-mobile');
 
     try {
         const userInfoData = localStorage.getItem('sf_user_info');
@@ -5406,26 +5440,57 @@ function updateAPIStatus() {
         const isConnected = persistedConnection?.status === 'connected' && persistedConnection?.expiresAt > Date.now();
 
         if (isConnected) {
-            const displayName = persistedConnection.userInfo?.display_name || persistedConnection.userInfo?.username || 'Connected';
-            statusCard.className = 'flex items-center px-3 py-2 bg-green-50 border border-green-200 rounded-lg';
-            statusCard.innerHTML = `
-                <div class="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>
-                <div>
-                    <span class="text-xs font-medium text-green-700">API Status</span>
-                    <p class="text-xs text-green-600">Connected</p>
-                </div>
-            `;
+            // Desktop
+            if (statusIndicator) {
+                statusIndicator.className = 'w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse';
+            }
+            if (statusText) {
+                statusText.textContent = 'Connected';
+                statusText.className = 'text-xs text-green-600 ml-1';
+            }
+            if (statusCard) {
+                statusCard.className = 'px-3 py-2 bg-green-50 border border-green-200 rounded-lg';
+            }
+
+            // Mobile
+            if (statusIndicatorMobile) {
+                statusIndicatorMobile.className = 'w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse';
+            }
+            if (statusTextMobile) {
+                statusTextMobile.textContent = 'Connected';
+                statusTextMobile.className = 'text-xs text-green-600 ml-1';
+            }
+            if (statusCardMobile) {
+                statusCardMobile.className = 'px-2 py-2 bg-green-50 border border-green-200 rounded';
+            }
         } else {
-            statusCard.className = 'flex items-center px-3 py-2 bg-gray-100 border border-gray-200 rounded-lg';
-            statusCard.innerHTML = `
-                <div class="w-2 h-2 bg-gray-400 rounded-full mr-2"></div>
-                <div>
-                    <span class="text-xs font-medium text-gray-600">API Status</span>
-                    <p class="text-xs text-gray-500">Disconnected</p>
-                </div>
-            `;
+            // Desktop
+            if (statusIndicator) {
+                statusIndicator.className = 'w-2 h-2 bg-gray-400 rounded-full mr-2';
+            }
+            if (statusText) {
+                statusText.textContent = 'Disconnected';
+                statusText.className = 'text-xs text-gray-500 ml-1';
+            }
+            if (statusCard) {
+                statusCard.className = 'px-3 py-2 bg-gray-100 border border-gray-200 rounded-lg';
+            }
+
+            // Mobile
+            if (statusIndicatorMobile) {
+                statusIndicatorMobile.className = 'w-2 h-2 bg-gray-400 rounded-full mr-1';
+            }
+            if (statusTextMobile) {
+                statusTextMobile.textContent = 'Disconnected';
+                statusTextMobile.className = 'text-xs text-gray-500 ml-1';
+            }
+            if (statusCardMobile) {
+                statusCardMobile.className = 'px-2 py-2 bg-gray-100 border border-gray-200 rounded';
+            }
         }
-    } catch (e) {}
+    } catch (e) {
+        console.error('Error updating API status:', e);
+    }
 }
 
 /**

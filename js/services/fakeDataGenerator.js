@@ -115,12 +115,13 @@ class FakeDataGenerator {
 
     /**
      * Generate fake email based on name
+     * Format: test_firstname.lastname@mail.com (Salesforce compatible)
      */
     generateEmail(firstName, lastName) {
-        const domains = ['example.com', 'company.com', 'business.de', 'email.com'];
+        const domains = ['mail.com', 'email.com', 'example.com', 'test.com'];
         const first = firstName.toLowerCase().replace(/[^a-z]/g, '');
         const last = lastName.toLowerCase().replace(/[^a-z]/g, '');
-        return `${first}.${last}@${this.randomItem(domains)}`;
+        return `test_${first}.${last}@${this.randomItem(domains)}`;
     }
 
     /**
@@ -131,20 +132,23 @@ class FakeDataGenerator {
     }
 
     /**
-     * Generate fake phone number (German format)
+     * Generate fake phone number (Salesforce compatible format)
+     * Format: +49 (30) 12345678 (E.164 compliant)
      */
     generatePhone() {
-        const areaCode = this.randomNumber(30, 99);
-        const number = this.randomNumber(10000000, 99999999);
-        return `+49 ${areaCode} ${number}`;
+        const areaCode = this.randomNumber(30, 999);
+        const subscriber = String(this.randomNumber(1000000, 9999999)).padStart(7, '0');
+        return `+49 (${areaCode}) ${subscriber}`;
     }
 
     /**
-     * Generate fake mobile phone (German format)
+     * Generate fake mobile phone (Salesforce compatible format)
+     * Format: +49 (151) 12345678 (E.164 compliant, German mobile prefix)
      */
     generateMobilePhone() {
-        const number = this.randomNumber(100000000, 999999999);
-        return `+49 15${number}`;
+        const mobilePrefix = this.randomItem(['151', '152', '157', '159', '160', '170', '171', '175']);
+        const subscriber = String(this.randomNumber(1000000, 99999999)).padStart(8, '0');
+        return `+49 (${mobilePrefix}) ${subscriber}`;
     }
 
     /**
@@ -308,8 +312,9 @@ class FakeDataGenerator {
                         break;
 
                     case 'Country':
-                        // Use ISO country code (Salesforce State and Country Picklist)
-                        fakeValue = 'Germany';  // Salesforce accepts full country name
+                        // Salesforce State and Country Picklist accepts ISO codes or full names
+                        // Using full name for better compatibility (works with both standard and picklist)
+                        fakeValue = 'Germany';
                         break;
 
                     case 'Industry':

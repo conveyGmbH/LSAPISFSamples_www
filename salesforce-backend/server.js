@@ -1916,8 +1916,11 @@ app.post('/api/salesforce/leads', async (req, res) => {
                 console.error(`❌ Field(s) not found in Salesforce: ${unknownFields.join(', ')}`);
 
                 // Build detailed error message with helpful guidance
+                // Format field names in bold for better visibility
+                const boldFields = unknownFields.map(f => `<strong>${f}</strong>`).join(', ');
+
                 const errorMessage = [
-                    `The following fields do not exist in Salesforce: ${unknownFields.join(', ')}`,
+                    `The following fields do not exist in Salesforce: ${boldFields}`,
                     '',
                     'Please ensure field names match exactly as they appear in Salesforce.',
                     '',
