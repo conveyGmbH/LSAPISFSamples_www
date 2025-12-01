@@ -246,9 +246,12 @@ async function checkFieldMappingAndLoad() {
     const configExists = await hasFieldMappingConfig(eventId);
 
     if (!configExists) {
-      // No field mapping configured yet → Redirect to fieldConfigurator in normal mode
-      console.log('⚠️ No field mapping found, redirecting to Field Configurator (normal mode)');
-      window.location.href = `fieldConfigurator.html?eventId=${eventId}&entityType=LS_Lead`;
+      // No field mapping configured yet → Load with default fields
+      console.log('⚠️ No field mapping found, loading with default fields');
+      console.log('📊 Loading real contact data with default configuration...');
+
+      // Proceed with normal data loading (will use default fields from fieldMappingService)
+      fetchLsLeadData();
       return;
     }
 

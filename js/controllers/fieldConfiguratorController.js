@@ -6,10 +6,7 @@ const REQUIRED_FIELDS = ['LastName', 'Company'];
 const EXCLUDED_FIELDS = ['KontaktViewId', '__metadata'];
 
 // Default active fields
-const DEFAULT_ACTIVE_FIELDS = [
-    'FirstName', 'LastName', 'Email', 'Company', 'Phone', 'MobilePhone',
-    'Street', 'City', 'PostalCode', 'State', 'Country',
-    'Title', 'Industry', 'Description'
+const DEFAULT_ACTIVE_FIELDS = [ 'FirstName', 'LastName', 'Email', 'Company', 'Phone', 'MobilePhone', 'Street', 'City', 'PostalCode', 'State', 'Country', 'Title', 'Industry', 'Description'
 ];
 
 
@@ -66,10 +63,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderFields();
         setupEventListeners();
 
-        console.log('✅ Field Configurator loaded successfully');
+        console.log('Field Configurator loaded successfully');
 
     } catch (error) {
-        console.error('❌ Failed to initialize:', error);
+        console.error('Failed to initialize:', error);
         showNotification('Failed to load field configuration', 'error');
     }
 });
@@ -88,7 +85,6 @@ function configureUIForMode(mode, eventId) {
             pageTitle.innerHTML = `
                 Test Data Configuration
                 <img src="../images/salesforcelogo.png" alt="Salesforce" style="height: 32px; width: auto; vertical-align: middle; margin-right: 12px;">
-                
             `;
         }
         if (eventInfo) eventInfo.style.display = 'none';
@@ -152,7 +148,7 @@ async function loadSampleContact(eventId) {
         const credentials = sessionStorage.getItem('credentials');
 
         if (!serverName || !apiName || !credentials) {
-            console.warn('⚠️ Missing credentials, cannot load sample contact');
+            console.warn('Missing credentials, cannot load sample contact');
             return;
         }
 
@@ -167,7 +163,7 @@ async function loadSampleContact(eventId) {
         });
 
         if (!response.ok) {
-            console.warn('⚠️ Failed to load sample contact:', response.statusText);
+            console.warn('Failed to load sample contact:', response.statusText);
             return;
         }
 
@@ -179,13 +175,13 @@ async function loadSampleContact(eventId) {
             // Store sample contact data in virtualData (we reuse the same storage)
             virtualData = { ...sampleContact };
 
-            console.log('✅ Sample contact loaded:', virtualData);
+            console.log('Sample contact loaded:', virtualData);
         } else {
-            console.warn('⚠️ No contacts found for this event');
+            console.warn('No contacts found for this event');
         }
 
     } catch (error) {
-        console.error('❌ Error loading sample contact:', error);
+        console.error('Error loading sample contact:', error);
     }
 }
 
@@ -261,7 +257,7 @@ async function fetchMetadata(entityType = 'LS_Lead') {
         return fields;
 
     } catch (error) {
-        console.error('❌ Error fetching metadata:', error);
+        console.error('Error fetching metadata:', error);
         return [];
     }
 }
@@ -269,11 +265,11 @@ async function fetchMetadata(entityType = 'LS_Lead') {
 // Generate virtual fake data with Test_ prefix (for events with NO contacts)
 function generateVirtualData() {
     if (!metadata) {
-        console.error('❌ Metadata not available');
+        console.error('Metadata not available');
         return;
     }
 
-    console.log('🧪 Generating realistic virtual data for', metadata.length, 'fields');
+    console.log('Generating realistic virtual data for', metadata.length, 'fields');
 
     // Create virtualData object with realistic fake values
     virtualData = {};
@@ -347,7 +343,7 @@ function generateVirtualData() {
         }
     });
 
-    console.log('✅ Realistic virtual data generated:', virtualData);
+    console.log('Realistic virtual data generated:', virtualData);
 }
 
 
@@ -392,7 +388,7 @@ async function loadFieldsFromAPI(eventId) {
         const results = data.d?.results || [];
 
         if (results.length === 0) {
-            console.warn('⚠️ No data found in API');
+            console.warn('No data found in API');
             showNotification('No data found in the API. Cannot load fields.', 'error');
             return;
         }
@@ -453,7 +449,7 @@ async function loadFieldsFromAPI(eventId) {
 async function loadCustomFields() {
     try {
         if (!fieldMappingService || !fieldMappingService.getAllCustomFields) {
-            console.warn('⚠️ FieldMappingService.getAllCustomFields not available');
+            console.warn('FieldMappingService.getAllCustomFields not available');
             return;
         }
 
@@ -476,7 +472,7 @@ async function loadCustomFields() {
             };
         });
 
-        console.log('✅ Loaded custom fields:', customFields);
+        console.log('Loaded custom fields:', customFields);
 
     } catch (error) {
         console.error('Failed to load custom fields:', error);
@@ -484,7 +480,6 @@ async function loadCustomFields() {
 }
 
 // Get all fields (API fields + custom fields) for rendering
-
 function getAllFieldsForRendering() {
     // Combine API fields and custom fields, avoiding duplicates
     const fieldMap = new Map();
@@ -661,14 +656,14 @@ function createFieldItem(field) {
         // Update statistics in real-time
         updateStatistics();
 
-        console.log(`✅ Field ${field.name} ${isChecked ? 'activated' : 'deactivated'} (not saved yet)`);
+        console.log(`Field ${field.name} ${isChecked ? 'activated' : 'deactivated'} (not saved yet)`);
     });
 
     // Input change handler for custom fields (update value in memory)
     if (input && field.isCustomField) {
         input.addEventListener('input', (e) => {
             field.value = e.target.value;
-            console.log(`📝 Updated custom field "${field.name}" value:`, e.target.value);
+            console.log(`Updated custom field "${field.name}" value:`, e.target.value);
         });
     }
 
@@ -723,7 +718,7 @@ function createFieldItem(field) {
                 updateStatistics();
 
                 showNotification(`Custom field "${field.name}" deleted successfully`, 'success');
-                console.log(`✅ Custom field ${field.name} deleted and UI refreshed`);
+                console.log(`Custom field ${field.name} deleted and UI refreshed`);
 
             } catch (error) {
                 console.error('Failed to delete custom field:', error);
@@ -758,8 +753,7 @@ function createVirtualFieldItem(field) {
     label.dataset.isCustom = field.isCustomField || false;
     label.dataset.fieldId = field.id || '';
 
-    // Get value from virtualData or field.value (for custom fields)
-    // Display values as-is from API (including null values)
+    // Get value from virtualData 
     let fieldValue = field.isCustomField
         ? (field.value ?? '')
         : (virtualData[field.name] ?? '');
@@ -769,7 +763,7 @@ function createVirtualFieldItem(field) {
         fieldValue = formatDate(fieldValue);
     }
 
-    // Field name display - NO "LS:" prefix in virtual mode (fields not modified yet)
+    // Field name display - NO "LS:" 
     const fieldLabel = field.isCustomField
         ? field.name  // Custom field: just the name
         : field.name; // Standard field: just the name
@@ -873,9 +867,9 @@ function createVirtualFieldItem(field) {
                 await window.fieldMappingService.updateCustomField(field.id, {
                     active: isChecked
                 });
-                console.log(`💾 Saved custom field "${field.name}" active state (${isChecked}) to database`);
+                console.log(`Saved custom field "${field.name}" active state (${isChecked}) to database`);
             } catch (error) {
-                console.error(`❌ Error saving custom field active state:`, error);
+                console.error(`Error saving custom field active state:`, error);
                 // Revert the checkbox if save failed
                 checkbox.checked = !isChecked;
                 field.active = !isChecked;
@@ -894,14 +888,14 @@ function createVirtualFieldItem(field) {
         // Update statistics
         updateStatistics();
 
-        console.log(`✅ Field ${field.name} ${isChecked ? 'activated' : 'deactivated'}`);
+        console.log(`Field ${field.name} ${isChecked ? 'activated' : 'deactivated'}`);
     });
 
     // Input change handler
     input.addEventListener('input', (e) => {
         const fieldName = field.isCustomField ? field.name : field.name;
         virtualData[fieldName] = e.target.value;
-        console.log(`📝 Updated ${fieldName}:`, e.target.value);
+        console.log(`Updated ${fieldName}:`, e.target.value);
     });
 
     // Edit button handler for custom fields - Opens modal to edit field
@@ -1059,8 +1053,7 @@ window.saveEditLabel = function() {
     // Find the field and update its SF label
     const field = allFields.find(f => f.name === fieldName);
     if (field) {
-        field.sfLabel = sfLabel || field.name; // Use original name if empty
-        console.log(`📝 Updated field "${fieldName}" SF label to:`, field.sfLabel);
+        field.sfLabel = sfLabel || field.name; 
 
         // Re-render fields to show updated mapping
         renderFields();
@@ -1071,9 +1064,8 @@ window.saveEditLabel = function() {
 };
 
 // Legacy toggle function - kept for compatibility but not used anymore
-// Real-time toggle is now handled in createFieldItem()
 window.toggleField = function(fieldName, checked, isCustomField = false) {
-    console.warn('⚠️ Legacy toggleField called - this should not happen with new implementation');
+    console.warn('Legacy toggleField called - this should not happen with new implementation');
 };
 
 // Select all fields (in memory only, no DB save)
@@ -1103,7 +1095,6 @@ window.saveAndContinue = async function() {
     try {
 
         // Update field configurations in memory WITHOUT triggering individual API saves
-        // We'll do one bulk save at the end
         for (const field of allFields) {
             // Find existing field config
             const existingIndex = fieldMappingService.fieldConfig.config.fields.findIndex(
@@ -1258,8 +1249,7 @@ window.closeCustomFieldModal = function() {
     }
 };
 
-// Save custom field (handles both create and update)
-
+// Save custom field 
 window.saveCustomField = async function() {
     const fieldName = document.getElementById('customFieldName').value.trim();
     const fieldValue = document.getElementById('customFieldValue').value.trim();
@@ -1289,7 +1279,7 @@ window.saveCustomField = async function() {
     try {
         if (editingFieldId) {
             // UPDATE existing custom field
-            console.log(`🔄 Updating custom field ID ${editingFieldId} - Name: ${fieldName}, Value: ${fieldValue}`);
+            console.log(`Updating custom field ID ${editingFieldId} - Name: ${fieldName}, Value: ${fieldValue}`);
 
             // Get the old field name for notification
             const oldField = customFields.find(f => f.id === editingFieldId);
@@ -1311,10 +1301,7 @@ window.saveCustomField = async function() {
             renderFields();
 
         } else {
-            // CREATE new custom field
-            console.log(`➕ Creating new custom field ${fieldName} with value: ${fieldValue}`);
-
-            // Use field name as-is (no __c suffix needed - fields already exist in Salesforce)
+            // ADD new custom field
             const sfFieldName = fieldName;
 
             // Save to FieldMappingService
@@ -1354,7 +1341,7 @@ window.saveCustomField = async function() {
 // Legacy delete function - kept for compatibility but not used anymore
 // Real-time delete is now handled in createFieldItem()
 window.deleteCustomField = async function() {
-    console.warn('⚠️ Legacy deleteCustomField called - this should not happen with new implementation');
+    console.warn('Legacy deleteCustomField called - this should not happen with new implementation');
 };
 
 // Modern confirm dialog (Salesforce-styled)
@@ -1520,7 +1507,6 @@ window.cancelConfiguration = function() {
 
 // Save fake data defaults (Virtual mode)
 window.saveFakeDataDefaults = async function() {
-    console.log('💾 Saving fake data defaults...');
 
     try {
         // Collect all modified virtual data from inputs (only from active fields)
@@ -1557,7 +1543,7 @@ window.saveFakeDataDefaults = async function() {
         // Wait for all custom field updates to complete
         if (customFieldUpdates.length > 0) {
             await Promise.all(customFieldUpdates);
-            console.log(`✅ Updated ${customFieldUpdates.length} custom field(s) in database`);
+            console.log(`Updated ${customFieldUpdates.length} custom field(s) in database`);
 
             // Update the customFields array with new values
             document.querySelectorAll('.field-input[data-custom-field]').forEach(input => {
@@ -1573,10 +1559,10 @@ window.saveFakeDataDefaults = async function() {
         sessionStorage.setItem('virtualTestDataDefaults', JSON.stringify(virtualData));
 
         showNotification('Test data defaults saved successfully!', 'success');
-        console.log('✅ Virtual data defaults saved:', virtualData);
+        console.log('Virtual data defaults saved:', virtualData);
 
     } catch (error) {
-        console.error('❌ Error saving fake data defaults:', error);
+        console.error('Error saving fake data defaults:', error);
         showNotification('Error saving test data defaults', 'error');
     }
 };
@@ -1637,7 +1623,7 @@ window.testTransfer = async function() {
         // Save to sessionStorage for the display page
         sessionStorage.setItem('virtualTestData', JSON.stringify(activeVirtualData));
         sessionStorage.setItem('virtualTestDataActiveFields', JSON.stringify(activeFieldNames));
-        console.log('💾 Virtual test data saved to sessionStorage:', activeVirtualData);
+        console.log('Virtual test data saved to sessionStorage:', activeVirtualData);
         console.log('📋 Active fields:', activeFieldNames);
 
         // Get eventId from URL params
@@ -1650,7 +1636,7 @@ window.testTransfer = async function() {
 
         // Store entityType in sessionStorage so Cancel button knows where to return
         sessionStorage.setItem('entityType', entityType);
-        console.log('📝 Entity type stored in sessionStorage:', entityType);
+        console.log('Entity type stored in sessionStorage:', entityType);
 
         showNotification('Redirecting to test with fake data...', 'success');
 
@@ -1660,7 +1646,7 @@ window.testTransfer = async function() {
         }, 500);
 
     } catch (error) {
-        console.error('❌ Error in test & transfer:', error);
+        console.error('Error in test & transfer:', error);
         showNotification('Error during test & transfer', 'error');
     }
 };

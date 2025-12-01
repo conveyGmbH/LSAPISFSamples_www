@@ -10,21 +10,12 @@ class FakeDataGenerator {
         // First names pool (diverse, realistic)
         this.firstNames = [
             'Emma', 'Liam', 'Olivia', 'Noah', 'Ava', 'Ethan', 'Sophia', 'Mason',
-            'Isabella', 'William', 'Mia', 'James', 'Charlotte', 'Benjamin', 'Amelia',
-            'Lucas', 'Harper', 'Henry', 'Evelyn', 'Alexander', 'Abigail', 'Michael',
-            'Emily', 'Daniel', 'Elizabeth', 'Matthew', 'Sofia', 'Aiden', 'Avery',
-            'Joseph', 'Ella', 'Samuel', 'Scarlett', 'David', 'Grace', 'Carter',
-            'Hannah', 'Owen', 'Lily', 'Dylan', 'Chloe', 'Sebastian', 'Zoe', 'Jack'
+            'Isabella', 'William', 'Mia', 'James', 'Charlotte', 'Benjamin', 'Amelia', 'Lucas', 'Harper', 'Henry', 'Evelyn', 'Alexander', 'Abigail', 'Michael', 'Emily', 'Daniel', 'Elizabeth', 'Matthew', 'Sofia', 'Aiden', 'Avery', 'Joseph', 'Ella', 'Samuel', 'Scarlett', 'David', 'Grace', 'Carter', 'Hannah', 'Owen', 'Lily', 'Dylan', 'Chloe', 'Sebastian', 'Zoe', 'Jack'
         ];
 
         // Last names pool (realistic German and international names)
         this.lastNames = [
-            'Müller', 'Schmidt', 'Schneider', 'Fischer', 'Weber', 'Meyer', 'Wagner',
-            'Becker', 'Schulz', 'Hoffmann', 'Schäfer', 'Koch', 'Bauer', 'Richter',
-            'Klein', 'Wolf', 'Schröder', 'Neumann', 'Schwarz', 'Zimmermann', 'Braun',
-            'Krüger', 'Hofmann', 'Hartmann', 'Lange', 'Werner', 'Schmitt', 'Krause',
-            'Johnson', 'Smith', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller',
-            'Davis', 'Rodriguez', 'Martinez', 'Hernandez', 'Lopez', 'Wilson', 'Anderson'
+            'Müller', 'Schmidt', 'Schneider', 'Fischer', 'Weber', 'Meyer', 'Wagner','Becker', 'Schulz', 'Hoffmann', 'Schäfer', 'Koch', 'Bauer', 'Richter', 'Klein', 'Wolf', 'Schröder', 'Neumann', 'Schwarz', 'Zimmermann', 'Braun','Krüger', 'Hofmann', 'Hartmann', 'Lange', 'Werner', 'Schmitt', 'Krause', 'Johnson', 'Smith', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller','Davis', 'Rodriguez', 'Martinez', 'Hernandez', 'Lopez', 'Wilson', 'Anderson'
         ];
 
         // Company names pool (realistic B2B companies)
@@ -71,9 +62,7 @@ class FakeDataGenerator {
         ];
     }
 
-    /**
-     * Check if a value is empty, null, undefined, or "N/A"
-     */
+    // Check if a value is empty, null, undefined, or "N/A"
     isEmpty(value) {
         if (value === null || value === undefined || value === '') {
             return true;
@@ -85,30 +74,22 @@ class FakeDataGenerator {
                stringValue.toUpperCase() === 'NA';
     }
 
-    /**
-     * Get random item from array
-     */
+    // Get random item from array
     randomItem(array) {
         return array[Math.floor(Math.random() * array.length)];
     }
 
-    /**
-     * Generate random number between min and max
-     */
+    // Generate random number between min and max
     randomNumber(min, max) {
         return Math.floor(Math.random() * (max - min + 1)) + min;
     }
 
-    /**
-     * Generate fake first name
-     */
+    // Generate fake first name
     generateFirstName() {
         return this.randomItem(this.firstNames);
     }
 
-    /**
-     * Generate fake last name
-     */
+    // Generate fake last name
     generateLastName() {
         return this.randomItem(this.lastNames);
     }
@@ -124,9 +105,7 @@ class FakeDataGenerator {
         return `test_${first}.${last}@${this.randomItem(domains)}`;
     }
 
-    /**
-     * Generate fake company name
-     */
+    // Generate fake company name
     generateCompany() {
         return this.randomItem(this.companyNames);
     }
@@ -151,39 +130,29 @@ class FakeDataGenerator {
         return `+49 (${mobilePrefix}) ${subscriber}`;
     }
 
-    /**
-     * Generate fake job title
-     */
+    //Generate fake job title
     generateTitle() {
         return this.randomItem(this.titles);
     }
 
-    /**
-     * Generate fake street address
-     */
+    // Generate fake street address
     generateStreet() {
         const street = this.randomItem(this.streets);
         const number = this.randomNumber(1, 200);
         return `${street} ${number}`;
     }
 
-    /**
-     * Generate fake city
-     */
+    // Generate fake city
     generateCity() {
         return this.randomItem(this.cities);
     }
 
-    /**
-     * Generate fake postal code (German format)
-     */
+    //Generate fake postal code (German format)
     generatePostalCode() {
         return String(this.randomNumber(10000, 99999));
     }
 
-    /**
-     * Generate fake state (German)
-     */
+    // Generate fake state (German)
     generateState() {
         const states = [
             'Baden-Württemberg', 'Bayern', 'Berlin', 'Brandenburg', 'Bremen',
@@ -194,16 +163,12 @@ class FakeDataGenerator {
         return this.randomItem(states);
     }
 
-    /**
-     * Generate fake industry
-     */
+    // Generate fake industry
     generateIndustry() {
         return this.randomItem(this.industries);
     }
 
-    /**
-     * Generate fake website
-     */
+    // Generate fake website
     generateWebsite(companyName) {
         const clean = companyName
             .toLowerCase()
@@ -212,31 +177,23 @@ class FakeDataGenerator {
         return `https://www.${clean}.com`;
     }
 
-    /**
-     * Generate fake lead source
-     */
+    // Generate fake lead source
     generateLeadSource() {
         return this.randomItem(this.leadSources);
     }
 
-    /**
-     * Generate fake annual revenue
-     */
+    // Generate fake annual revenue
     generateAnnualRevenue() {
         return this.randomNumber(100000, 10000000);
     }
 
-    /**
-     * Generate fake number of employees
-     */
+    // Generate fake number of employees
     generateNumberOfEmployees() {
         const ranges = [10, 50, 100, 250, 500, 1000, 5000];
         return this.randomItem(ranges);
     }
 
-    /**
-     * Generate fake description
-     */
+    // Generate fake description
     generateDescription() {
         const templates = [
             'Interested in our products and services.',
@@ -354,7 +311,7 @@ class FakeDataGenerator {
         }
 
         if (filledFields.length > 0) {
-            console.log(`🎭 Generated fake data for ${filledFields.length} empty fields:`, filledFields);
+            console.log(` Generated fake data for ${filledFields.length} empty fields:`, filledFields);
         }
 
         return {
