@@ -2384,7 +2384,18 @@ input:checked + .toggle-slider:before {
                 localStorage.setItem('orgId', orgId);
 
                 const authUrl = `${this.config.backendUrl}/auth/salesforce?orgId=${encodeURIComponent(orgId)}`;
-                const popup = window.open(authUrl, 'salesforce-auth', 'width=500,height=650,scrollbars=no,resizable=no');
+
+                // Calculate center position
+                const width = 500;
+                const height = 650;
+                const left = (screen.width - width) / 2;
+                const top = (screen.height - height) / 2;
+
+                const popup = window.open(
+                    authUrl,
+                    'salesforce-auth',
+                    `width=${width},height=${height},left=${left},top=${top},scrollbars=no,resizable=no`
+                );
 
                 if (!popup) {
                     throw new Error("Popup was blocked. Please allow popups for this site.");

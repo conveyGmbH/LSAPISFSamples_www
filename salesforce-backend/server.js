@@ -41,11 +41,11 @@ function determineEnvironmentAndConfig() {
         redirectUri = process.env.SF_REDIRECT_URI_DEV || `http://localhost:${port}/oauth/callback`;
     }
 
-    console.log(`🌍 Environment: ${isProduction ? 'PRODUCTION' : 'DEVELOPMENT'}`);
-    console.log(`📍 Hostname: ${hostname}`);
-    console.log(`🔌 Port: ${port}`);
-    console.log(`☁️  Azure: ${isAzure ? 'Yes' : 'No'}`);
-    console.log(`🔗 OAuth Redirect URI: ${redirectUri}`);
+    console.log(`Environment: ${isProduction ? 'PRODUCTION' : 'DEVELOPMENT'}`);
+    console.log(`Hostname: ${hostname}`);
+    console.log(`Port: ${port}`);
+    console.log(`Azure: ${isAzure ? 'Yes' : 'No'}`);
+    console.log(`OAuth Redirect URI: ${redirectUri}`);
 
     return {
         isProduction,
@@ -84,7 +84,7 @@ const config = {
 // Log configuration status
 if (config.salesforce.clientId && config.salesforce.clientSecret) {
 } else {
-    console.log('ℹ️  No default Salesforce credentials - clients will provide their own credentials');
+    console.log('No default Salesforce credentials - clients will provide their own credentials');
 }
 
 app.use(cors({
@@ -128,9 +128,7 @@ app.use(session(config.session));
 // Static files
 app.use(express.static(path.join(__dirname, '../')));
 
-// ==============================================
 // SALESFORCE CONNECTION MANAGER
-// ==============================================
 
 const connections = new Map(); 
 
@@ -154,7 +152,7 @@ function createConnection(sessionData) {
 
     // Auto-refresh token
     conn.on('refresh', (accessToken, res) => {
-        console.log('🔄 Token refreshed for org:', sessionData.organizationId);
+        console.log('Token refreshed for org:', sessionData.organizationId);
         sessionData.accessToken = accessToken;
         connections.set(sessionData.organizationId, {
             ...sessionData,
@@ -325,7 +323,7 @@ app.get('/auth/salesforce/redirect', (req, res) => {
 
         // Validate that credentials are available (either from params or config)
         if (!clientId || !clientSecret) {
-            console.error('❌ No credentials available - neither from query params nor from environment');
+            console.error('No credentials available - neither from query params nor from environment');
             return res.status(400).send(`
                 <!DOCTYPE html>
                 <html lang="en">
@@ -407,7 +405,7 @@ app.get('/auth/salesforce/redirect', (req, res) => {
                                 <line x1="12" y1="17" x2="12.01" y2="17"/>
                             </svg>
                         </div>
-                        <h2>⚠️ Configuration Error</h2>
+                        <h2>Configuration Error</h2>
                         <p>Salesforce Client ID and Client Secret are required.</p>
                         <p>Please configure SF_CLIENT_ID and SF_CLIENT_SECRET in your environment variables.</p>
                         <button onclick="window.close()">Close Window</button>
@@ -442,7 +440,7 @@ app.get('/auth/salesforce/redirect', (req, res) => {
         res.redirect(authUrl);
 
     } catch (error) {
-        console.error('❌ OAuth initiation failed:', error);
+        console.error('OAuth initiation failed:', error);
         res.status(500).send(`
             <!DOCTYPE html>
             <html lang="en">
@@ -536,32 +534,23 @@ app.get('/oauth/callback', async (req, res) => {
         const { code, state, error } = req.query;
 
         if (error) {
-            console.log('❌ OAuth error from Salesforce:', error);
+            console.log('OAuth error from Salesforce:', error);
             throw new Error(`OAuth error: ${error}`);
         }
 
         if (!code) {
-            console.log('❌ No authorization code received');
+            console.log('No authorization code received');
             throw new Error('No authorization code received');
         }
 
         // Validate state exists
         if (!state) {
-            console.log('❌ State parameter is missing');
+            console.log('State parameter is missing');
             throw new Error('Invalid state parameter - missing state');
         }
 
-        // Extract orgId from state
-        // Supports multiple formats for backward compatibility:
-        // - New format: "randomState:orgId" (e.g., "abc123:client_a")
-        // - Legacy format: "randomState" (e.g., "abc123") → defaults to 'default'
         const orgId = state.includes(':') ? state.split(':')[1] : 'default';
-
-        console.log('🔍 State parameter analysis:');
-        console.log('   - Format detected:', state.includes(':') ? 'Multi-org (state:orgId)' : 'Legacy (state only)');
-        console.log('   - Extracted orgId:', orgId);
-        console.log('   - State value:', state.substring(0, 20) + '...');
-
+        
         // Use default credentials from environment variables (Azure config)
         // This avoids session dependency which causes issues with load balancing
         const clientId = config.salesforce.clientId;
@@ -569,7 +558,7 @@ app.get('/oauth/callback', async (req, res) => {
         const loginUrl = config.salesforce.loginUrl;
 
         if (!clientId || !clientSecret) {
-            console.log('❌ Client credentials not found');
+            console.log('Client credentials not found');
             throw new Error('Client credentials not found in session');
         }
 
@@ -655,7 +644,7 @@ app.get('/oauth/callback', async (req, res) => {
                 conn.accessToken
             );
         } catch (multiOrgError) {
-            console.warn('⚠️ Failed to store multi-org connection:', multiOrgError.message);
+            console.warn('Failed to store multi-org connection:', multiOrgError.message);
         }
 
         res.send(`
@@ -738,7 +727,7 @@ app.get('/oauth/callback', async (req, res) => {
         `);
 
     } catch (error) {
-        console.error('❌ OAuth callback failed:', error);
+        console.error('OAuth callback failed:', error);
         res.status(500).send(`
             <!DOCTYPE html>
             <html lang="en">
@@ -1080,7 +1069,7 @@ app.get('/api/salesforce/auth', (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ Failed to generate auth URL:', error);
+        console.error('Failed to generate auth URL:', error);
         res.status(500).json({ message: 'Failed to generate auth URL' });
     }
 });
@@ -1102,7 +1091,7 @@ app.post('/api/salesforce/auth', (req, res) => {
         });
 
         if (!clientId || !clientSecret) {
-            console.log('❌ Missing credentials');
+            console.log('Missing credentials');
             return res.status(400).json({
                 message: 'Salesforce Client ID and Client Secret are required',
                 hint: 'Provide clientId and clientSecret in request body'
@@ -1150,7 +1139,7 @@ app.post('/api/salesforce/auth', (req, res) => {
         res.json({ authUrl, orgId: orgIdentifier });
 
     } catch (error) {
-        console.error('❌ Failed to generate auth URL:', error);
+        console.error('Failed to generate auth URL:', error);
         console.log('========================================\n');
         res.status(500).json({ message: 'Failed to generate auth URL' });
     }
@@ -1183,17 +1172,17 @@ app.get('/api/salesforce/check', async (req, res) => {
             console.log('   - Has identity method:', typeof conn.identity);
             console.log('   - Access token present:', !!conn.accessToken);
             console.log('   - Instance URL:', conn.instanceUrl);
-            console.log('🔄 Verifying connection with identity call...');
+            console.log('Verifying connection with identity call...');
 
             // Verify connection is valid by calling identity
             let identity;
             try {
                 identity = await conn.identity();
             } catch (identityError) {
-                console.error('❌ Identity call failed:', identityError.message);
+                console.error('Identity call failed:', identityError.message);
                 // If identity fails, still return connection info if we have accessToken
                 if (conn.accessToken && conn.instanceUrl) {
-                    console.log('⚠️ Using cached connection info (identity call failed but tokens exist)');
+                    console.log('Using cached connection info (identity call failed but tokens exist)');
                     const connData = connections.get(orgId);
                     if (connData && connData.userInfo) {
                         return res.json({
@@ -1238,7 +1227,7 @@ app.get('/api/salesforce/check', async (req, res) => {
             });
 
         } catch (connError) {
-            console.log('❌ Connection not found or invalid:', connError.message);
+            console.log('Connection not found or invalid:', connError.message);
             console.log('========================================\n');
 
             // Connection doesn't exist or is invalid
@@ -1249,7 +1238,7 @@ app.get('/api/salesforce/check', async (req, res) => {
         }
 
     } catch (error) {
-        console.error('❌ Connection check failed:', error);
+        console.error('Connection check failed:', error);
         console.log('========================================\n');
 
         res.status(500).json({
@@ -1279,7 +1268,7 @@ app.get('/api/salesforce/userinfo', (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ User info failed:', error);
+        console.error('User info failed:', error);
         res.status(500).json({ message: 'Failed to get user info' });
     }
 });
@@ -1287,7 +1276,7 @@ app.get('/api/salesforce/userinfo', (req, res) => {
 // Refresh Salesforce access token using refresh token
 app.post('/api/salesforce/refresh', async (req, res) => {
     console.log('\n========================================');
-    console.log('🔄 POST /api/salesforce/refresh - Refreshing token');
+    console.log('POST /api/salesforce/refresh - Refreshing token');
     console.log('========================================');
 
     try {
@@ -1303,7 +1292,7 @@ app.post('/api/salesforce/refresh', async (req, res) => {
         const conn = getConnection(orgId);
 
         if (!conn || !conn.refreshToken) {
-            console.log('❌ No refresh token found for org:', orgId);
+            console.log('No refresh token found for org:', orgId);
             console.log('========================================\n');
             return res.status(401).json({
                 success: false,
@@ -1316,7 +1305,7 @@ app.post('/api/salesforce/refresh', async (req, res) => {
 
         // Use jsforce to refresh the token
         try {
-            console.log('🔄 Calling Salesforce to refresh token...');
+            console.log('Calling Salesforce to refresh token...');
             await conn.oauth2.refreshToken(conn.refreshToken);
 
             console.log('✅ Token refreshed successfully!');
@@ -1334,7 +1323,7 @@ app.post('/api/salesforce/refresh', async (req, res) => {
             });
 
         } catch (refreshError) {
-            console.error('❌ Token refresh failed:', refreshError.message);
+            console.error('Token refresh failed:', refreshError.message);
             console.log('🗑️  Clearing invalid connection for org:', orgId);
             console.log('========================================\n');
 
@@ -1349,7 +1338,7 @@ app.post('/api/salesforce/refresh', async (req, res) => {
         }
 
     } catch (error) {
-        console.error('❌ Refresh endpoint error:', error);
+        console.error('Refresh endpoint error:', error);
         console.log('========================================\n');
         res.status(500).json({
             success: false,
@@ -1380,7 +1369,7 @@ app.get('/api/user', authMiddleware, async (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ User info failed:', error);
+        console.error('User info failed:', error);
         res.status(500).json({
             error: 'Authentication error',
             message: error.message
@@ -1396,14 +1385,14 @@ app.post('/api/logout', (req, res) => {
 
         req.session.destroy(err => {
             if (err) {
-                console.error('❌ Session destroy failed:', err);
+                console.error('Session destroy failed:', err);
                 return res.status(500).json({ message: 'Logout failed' });
             }
             res.json({ message: 'Logged out successfully' });
         });
 
     } catch (error) {
-        console.error('❌ Logout failed:', error);
+        console.error('Logout failed:', error);
         res.status(500).json({ message: 'Logout failed' });
     }
 });
@@ -1431,7 +1420,7 @@ app.get('/api/leads', async (req, res) => {
         res.json(result.records);
 
     } catch (error) {
-        console.error('❌ Failed to fetch leads:', error);
+        console.error('Failed to fetch leads:', error);
         res.status(500).json({ message: 'Failed to fetch leads', error: error.message });
     }
 });
@@ -1507,7 +1496,7 @@ app.post('/api/leads', async (req, res) => {
         }
 
     } catch (error) {
-        console.error('❌ Failed to create lead:', error);
+        console.error('Failed to create lead:', error);
         res.status(500).json({
             message: 'Failed to create lead',
             error: error.message
@@ -1566,7 +1555,7 @@ app.put('/api/leads/:id', async (req, res) => {
         }
 
     } catch (error) {
-        console.error('❌ Failed to update lead:', error);
+        console.error('Failed to update lead:', error);
         res.status(500).json({
             message: 'Failed to update lead',
             error: error.message
@@ -1601,7 +1590,7 @@ app.delete('/api/leads/:id', async (req, res) => {
         }
 
     } catch (error) {
-        console.error('❌ Failed to delete lead:', error);
+        console.error('Failed to delete lead:', error);
         res.status(500).json({
             message: 'Failed to delete lead',
             error: error.message
@@ -1654,7 +1643,7 @@ app.post('/api/salesforce/fields/check', async (req, res) => {
                 console.log(`✅ Field exists: ${fieldName}`);
             } else {
                 results.missing.push(fieldName);
-                console.log(`❌ Field missing: ${fieldName}`);
+                console.log(`Field missing: ${fieldName}`);
             }
         });
 
@@ -1667,7 +1656,7 @@ app.post('/api/salesforce/fields/check', async (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ Failed to check fields:', error);
+        console.error('Failed to check fields:', error);
         res.status(500).json({
             message: 'Failed to check fields',
             error: error.message
@@ -1736,7 +1725,7 @@ app.post('/api/salesforce/fields/create', async (req, res) => {
                         label: customField.label,
                         error: fieldResult.errors ? JSON.stringify(fieldResult.errors) : 'Unknown error'
                     });
-                    console.error(`❌ Field creation failed: ${apiName}`, fieldResult.errors);
+                    console.error(`Field creation failed: ${apiName}`, fieldResult.errors);
                 }
 
             } catch (fieldError) {
@@ -1745,7 +1734,7 @@ app.post('/api/salesforce/fields/create', async (req, res) => {
                     label: field.label,
                     error: fieldError.message
                 });
-                console.error(`❌ Field creation error: ${field.apiName}`, fieldError);
+                console.error(`Field creation error: ${field.apiName}`, fieldError);
             }
         }
 
@@ -1759,7 +1748,7 @@ app.post('/api/salesforce/fields/create', async (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ Failed to create custom fields:', error);
+        console.error('Failed to create custom fields:', error);
         res.status(500).json({
             message: 'Failed to create custom fields',
             error: error.message
@@ -1821,7 +1810,7 @@ app.post('/api/leads/check-duplicate', async (req, res) => {
         }
 
     } catch (error) {
-        console.error('❌ Duplicate check failed:', error);
+        console.error('Duplicate check failed:', error);
         res.status(500).json({
             message: 'Failed to check for duplicates',
             error: error.message
@@ -1913,7 +1902,7 @@ app.post('/api/salesforce/leads', async (req, res) => {
             unknownFields = Object.keys(validatedLeadData).filter(field => !validLeadFields.has(field));
 
             if (unknownFields.length > 0) {
-                console.error(`❌ Field(s) not found in Salesforce: ${unknownFields.join(', ')}`);
+                console.error(`Field(s) not found in Salesforce: ${unknownFields.join(', ')}`);
 
                 // Build detailed error message with helpful guidance
                 // Format field names in bold for better visibility
@@ -1976,7 +1965,7 @@ app.post('/api/salesforce/leads', async (req, res) => {
                     `${validatedLeadData.Street}, ${validatedLeadData.State}` :
                     validatedLeadData.State;
                 delete validatedLeadData.State;
-                console.log(`⚠️ Invalid state moved to Street field: ${validatedLeadData.Street}`);
+                console.log(`Invalid state moved to Street field: ${validatedLeadData.Street}`);
             } else {
                 validatedLeadData.State = validStates[0].toUpperCase();
             }
@@ -2058,7 +2047,7 @@ app.post('/api/salesforce/leads', async (req, res) => {
                         });
                     }
                 } catch (attachError) {
-                    console.error(`❌ Attachment upload failed for ${fileName}:`, attachError);
+                    console.error(`Attachment upload failed for ${fileName}:`, attachError);
                     attachmentResults.push({
                         filename: fileName,
                         success: false,
@@ -2087,7 +2076,7 @@ app.post('/api/salesforce/leads', async (req, res) => {
         res.json(response);
 
     } catch (error) {
-        console.error('❌ Lead transfer failed:', error);
+        console.error('Lead transfer failed:', error);
 
         // Include detailed error info if available
         let errorMessage = error.message || 'Unknown error';
@@ -2131,7 +2120,7 @@ app.post('/api/salesforce/leads/prepare', async (req, res) => {
         res.json(result);
 
     } catch (error) {
-        console.error('❌ Lead preparation failed:', error);
+        console.error('Lead preparation failed:', error);
         res.status(500).json({
             success: false,
             message: 'Failed to prepare lead transfer',
@@ -2381,7 +2370,7 @@ app.get('/api/dashboard/summary', async (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ Dashboard summary error:', error);
+        console.error('Dashboard summary error:', error);
         res.status(500).json({
             success: false,
             error: 'Failed to fetch dashboard summary',
@@ -2443,7 +2432,7 @@ app.get('/api/dashboard/leads', async (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ Dashboard leads error:', error);
+        console.error('Dashboard leads error:', error);
         res.status(500).json({
             success: false,
             error: 'Failed to fetch dashboard leads',
@@ -2495,7 +2484,7 @@ app.get('/api/lead-field-updates/:eventId', async (req, res) => {
             count: Object.keys(eventUpdates).length
         });
     } catch (error) {
-        console.error('❌ Error loading lead field updates:', error);
+        console.error('Error loading lead field updates:', error);
         res.status(500).json({
             success: false,
             message: 'Error loading field updates',
@@ -2553,7 +2542,7 @@ app.post('/v1/test', async (req, res) => {
             throw new Error('Failed to save updates to file');
         }
     } catch (error) {
-        console.error('❌ Error saving lead field updates:', error);
+        console.error('Error saving lead field updates:', error);
         res.status(500).json({
             success: false,
             message: 'Error saving field updates',
@@ -2592,7 +2581,7 @@ app.delete('/api/lead-field-updates/:eventId', async (req, res) => {
             });
         }
     } catch (error) {
-        console.error('❌ Error deleting lead field updates:', error);
+        console.error('Error deleting lead field updates:', error);
         res.status(500).json({
             success: false,
             message: 'Error deleting field updates',
@@ -2611,7 +2600,7 @@ app.use((req, res, next) => {
 });
 
 app.use((error, req, res, next) => {
-    console.error('❌ Unhandled error:', error);
+    console.error('Unhandled error:', error);
     res.status(500).json({
         message: 'Internal server error',
         error: error.message || 'Something went wrong',
@@ -2649,7 +2638,7 @@ app.get('/', (_req, res) => {
 fieldConfigStorage.initializeStorage().then(() => {
     console.log('✅ Field configuration storage initialized');
 }).catch(error => {
-    console.error('❌ Failed to initialize field configuration storage:', error);
+    console.error('Failed to initialize field configuration storage:', error);
 });
 
 app.listen(port, () => {
@@ -2657,9 +2646,9 @@ app.listen(port, () => {
     console.log('=====================================');
     console.log(`🌐 Server running on: http://localhost:${port}`);
     console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`🔑 Client ID: ${config.salesforce.clientId ? ' Configured' : '❌ Missing'}`);
-    console.log(`🔐 Client Secret: ${config.salesforce.clientSecret ? ' Configured' : '❌ Missing'}`);
-    console.log(`🔄 Redirect URI: ${config.salesforce.redirectUri}`);
+    console.log(`🔑 Client ID: ${config.salesforce.clientId ? ' Configured' : 'Missing'}`);
+    console.log(`🔐 Client Secret: ${config.salesforce.clientSecret ? ' Configured' : 'Missing'}`);
+    console.log(`Redirect URI: ${config.salesforce.redirectUri}`);
     console.log(`🏢 Salesforce URL: ${config.salesforce.loginUrl}`);
     console.log('=====================================');
     console.log(' Available Routes:');
