@@ -129,28 +129,6 @@ main.table {
     z-index: 8;
 }
 
-/* View Selector */
-/* .view-selector select {
-    appearance: none; 
-    background-color: #f1f1f1;
-    border: 1px solid #e0e0e0;
-    padding: 0.75rem 2.5rem 0.75rem 1rem;
-    border-radius: 6px;
-    font-size: 0.95rem;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23d9613f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 0.75rem center;
-    background-size: 16px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    min-width: 180px;
-    width: 100%;
-    cursor: pointer;
-}
-
-.view-selector select:focus {
-    border-color: var(--primary-color);
-    outline: none;   
-} */
 
 /* Action Buttons */
 .actions {
@@ -556,12 +534,10 @@ thead th.desc span.icon-arrow {
 /* Input Field Width Adjustments */
 .input-group-float {
     position: relative;
-   
     flex: 1;
-    min-width: 300px; /* Set minimum width for all input containers */
+    min-width: 300px; 
   }
   
-  /* Keep the specific field width overrides, but ensure they're at least 300px */
   .input-group-float[id*="Id"],
   .input-group-float[id*="FirstName"],
   .input-group-float[id*="LastName"],
@@ -570,7 +546,6 @@ thead th.desc span.icon-arrow {
     min-width: 300px;
   }
   
-  /* Ensure form inputs are also at least 300px wide */
   .input-group-float input,
   .filter-input {
     width: 100%;
@@ -625,7 +600,6 @@ thead th.desc span.icon-arrow {
     }
     
     .table__header .action-button {
-        /* flex: 1; */
         min-width: 120px;
     }
     
@@ -639,7 +613,7 @@ thead th.desc span.icon-arrow {
     
     .input-group-float {
         width: 100%;
-        min-width: 100% !important; /* Override specific field widths */
+        min-width: 100% !important; 
     }
     
     .input-group-float input,

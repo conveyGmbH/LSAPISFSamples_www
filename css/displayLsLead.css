@@ -579,7 +579,7 @@ thead th.desc span.icon-arrow {
     }
     
     .table__header .action-button {
-        flex: 1;
+        /* flex: 1; */
         min-width: 120px;
     }
     

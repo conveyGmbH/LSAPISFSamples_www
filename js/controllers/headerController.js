@@ -6,6 +6,7 @@ document.addEventListener("DOMContentLoaded", () => {
 function initHeaderControls() {
   handleClickLogo();
   handleClickLogout();
+  handleClickPageTitle();
 }
 
 function getBaseUrl() {
@@ -52,5 +53,26 @@ function handleClickLogout() {
   }
 }
 
+function handleClickPageTitle() {
+  // Handle click on page titles to return to display.html
+  // Works with: "LS Lead", "LS Lead Report", "Field Configurator", "Test Data Configuration"
+  const pageTitles = document.querySelectorAll(".head-line, #page-title, h1, h2");
+
+  pageTitles.forEach(title => {
+    const titleText = title.textContent || title.innerText;
+
+    // Check if title contains relevant text
+    if (titleText.includes("LS Lead") ||
+        titleText.includes("Field Configurator") ||
+        titleText.includes("Test Data Configuration")) {
+      title.style.cursor = "pointer";
+      title.addEventListener("click", () => {
+        const baseUrl = getBaseUrl();
+        window.location.href = `${baseUrl}/display.html`;
+      });
+    }
+  });
+}
+
 // Export functions for potential reuse
-export { initHeaderControls, handleClickLogo, handleClickLogout };
+export { initHeaderControls, handleClickLogo, handleClickLogout, handleClickPageTitle };
