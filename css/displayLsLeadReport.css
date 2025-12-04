@@ -110,7 +110,7 @@ main.table {
     backdrop-filter: blur(7px);
     box-shadow: 0 .4rem .8rem #0005;
     border-radius: .8rem;
-    /* margin: 1rem; */
+    margin: 1rem; 
     overflow: hidden;
     max-height: calc(100vh - 150px); 
     width: 98%;
@@ -160,6 +160,38 @@ main.table {
   
 .action-button:hover:not(:disabled) {
     background-color: #c55535;
+}
+
+/* Toggle Filters Button */
+.toggle-filters-button {
+  background-color: var(--primary-color);
+  color: var(--white);
+  border: none;
+  padding: 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  height: 44px;
+  width: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.toggle-filters-button:hover {
+  background-color: #c55535;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+}
+
+.toggle-filters-button svg {
+  transition: transform 0.3s ease;
+}
+
+.toggle-filters-button.active svg {
+  transform: rotate(45deg);
 }
 
 /* Search Field */

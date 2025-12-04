@@ -54,8 +54,8 @@
 
         <section class="table__header">
             <div class="view-selector">
+                <label for="apiSelector" class="selector-label">API Endpoints:</label>
                 <select id="apiSelector">
-                    <option value="" class="option">Select an entity </option>
                 </select>
             </div>
 
@@ -65,9 +65,15 @@
                 <img src="/images/search.png" alt="">
             </div>
 
-
             <!-- Actions -->
             <div class="actions">
+                <!-- Toggle Filter Button -->
+                <button id="toggleFiltersButton" class="toggle-filters-button" style="display: none;" title="Toggle Filters">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                </button>
                 <button id="viewLeadsButton" class="action-button" disabled>View Leads</button>
                 <button id="viewLeadReportsButton" class="action-button" disabled>View Lead Reports</button>
             </div>
@@ -86,8 +92,13 @@
 
     </main>
 
-    <div class="pagination">
+    <div class="pagination" style="display: none;">
         <button id="nextButton" class="pagination-button" disabled>Next</button>
+    </div>
+
+    <div id="loadingIndicator" class="loading-indicator" style="display: none;">
+        <div class="loading-spinner"></div>
+        <p>Loading all data...</p>
     </div>
 
     <div id="errorMessage" class="error-message"></div>

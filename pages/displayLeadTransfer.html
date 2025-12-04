@@ -260,7 +260,7 @@
                 <div class="hidden md:flex justify-between items-center">
                     <!-- Left: Title -->
                     <div>
-                        <h1 class="text-xl font-bold text-gray-800">Transfer Lead to Salesforce</h1>
+                        <h1 id="page-title" class="text-xl font-bold text-gray-800 cursor-pointer hover:text-blue-600 transition-colors" title="Return to contact list">Transfer Lead to Salesforce</h1>
                     </div>
 
                     <!-- Right: Combined API Status + User Profile + Buttons -->
@@ -296,7 +296,7 @@
                 <!-- Mobile/Tablet Layout -->
                 <div class="md:hidden">
                     <div class="flex justify-between items-center mb-3">
-                        <h1 class="text-lg font-bold text-gray-800">Transfer Lead to Salesforce</h1>
+                        <h1 id="page-title-mobile" class="text-lg font-bold text-gray-800 cursor-pointer hover:text-blue-600 transition-colors" title="Return to contact list">Transfer Lead to Salesforce</h1>
                     </div>
 
                     <!-- Combined Status + Buttons below on mobile -->
@@ -707,53 +707,68 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Function to return to contact list (shared by Cancel button and page title)
+            function returnToContactList() {
+                console.log('🔙 Returning to contact list...');
+
+                // Try to get entity type from sessionStorage (set by fieldConfigurator or lead pages)
+                const entityType = sessionStorage.getItem('entityType');
+                const leadSource = sessionStorage.getItem('selectedLeadSource');
+                const eventId = sessionStorage.getItem('selectedEventId');
+
+                // Check if we're in virtual mode (check URL params)
+                const urlParams = new URLSearchParams(window.location.search);
+                const isVirtualMode = urlParams.get('mode') === 'virtual';
+
+                console.log('Entity Type:', entityType);
+                console.log('Lead Source:', leadSource);
+                console.log('Event ID:', eventId);
+                console.log('Virtual Mode:', isVirtualMode);
+
+                // Build return URL with eventId and mode parameters if needed
+                let returnUrl = '';
+
+                // Determine base page
+                if (entityType === 'LS_LeadReport' || leadSource === 'leadReport') {
+                    console.log('Returning to Lead Reports page');
+                    returnUrl = 'displayLsLeadReport.html';
+                } else if (entityType === 'LS_Lead' || leadSource === 'lead') {
+                    console.log('Returning to Leads page');
+                    returnUrl = 'displayLsLead.html';
+                } else {
+                    // Fallback: return to Leads page
+                    console.log('No entity type found, defaulting to Leads page');
+                    returnUrl = 'displayLsLead.html';
+                }
+
+                // Add query parameters if in virtual mode
+                if (isVirtualMode && eventId) {
+                    returnUrl += `?eventId=${eventId}&mode=virtual`;
+                    console.log('Returning with virtual mode parameters');
+                } else if (eventId) {
+                    returnUrl += `?eventId=${eventId}`;
+                }
+
+                console.log('Final return URL:', returnUrl);
+                window.location.href = returnUrl;
+            }
+
+            // Page Title Click Handler (Desktop)
+            const pageTitle = document.getElementById('page-title');
+            if (pageTitle) {
+                pageTitle.addEventListener('click', returnToContactList);
+            }
+
+            // Page Title Click Handler (Mobile)
+            const pageTitleMobile = document.getElementById('page-title-mobile');
+            if (pageTitleMobile) {
+                pageTitleMobile.addEventListener('click', returnToContactList);
+            }
+
             // Cancel Button - Returns to previous page (Leads or Lead Reports)
             const cancelButton = document.getElementById('cancelButton');
             if (cancelButton) {
-                cancelButton.addEventListener('click', function() {
-                    console.log('🔙 Cancel - Returning to previous page...');
-
-                    // Try to get entity type from sessionStorage (set by fieldConfigurator or lead pages)
-                    const entityType = sessionStorage.getItem('entityType');
-                    const leadSource = sessionStorage.getItem('selectedLeadSource');
-                    const eventId = sessionStorage.getItem('selectedEventId');
-
-                    // Check if we're in virtual mode (check URL params)
-                    const urlParams = new URLSearchParams(window.location.search);
-                    const isVirtualMode = urlParams.get('mode') === 'virtual';
-
-                    console.log('Entity Type:', entityType);
-                    console.log('Lead Source:', leadSource);
-                    console.log('Event ID:', eventId);
-                    console.log('Virtual Mode:', isVirtualMode);
-
-                    // Build return URL with eventId and mode parameters if needed
-                    let returnUrl = '';
-
-                    // Determine base page
-                    if (entityType === 'LS_LeadReport' || leadSource === 'leadReport') {
-                        console.log('Returning to Lead Reports page');
-                        returnUrl = 'displayLsLeadReport.html';
-                    } else if (entityType === 'LS_Lead' || leadSource === 'lead') {
-                        console.log('Returning to Leads page');
-                        returnUrl = 'displayLsLead.html';
-                    } else {
-                        // Fallback: return to Leads page
-                        console.log('No entity type found, defaulting to Leads page');
-                        returnUrl = 'displayLsLead.html';
-                    }
-
-                    // Add query parameters if in virtual mode
-                    if (isVirtualMode && eventId) {
-                        returnUrl += `?eventId=${eventId}&mode=virtual`;
-                        console.log('Returning with virtual mode parameters');
-                    } else if (eventId) {
-                        returnUrl += `?eventId=${eventId}`;
-                    }
-
-                    console.log('Final return URL:', returnUrl);
-                    window.location.href = returnUrl;
-                });
+                cancelButton.addEventListener('click', returnToContactList);
             }
 
             // Synchronize mobile and desktop buttons

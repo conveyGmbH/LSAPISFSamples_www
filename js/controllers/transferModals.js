@@ -290,10 +290,16 @@ function showSuccessModal(title, message) {
 
     console.log('✅ Success modal created (NO auto-close enabled)');
 
-    // Manual close only
+    // Manual close with navigation to correct page
     const closeModal = () => {
-        console.log('🔘 User manually closed success modal');
-        modal.remove();
+        console.log('🔘 User manually closed success modal - navigating back');
+
+        // Determine return page based on selectedLeadSource
+        const leadSource = sessionStorage.getItem('selectedLeadSource') || 'lead';
+        const targetPage = leadSource === 'leadReport' ? 'displayLsLeadReport.html' : 'displayLsLead.html';
+
+        console.log(`Returning to ${targetPage} (leadSource: ${leadSource})`);
+        window.location.href = targetPage;
     };
 
     closeBtn.addEventListener('click', closeModal);

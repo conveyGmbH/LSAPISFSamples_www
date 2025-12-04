@@ -13,9 +13,11 @@ const columnConfig = {
     Name: "400px",
   },
   LS_User: {
-    Id: "500px",
+    Username: "500px",
     FirstName: "400px",
     LastName: "400px",
+    EventName: "400px",
+    EventId: "500px",
     Email: "400px",
     Phone: "300px",
     MobilePhone: "300px",
@@ -24,18 +26,26 @@ const columnConfig = {
     City: "300px",
     Country: "300px",
     CountryCode: "300px",
-    EventId: "500px"
+    Role: "300px"
   },
   LS_Event: {
-    Id: "500px",
+    EventName: "400px",
     CreatedDate: "200px",
     LastModifiedDate: "200px",
-    Subject: "300px",
     StartDate: "300px",
-    EndDate: "200px",
-    Type: "400px",
-    EventSubtype: "300px",
-    Description: "300px",
+    Id: "500px",
+    NumberOfContacts: "200px"
+  }
+};
+
+// Field mappings for display names
+const fieldDisplayNames = {
+  LS_Event: {
+    Subject: "EventName"
+  },
+  LS_User: {
+    Id: "Username",
+    CurrentStatus: "Role"
   }
 };
 
@@ -44,7 +54,7 @@ let lastSortDirection = 'asc';
 
 
 const ACTIVATING_ENTITY = 'LS_Event';
-const DEFAULT_ENTITY = 'LS_Country'; 
+const DEFAULT_ENTITY = 'LS_Event'; 
 
 if (!serverName || !apiName || !credentials) {
   window.location.href = '/index.html';
@@ -54,6 +64,7 @@ const apiService = new ApiService(serverName, apiName);
 let selectedEventId = null;
 let currentEntity = '';
 let nextUrl = '';
+let eventNameCache = {}; // Cache for EventId -> EventName mapping
 
 
 function enhanceTableResponsiveness() {
@@ -102,16 +113,23 @@ function handleResponsiveLayout() {
 
 function displayFilterInputs(entity) {
   const filterInputs = document.getElementById('filterInputs');
-  filterInputs.style.display = 'flex';
+  const toggleButton = document.getElementById('toggleFiltersButton');
+
+  // Show toggle button for LS_User and LS_Event
+  if (toggleButton) {
+    toggleButton.style.display = 'flex';
+  }
+
+  filterInputs.style.display = 'none'; // Start hidden
   filterInputs.innerHTML = '';
   filterInputs.className = 'filter-container';
-  
+
   let fields = [];
 
   if (entity === 'LS_User') {
-    fields = ['Id', 'FirstName', 'LastName', 'EventId'];
+    fields = ['Username', 'FirstName', 'LastName', 'EventId'];
   } else if (entity === 'LS_Event') {
-    fields = ['Id', 'Subject', 'StartDate', 'EndDate'];
+    fields = ['Id', 'EventName', 'StartDate', 'EndDate'];
   }
 
   const storedFilters = JSON.parse(localStorage.getItem(`${entity}_Filters`)) || {};
@@ -156,6 +174,14 @@ function displayFilterInputs(entity) {
       }
     });
 
+    // Add Enter key support for applying filters
+    input.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        applyFilters(entity, fields);
+      }
+    });
+
     inputGroup.appendChild(input);
     inputGroup.appendChild(label);
     filterInputs.appendChild(inputGroup);
@@ -196,20 +222,28 @@ function updateResetButtonState(entity, fields) {
 
 function resetFilters(entity, fields) {
   localStorage.removeItem(`${entity}_Filters`);
-  
+
   fields.forEach(field => {
     const input = document.getElementById(`filter-${field}`);
-    if (input) { 
+    if (input) {
       input.value = '';
     }
   });
-  
+
 
   const resetButton = document.getElementById('resetFiltersButton');
   if (resetButton) {
     resetButton.disabled = true;
   }
-  
+
+  // Reset toggle button state and hide filters
+  const toggleButton = document.getElementById('toggleFiltersButton');
+  const filterInputs = document.getElementById('filterInputs');
+  if (toggleButton && filterInputs) {
+    toggleButton.classList.remove('active');
+    filterInputs.style.display = 'none';
+  }
+
   updateData();
 }
 
@@ -253,8 +287,8 @@ async function applyFilters(entity, fields) {
   }
 
   if (entity === "LS_User") {
-    if (filters["Id"]) {
-      filterParts.push(`substringof('${escapeODataValue(filters["Id"])}', Id) eq true`);
+    if (filters["Username"]) {
+      filterParts.push(`substringof('${escapeODataValue(filters["Username"])}', Id) eq true`);
     }
 
     if (filters["FirstName"]) {
@@ -273,22 +307,22 @@ async function applyFilters(entity, fields) {
       filterParts.push(`substringof('${escapeODataValue(filters["Id"])}', Id) eq true`);
     }
 
-    if (filters["Subject"]) {
-      const escapedSubject = escapeODataValue(filters["Subject"]);
-      filterParts.push(`substringof('${escapedSubject}', Subject) eq true`);
+    if (filters["EventName"]) {
+      const escapedEventName = escapeODataValue(filters["EventName"]);
+      filterParts.push(`substringof('${escapedEventName}', Subject) eq true`);
     }
 
     // Handling the start date
     if (filters["StartDate"]) {
       const startDate = parseDate(filters["StartDate"]);
-      
+
       if (!startDate) {
         alert("Invalid date format for the start date. Use DD.MM.YYYY, YYYY-MM-DD, or DD/MM/YYYY.");
         return;
       }
-      
+
       const formattedDate = formatDateForOData(startDate);
-      
+
       // Find all events starting from this date (inclusive)
       filterParts.push(`StartDate ge datetime'${formattedDate}T00:00:00'`);
     }
@@ -296,19 +330,18 @@ async function applyFilters(entity, fields) {
     // Handling the end date
     if (filters["EndDate"]) {
       const endDate = parseDate(filters["EndDate"]);
-      
+
       if (!endDate) {
         alert("Invalid date format for the end date. Use DD.MM.YYYY, YYYY-MM-DD, or DD/MM/YYYY.");
         return;
       }
-      
-      
+
       // Add one day to include the entire end day
       const nextDay = new Date(endDate);
       nextDay.setDate(nextDay.getDate() + 1);
-      
+
       const formattedNextDay = formatDateForOData(nextDay);
-      
+
       // Find all events ending before the next day
       filterParts.push(`EndDate lt datetime'${formattedNextDay}T00:00:00'`);
     }
@@ -325,10 +358,14 @@ async function applyFilters(entity, fields) {
   
   
   try {
-    const data = await fetchData(endpoint);
+    let data = await fetchData(endpoint);
     console.log("Fetched data:", data ? data.length : 0, "records");
 
     if (data && data.length > 0) {
+      // Enrich LS_User data with EventName
+      if (entity === "LS_User") {
+        data = enrichUserDataWithEventName(data);
+      }
       displayData(data);
     } else {
       displayData([]);
@@ -350,10 +387,10 @@ async function populateApiSelector() {
     if (response && response.d && response.d.EntitySets) {
       const entities = response.d.EntitySets;
       const selector = document.getElementById('apiSelector');
-      const desiredEntities = ['LS_Country', 'LS_User', 'LS_Event'];
+      const desiredEntities = ['LS_User', 'LS_Country', 'LS_Event'];
       const filteredEntities = entities.filter(entity => desiredEntities.includes(entity));
 
-      selector.innerHTML = '<option value="">Select an entity</option>';
+      selector.innerHTML = '';
 
       filteredEntities.forEach(entity => {
         const option = document.createElement('option');
@@ -410,6 +447,8 @@ async function updateData() {
   filterInputs.innerHTML = '';
   filterInputs.style.display = 'none';
 
+  const toggleButton = document.getElementById('toggleFiltersButton');
+
   clearTable();
 
   const noDataMessage = document.getElementById('noDataMessage');
@@ -423,28 +462,48 @@ async function updateData() {
   if (selectedEntity) {
     if (selectedEntity === 'LS_User' || selectedEntity === 'LS_Event') {
       displayFilterInputs(selectedEntity);
+    } else {
+      // Hide toggle button for LS_Country
+      if (toggleButton) {
+        toggleButton.style.display = 'none';
+        toggleButton.classList.remove('active');
+      }
     }
-  
+
     const endpoint = `${selectedEntity}?$format=json`;
     try {
+      // Load event name cache for LS_User
+      if (selectedEntity === 'LS_User') {
+        await loadEventNameCache();
+      }
+
       const data = await apiService.request('GET', endpoint);
 
       if (data && data.d && data.d.results && data.d.results.length > 0) {
-        displayData(data.d.results);
+        let enrichedData = data.d.results;
+
+        // Enrich LS_User data with EventName
+        if (selectedEntity === 'LS_User') {
+          enrichedData = enrichUserDataWithEventName(data.d.results);
+        }
+
+        await displayData(enrichedData);
 
         nextUrl = apiService.getNextUrl(data);
 
-        const nextButton = document.getElementById('nextButton');
-        if (nextButton) {
-          nextButton.disabled = !nextUrl;
+        // Auto-load all remaining data
+        if (nextUrl) {
+          showLoadingIndicator();
+          await autoLoadNextData();
         }
       } else {
-        displayData([]);
+        await displayData([]);
         noDataMessage.textContent = 'No data available.';
       }
     } catch (error) {
       console.error('Error fetching data:', error);
       noDataMessage.textContent = 'Error fetching data.';
+      hideLoadingIndicator();
     }
   } else {
     noDataMessage.textContent = 'Please select an entity.';
@@ -513,11 +572,97 @@ async function fetchData(endpoint) {
 
 function getColumnWidth(header, entity) {
   if (columnConfig[entity] && columnConfig[entity][header] !== undefined) {
-
     return columnConfig[entity][header];
   }
-
   return null;
+}
+
+function getDisplayName(field, entity) {
+  if (fieldDisplayNames[entity] && fieldDisplayNames[entity][field]) {
+    return fieldDisplayNames[entity][field];
+  }
+  return field;
+}
+
+function getOrderedFields(data, entity) {
+  if (!data || data.length === 0) return [];
+
+  const allFields = Object.keys(data[0]).filter(header =>
+    header !== '__metadata' && !header.endsWith('ViewId')
+  );
+
+  // Define desired field order for each entity
+  const fieldOrder = {
+    LS_Event: ['Subject', 'CreatedDate', 'LastModifiedDate', 'StartDate', 'Id'],
+    LS_User: ['Id', 'FirstName', 'LastName', 'EventName', 'EventId', 'Email', 'Phone', 'MobilePhone', 'Street', 'PostalCode', 'City', 'Country', 'CountryCode', 'CurrentStatus']
+  };
+
+  if (fieldOrder[entity]) {
+    // Return fields in the specified order, including any additional fields not in the order
+    const orderedFields = fieldOrder[entity].filter(field => allFields.includes(field));
+    const remainingFields = allFields.filter(field => !fieldOrder[entity].includes(field));
+    return [...orderedFields, ...remainingFields];
+  }
+
+  return allFields;
+}
+
+async function loadEventNameCache() {
+  if (Object.keys(eventNameCache).length > 0) {
+    return; // Already loaded
+  }
+
+  try {
+    const endpoint = 'LS_Event?$format=json';
+    let allEvents = [];
+    let currentNextUrl = '';
+
+    // Load first batch
+    const data = await apiService.request('GET', endpoint);
+    if (data && data.d && data.d.results) {
+      allEvents = [...data.d.results];
+      currentNextUrl = apiService.getNextUrl(data);
+
+      // Load remaining batches
+      while (currentNextUrl) {
+        const nextData = await apiService.fetchNextRows(currentNextUrl);
+        if (nextData && nextData.d && nextData.d.results && nextData.d.results.length > 0) {
+          allEvents = [...allEvents, ...nextData.d.results];
+          currentNextUrl = apiService.getNextUrl(nextData);
+        } else {
+          currentNextUrl = '';
+        }
+      }
+    }
+
+    // Create cache: EventId -> EventName (Subject)
+    allEvents.forEach(event => {
+      if (event.Id && event.Subject) {
+        eventNameCache[event.Id] = event.Subject;
+      }
+    });
+
+    console.log('Event name cache loaded:', Object.keys(eventNameCache).length, 'events');
+  } catch (error) {
+    console.error('Error loading event names:', error);
+  }
+}
+
+function enrichUserDataWithEventName(data) {
+  if (!data || data.length === 0) return data;
+
+  return data.map(user => {
+    if (user.EventId && eventNameCache[user.EventId]) {
+      return {
+        ...user,
+        EventName: eventNameCache[user.EventId]
+      };
+    }
+    return {
+      ...user,
+      EventName: 'N/A'
+    };
+  });
 }
 
 
@@ -611,12 +756,12 @@ function restoreRowSelection(eventId) {
   updateButtonState(rowFound && currentEntity === ACTIVATING_ENTITY);
 }
 
-function displayData(data, append = false) {
+async function displayData(data, append = false) {
 
   const tableHead = document.getElementById('tableHead');
   const tableBody = document.getElementById('tableBody');
   const noDataMessage = document.getElementById('noDataMessage');
-  
+
   // Clear table content if not appending data
   if (!append) {
     tableHead.innerHTML = '';
@@ -633,9 +778,7 @@ function displayData(data, append = false) {
 
   noDataMessage.textContent = '';
 
-  const headers = Object.keys(data[0]).filter(header => 
-    header !== '__metadata' && !header.endsWith('ViewId')
-  );
+  const headers = getOrderedFields(data, currentEntity);
 
   if (!append) {
     const headerRow = document.createElement('tr');
@@ -643,12 +786,13 @@ function displayData(data, append = false) {
     headers.forEach((header, index) => {
       const th = document.createElement('th');
 
-      const width = getColumnWidth(header, currentEntity);
+      const displayName = getDisplayName(header, currentEntity);
+      const width = getColumnWidth(displayName, currentEntity);
       if (width) {
         th.style.width = width;
       }
 
-      const headerText = document.createTextNode(header);
+      const headerText = document.createTextNode(displayName);
       th.appendChild(headerText);
 
       const span = document.createElement('span');
@@ -665,7 +809,7 @@ function displayData(data, append = false) {
       th.addEventListener('click', () => sortTable(index, th));
       headerRow.appendChild(th);
     });
-    
+
     tableHead.appendChild(headerRow);
   }
 
@@ -674,23 +818,25 @@ function displayData(data, append = false) {
 
     headers.forEach(header => {
       const td = document.createElement('td');
-      
-      if (header === lastSortedColumn) {
+
+      const displayName = getDisplayName(header, currentEntity);
+
+      if (displayName === lastSortedColumn || header === lastSortedColumn) {
         td.classList.add('active');
       }
-      
-      const width = getColumnWidth(header, currentEntity);
+
+      const width = getColumnWidth(displayName, currentEntity);
       if (width) {
         td.style.width = width;
       }
-      
+
       // Format date columns
       if (header.includes('Date') || header === 'SystemModstamp') {
         td.textContent = formatDate(item[header]);
       } else {
         td.textContent = item[header] || 'N/A';
       }
-      
+
       row.appendChild(td);
     });
 
@@ -706,11 +852,10 @@ function displayData(data, append = false) {
 
     tableBody.appendChild(row);
   });
-  
-  // Enable/disable the next button based on availability of more data
-  const nextButton = document.getElementById('nextButton');
-  if (nextButton) {
-    nextButton.disabled = !nextUrl;
+
+  // Auto-load next data if available
+  if (nextUrl && append) {
+    await autoLoadNextData();
   }
 }
 
@@ -754,6 +899,106 @@ function updateButtonState(enabled) {
   }
 }
 
+function showLoadingIndicator() {
+  const loadingIndicator = document.getElementById('loadingIndicator');
+  if (loadingIndicator) {
+    loadingIndicator.classList.add('show');
+    loadingIndicator.style.display = 'flex';
+  }
+}
+
+function hideLoadingIndicator() {
+  const loadingIndicator = document.getElementById('loadingIndicator');
+  if (loadingIndicator) {
+    loadingIndicator.classList.remove('show');
+    loadingIndicator.style.display = 'none';
+  }
+}
+
+async function autoLoadNextData() {
+  if (!nextUrl) {
+    return;
+  }
+
+  try {
+    const data = await apiService.fetchNextRows(nextUrl);
+
+    if (data && data.d && data.d.results && data.d.results.length > 0) {
+      // Append new data to existing table
+      const tableBody = document.getElementById('tableBody');
+
+      // Enrich LS_User data with EventName
+      let enrichedData = data.d.results;
+      if (currentEntity === 'LS_User') {
+        enrichedData = enrichUserDataWithEventName(data.d.results);
+      }
+
+      const headers = getOrderedFields(enrichedData, currentEntity);
+
+      enrichedData.forEach(item => {
+        const row = document.createElement('tr');
+
+        headers.forEach(header => {
+          const td = document.createElement('td');
+
+          const displayName = getDisplayName(header, currentEntity);
+
+          if (displayName === lastSortedColumn || header === lastSortedColumn) {
+            td.classList.add('active');
+          }
+
+          const width = getColumnWidth(displayName, currentEntity);
+          if (width) {
+            td.style.width = width;
+          }
+
+          // Format date columns
+          if (header.includes('Date') || header === 'SystemModstamp') {
+            td.textContent = formatDate(item[header]);
+          } else {
+            td.textContent = item[header] || 'N/A';
+          }
+
+          row.appendChild(td);
+        });
+
+        if (currentEntity === ACTIVATING_ENTITY) {
+          row.style.cursor = 'pointer';
+          row.classList.add('event-row');
+          row.addEventListener('click', (event) => {
+            handleRowClick(item, event);
+          });
+        } else if (currentEntity === 'LS_Country' || currentEntity === 'LS_User') {
+          row.style.cursor = 'default';
+        }
+
+        tableBody.appendChild(row);
+      });
+
+      // Update nextUrl for the next batch
+      nextUrl = apiService.getNextUrl(data);
+
+      // Continue loading if there's more data
+      if (nextUrl) {
+        await autoLoadNextData();
+      } else {
+        // Hide loading indicator when all data is loaded
+        hideLoadingIndicator();
+      }
+
+      if (selectedEventId && currentEntity === ACTIVATING_ENTITY) {
+        restoreRowSelection(selectedEventId);
+      }
+    } else {
+      nextUrl = '';
+      hideLoadingIndicator();
+    }
+  } catch (error) {
+    console.error("Error auto-loading next rows:", error);
+    hideLoadingIndicator();
+  }
+}
+
 async function loadNextRows() {
   if (!nextUrl) {
     console.error('No next URL found.');
@@ -772,7 +1017,7 @@ async function loadNextRows() {
 
       document.getElementById('nextButton').disabled = !nextUrl;
       document.getElementById('nextButton').textContent = 'Next';
-      
+
       if (selectedEventId && currentEntity === ACTIVATING_ENTITY) {
         restoreRowSelection(selectedEventId);
       }
@@ -816,7 +1061,22 @@ function init() {
   const nextButton = document.getElementById('nextButton');
   if (nextButton) {
     nextButton.addEventListener('click', loadNextRows);
-    nextButton.disabled = true; 
+    nextButton.disabled = true;
+  }
+
+  // Toggle filters button handler
+  const toggleFiltersButton = document.getElementById('toggleFiltersButton');
+  if (toggleFiltersButton) {
+    toggleFiltersButton.addEventListener('click', () => {
+      const filterInputs = document.getElementById('filterInputs');
+      if (filterInputs.style.display === 'none' || filterInputs.style.display === '') {
+        filterInputs.style.display = 'flex';
+        toggleFiltersButton.classList.add('active');
+      } else {
+        filterInputs.style.display = 'none';
+        toggleFiltersButton.classList.remove('active');
+      }
+    });
   }
 
 }

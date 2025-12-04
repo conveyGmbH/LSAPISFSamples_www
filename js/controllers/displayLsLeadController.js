@@ -872,7 +872,13 @@ async function fetchLsLeadData() {
 
       displayData(data.d.results);
 
-      pagination.updateNextUrl(data);
+      const nextUrl = pagination.updateNextUrl(data);
+
+      // Auto-load all remaining data
+      if (nextUrl) {
+        showLoadingIndicator();
+        await autoLoadNextData();
+      }
     } else {
       displayData([]);
     }
@@ -882,6 +888,44 @@ async function fetchLsLeadData() {
   }
 
   initSearch();
+}
+
+function showLoadingIndicator() {
+  const loadingIndicator = document.getElementById('loadingIndicator');
+  if (loadingIndicator) {
+    loadingIndicator.classList.add('show');
+    loadingIndicator.style.display = 'flex';
+  }
+}
+
+function hideLoadingIndicator() {
+  const loadingIndicator = document.getElementById('loadingIndicator');
+  if (loadingIndicator) {
+    loadingIndicator.classList.remove('show');
+    loadingIndicator.style.display = 'none';
+  }
+}
+
+async function autoLoadNextData() {
+  try {
+    // Call loadNextRows which will automatically update nextUrl
+    await pagination.loadNextRows();
+
+    // After loading, check if there's still more data
+    // We need to access the internal nextUrl state
+    // Since setupPagination returns an object, we can check by trying to load again
+    const nextButton = document.getElementById('nextButton');
+    if (nextButton && !nextButton.disabled) {
+      // There's more data, continue loading
+      await autoLoadNextData();
+    } else {
+      // No more data, hide loading indicator
+      hideLoadingIndicator();
+    }
+  } catch (error) {
+    console.error("Error auto-loading next rows:", error);
+    hideLoadingIndicator();
+  }
 }
 
 async function refreshTransferStatuses() {
@@ -1522,9 +1566,15 @@ function displayLeadFilters() {
   
   resetButton.addEventListener('click', () => resetLeadFilters([...textFields, ...dateFields]));
   buttonGroup.appendChild(resetButton);
-  
+
   // Add button group to filters container
   filterInputs.appendChild(buttonGroup);
+
+  // Show toggle button when filters are available
+  const toggleButton = document.getElementById('toggleFiltersButton');
+  if (toggleButton) {
+    toggleButton.style.display = 'flex';
+  }
 }
 
 async function applyLeadFilters(fields) {
@@ -1668,6 +1718,21 @@ const backButton = document.getElementById('backButton');
 backButton.addEventListener('click', () => {
   window.location.href = 'display.html';
 });
+
+// Toggle filters button handler
+const toggleFiltersButton = document.getElementById('toggleFiltersButton');
+if (toggleFiltersButton) {
+  toggleFiltersButton.addEventListener('click', () => {
+    const filterInputs = document.getElementById('filterInputs');
+    if (filterInputs.style.display === 'none' || filterInputs.style.display === '') {
+      filterInputs.style.display = 'flex';
+      toggleFiltersButton.classList.add('active');
+    } else {
+      filterInputs.style.display = 'none';
+      toggleFiltersButton.classList.remove('active');
+    }
+  });
+}
 
 // ========================================
 // Custom Field Management Functions

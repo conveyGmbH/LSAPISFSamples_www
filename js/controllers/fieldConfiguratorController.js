@@ -19,7 +19,9 @@ let searchQuery = '';
 let apiEndpoint = 'LS_Lead';
 let currentMode = 'normal'; // 'virtual' or 'normal'
 let virtualData = {}; // Store virtual test data
-let metadata = null; // Store metadata for virtual mode 
+let metadata = null; // Store metadata for virtual mode
+let hasModifications = false; // Track if any modifications have been made
+let initialFieldState = null; // Store initial field states for comparison 
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', async () => {
@@ -62,6 +64,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         renderFields();
         setupEventListeners();
+
+        // Capture initial state after loading for modification detection
+        captureInitialState();
+        updateSaveButtonState();
 
         console.log('Field Configurator loaded successfully');
 
@@ -537,10 +543,18 @@ function renderFields() {
 
     // Render
     if (filteredFields.length === 0) {
+        const filterLabel = {
+            'all': 'All Fields',
+            'active': 'Active Fields',
+            'inactive': 'Inactive Fields',
+            'required': 'Required Fields',
+            'custom': 'Custom Fields'
+        }[currentFilter] || currentFilter;
+
         container.innerHTML = `
             <div class="loading">
                 <div style="font-size: 18px; font-weight: 600; margin-bottom: 8px; color: #718096;">No fields found</div>
-                <div style="color: #a0aec0;">Try adjusting your search or filter</div>
+                <div style="color: #a0aec0;">No ${filterLabel.toLowerCase()} match your search criteria</div>
             </div>
         `;
     } else {
@@ -592,7 +606,7 @@ function createFieldItem(field) {
                ${field.active ? 'checked' : ''}
                ${field.required ? 'disabled' : ''} />
         <div class="field-info" style="flex: 1;">
-            <div class="field-label-with-flags" style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
+            <div class="field-label-with-flags" style="display: flex; align-items: center; gap: 6px;">
                 <span class="ls-flag" style="color: ${field.isCustomField ? '#2563eb' : '#718096'}; font-size: 0.75rem;">
                     ${field.isCustomField ? 'Custom:' : 'LS:'}
                 </span>
@@ -607,18 +621,19 @@ function createFieldItem(field) {
                     ✏️
                 </button>
             </div>
-            <input
-                type="text"
-                class="field-input field-value-input"
-                ${field.isCustomField ? 'data-custom-field="true"' : 'data-field="' + field.name + '"'}
-                ${field.isCustomField ? 'data-custom-field-id="' + (field.id || '') + '"' : ''}
-                ${field.isCustomField ? 'data-sf-field="' + field.name + '"' : ''}
-                value="${fieldValue}"
-                placeholder=${fieldLabel}
-                ${field.isCustomField ? '' : 'readonly'}
-                style="width: 100%; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 14px; ${field.isCustomField ? '' : 'background: #f9fafb; cursor: not-allowed;'}"
-                onclick="event.stopPropagation()"
-            />
+            ${field.isCustomField ? `
+                <input
+                    type="text"
+                    class="field-input field-value-input"
+                    data-custom-field="true"
+                    data-custom-field-id="${field.id || ''}"
+                    data-sf-field="${field.name}"
+                    value="${fieldValue}"
+                    placeholder="${fieldLabel}"
+                    style="width: 100%; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 14px; margin-top: 6px;"
+                    onclick="event.stopPropagation()"
+                />
+            ` : ''}
         </div>
         ${field.isCustomField ? `
             <button class="delete-custom-field" title="Delete custom field" style="font-size: 14px;">
@@ -656,6 +671,9 @@ function createFieldItem(field) {
         // Update statistics in real-time
         updateStatistics();
 
+        // Update Save & Continue button state
+        updateSaveButtonState();
+
         console.log(`Field ${field.name} ${isChecked ? 'activated' : 'deactivated'} (not saved yet)`);
     });
 
@@ -664,6 +682,7 @@ function createFieldItem(field) {
         input.addEventListener('input', (e) => {
             field.value = e.target.value;
             console.log(`Updated custom field "${field.name}" value:`, e.target.value);
+            updateSaveButtonState();
         });
     }
 
@@ -716,6 +735,10 @@ function createFieldItem(field) {
                 // Re-render all fields immediately to update the UI
                 renderFields();
                 updateStatistics();
+
+                // Recapture initial state after deletion
+                captureInitialState();
+                updateSaveButtonState();
 
                 showNotification(`Custom field "${field.name}" deleted successfully`, 'success');
                 console.log(`Custom field ${field.name} deleted and UI refreshed`);
@@ -806,14 +829,14 @@ function createVirtualFieldItem(field) {
             break;
     }
 
-    // Build HTML with checkbox + label + editable input + edit button for custom fields
+    // Build HTML with checkbox + label + editable input (only for custom fields) + edit button for custom fields
     label.innerHTML = `
         <input type="checkbox"
                class="field-checkbox"
                ${field.active ? 'checked' : ''}
                ${field.required ? 'disabled' : ''} />
         <div class="field-info" style="flex: 1;">
-            <div class="field-name" style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
+            <div class="field-name" style="display: flex; align-items: center; gap: 6px;">
                 ${field.isCustomField ? '<span style="color: #2563eb; font-size: 0.75rem;">Custom:</span>' : ''}
                 <span style="color: ${field.isCustomField ? '#2563eb' : '#718096'};">${fieldLabel}</span>
                 ${field.required ? '<span class="required-badge">REQUIRED</span>' : ''}
@@ -823,17 +846,19 @@ function createVirtualFieldItem(field) {
                     </button>
                 ` : ''}
             </div>
-            <input
-                type="text"
-                class="field-input"
-                ${field.isCustomField ? 'data-custom-field="true"' : 'data-field="' + field.name + '"'}
-                ${field.isCustomField ? 'data-custom-field-id="' + (field.id || '') + '"' : ''}
-                ${field.isCustomField ? 'data-sf-field="' + field.name + '"' : ''}
-                value="${fieldValue}"
-                placeholder="${placeholder}"
-                style="width: 100%; padding: 8px 12px; border: 1px solid #C9C7C5; border-radius: 4px; font-size: 14px;"
-                onclick="event.stopPropagation()"
-            />
+            ${field.isCustomField ? `
+                <input
+                    type="text"
+                    class="field-input"
+                    data-custom-field="true"
+                    data-custom-field-id="${field.id || ''}"
+                    data-sf-field="${field.name}"
+                    value="${fieldValue}"
+                    placeholder="${placeholder}"
+                    style="width: 100%; padding: 8px 12px; border: 1px solid #C9C7C5; border-radius: 4px; font-size: 14px; margin-top: 6px;"
+                    onclick="event.stopPropagation()"
+                />
+            ` : ''}
         </div>
         ${field.isCustomField ? `
             <button class="delete-custom-field" title="Delete custom field" style="font-size: 14px; color: #9ca3af;">
@@ -1053,10 +1078,14 @@ window.saveEditLabel = function() {
     // Find the field and update its SF label
     const field = allFields.find(f => f.name === fieldName);
     if (field) {
-        field.sfLabel = sfLabel || field.name; 
+        field.sfLabel = sfLabel || field.name;
 
         // Re-render fields to show updated mapping
         renderFields();
+
+        // Update Save & Continue button state
+        updateSaveButtonState();
+
         showNotification('Label mapping updated (not saved yet)', 'success');
     }
 
@@ -1162,7 +1191,7 @@ window.goBack = function() {
     window.location.href = 'display.html';
 };
 
-// Update statistics 
+// Update statistics
 function updateStatistics() {
 
     const allFieldsCombined = getAllFieldsForRendering();
@@ -1175,6 +1204,89 @@ function updateStatistics() {
     document.getElementById('activeFieldsCount').textContent = active;
     document.getElementById('inactiveFieldsCount').textContent = inactive;
     document.getElementById('customFieldsCount').textContent = custom;
+}
+
+// Capture initial field state for modification detection
+function captureInitialState() {
+    initialFieldState = {
+        apiFields: allFields.map(f => ({
+            name: f.name,
+            active: f.active,
+            sfLabel: f.sfLabel || f.name
+        })),
+        customFields: customFields.map(f => ({
+            id: f.id,
+            name: f.name,
+            value: f.value,
+            active: f.active
+        }))
+    };
+    console.log('Initial state captured:', initialFieldState);
+}
+
+// Detect if modifications have been made
+function detectModifications() {
+    if (!initialFieldState) return false;
+
+    // Check API fields
+    for (let i = 0; i < allFields.length; i++) {
+        const currentField = allFields[i];
+        const initialField = initialFieldState.apiFields.find(f => f.name === currentField.name);
+
+        if (!initialField) {
+            // New field added (shouldn't happen with API fields, but check anyway)
+            return true;
+        }
+
+        if (currentField.active !== initialField.active) {
+            return true;
+        }
+
+        if ((currentField.sfLabel || currentField.name) !== initialField.sfLabel) {
+            return true;
+        }
+    }
+
+    // Check custom fields
+    if (customFields.length !== initialFieldState.customFields.length) {
+        return true;
+    }
+
+    for (let i = 0; i < customFields.length; i++) {
+        const currentField = customFields[i];
+        const initialField = initialFieldState.customFields.find(f => f.id === currentField.id);
+
+        if (!initialField) {
+            // New custom field added
+            return true;
+        }
+
+        if (currentField.active !== initialField.active ||
+            currentField.name !== initialField.name ||
+            currentField.value !== initialField.value) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+// Update Save & Continue button state based on modifications
+function updateSaveButtonState() {
+    const saveButton = document.querySelector('#normal-mode-buttons button[onclick="saveAndContinue()"]');
+    if (!saveButton) return;
+
+    hasModifications = detectModifications();
+
+    if (hasModifications) {
+        saveButton.disabled = false;
+        saveButton.style.opacity = '1';
+        saveButton.style.cursor = 'pointer';
+    } else {
+        saveButton.disabled = true;
+        saveButton.style.opacity = '0.5';
+        saveButton.style.cursor = 'not-allowed';
+    }
 }
 
 // Open modal to add custom field
@@ -1300,6 +1412,10 @@ window.saveCustomField = async function() {
             // Re-render to show updated values
             renderFields();
 
+            // Recapture initial state after update
+            captureInitialState();
+            updateSaveButtonState();
+
         } else {
             // ADD new custom field
             const sfFieldName = fieldName;
@@ -1318,15 +1434,26 @@ window.saveCustomField = async function() {
                 // Stay on Custom Fields tab (do NOT switch to Active Fields)
                 currentFilter = 'custom';
                 document.querySelectorAll('.filter-tab').forEach(tab => {
-                    tab.classList.remove('active');
-                    if (tab.getAttribute('data-filter') === 'custom') {
-                        tab.classList.add('active');
+                    const isCustomTab = tab.getAttribute('data-filter') === 'custom';
+
+                    // Remove active classes from all
+                    tab.classList.remove('active', 'bg-blue-600', 'text-white');
+                    tab.classList.add('text-gray-600');
+
+                    // Add active classes to Custom tab
+                    if (isCustomTab) {
+                        tab.classList.add('active', 'bg-blue-600', 'text-white');
+                        tab.classList.remove('text-gray-600');
                     }
                 });
 
                 showNotification(`Custom field "${fieldName}" added successfully!`, 'success');
                 closeCustomFieldModal();
                 renderFields();
+
+                // Recapture initial state after adding custom field
+                captureInitialState();
+                updateSaveButtonState();
             } else {
                 throw new Error('FieldMappingService.addCustomField not available');
             }
@@ -1502,7 +1629,13 @@ function showConfirmDialog(title, message, options = {}) {
 // Cancel configuration (Normal mode)
 window.cancelConfiguration = function() {
     console.log('🔙 Cancelling configuration...');
-    window.location.href = 'display.html';
+
+    // Determine return page based on selectedLeadSource
+    const leadSource = sessionStorage.getItem('selectedLeadSource') || 'lead';
+    const targetPage = leadSource === 'leadReport' ? 'displayLsLeadReport.html' : 'displayLsLead.html';
+
+    console.log(`Returning to ${targetPage} (leadSource: ${leadSource})`);
+    window.location.href = targetPage;
 };
 
 // Save fake data defaults (Virtual mode)
@@ -1665,8 +1798,16 @@ function setupEventListeners() {
     const filterTabs = document.querySelectorAll('.filter-tab');
     filterTabs.forEach(tab => {
         tab.addEventListener('click', () => {
-            filterTabs.forEach(t => t.classList.remove('active'));
-            tab.classList.add('active');
+            // Remove active state from all tabs
+            filterTabs.forEach(t => {
+                t.classList.remove('active', 'bg-blue-600', 'text-white');
+                t.classList.add('text-gray-600');
+            });
+
+            // Add active state to clicked tab
+            tab.classList.add('active', 'bg-blue-600', 'text-white');
+            tab.classList.remove('text-gray-600');
+
             currentFilter = tab.dataset.filter;
             renderFields();
         });

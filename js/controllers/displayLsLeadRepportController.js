@@ -906,6 +906,44 @@ let lastSortedColumn = null;
 let lastSortDirection = "asc";
 let selectedRowItem = null;
 
+// Loading indicator functions
+function showLoadingIndicator() {
+  const loadingIndicator = document.getElementById('loadingIndicator');
+  if (loadingIndicator) {
+    loadingIndicator.classList.add('show');
+    loadingIndicator.style.display = 'flex';
+  }
+}
+
+function hideLoadingIndicator() {
+  const loadingIndicator = document.getElementById('loadingIndicator');
+  if (loadingIndicator) {
+    loadingIndicator.classList.remove('show');
+    loadingIndicator.style.display = 'none';
+  }
+}
+
+// Auto-load all data recursively
+async function autoLoadNextData() {
+  try {
+    // Call loadNextRows which will automatically update nextUrl
+    await pagination.loadNextRows();
+
+    // After loading, check if there's still more data
+    const nextButton = document.getElementById('nextButton');
+    if (nextButton && !nextButton.disabled) {
+      // There's more data, continue loading
+      await autoLoadNextData();
+    } else {
+      // No more data, hide loading indicator
+      hideLoadingIndicator();
+    }
+  } catch (error) {
+    console.error("Error auto-loading next rows:", error);
+    hideLoadingIndicator();
+  }
+}
+
 /**
  * Get transfer status for a lead from localStorage
  * @param {string} leadId - The lead ID to check
@@ -975,9 +1013,14 @@ async function fetchLsLeadReportData() {
     if (data && data.d && data.d.results) {
       displayData(data.d.results);
 
-      // Setup for pagination
-      nextUrl = apiService.getNextUrl(data);
-      document.getElementById("nextButton").disabled = !nextUrl;
+      // Update pagination and auto-load all remaining data
+      const nextUrl = pagination.updateNextUrl(data);
+
+      // Auto-load all remaining data
+      if (nextUrl) {
+        showLoadingIndicator();
+        await autoLoadNextData();
+      }
     } else {
       displayData([]);
     }
@@ -1175,6 +1218,12 @@ function displayLeadReportFilters() {
 
   // Add button group to filters container
   filterInputs.appendChild(buttonGroup);
+
+  // Show toggle button when filters are available
+  const toggleButton = document.getElementById('toggleFiltersButton');
+  if (toggleButton) {
+    toggleButton.style.display = 'flex';
+  }
 }
 
 function updateResetButtonState() {
@@ -1779,6 +1828,21 @@ function init() {
   if (backButton) {
     backButton.addEventListener("click", () => {
       window.location.href = "display.html";
+    });
+  }
+
+  // Toggle filters button handler
+  const toggleFiltersButton = document.getElementById('toggleFiltersButton');
+  if (toggleFiltersButton) {
+    toggleFiltersButton.addEventListener('click', () => {
+      const filterInputs = document.getElementById('filterInputs');
+      if (filterInputs.style.display === 'none' || filterInputs.style.display === '') {
+        filterInputs.style.display = 'flex';
+        toggleFiltersButton.classList.add('active');
+      } else {
+        filterInputs.style.display = 'none';
+        toggleFiltersButton.classList.remove('active');
+      }
     });
   }
 

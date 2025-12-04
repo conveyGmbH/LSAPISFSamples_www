@@ -131,8 +131,21 @@ main.table {
 }
 
 /* View Selector */
+.view-selector {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.view-selector .selector-label {
+  font-weight: 600;
+  color: var(--text-color);
+  font-size: 0.95rem;
+  white-space: nowrap;
+}
+
 .view-selector select {
-  appearance: none; 
+  appearance: none;
   background-color: #f1f1f1;
   border: 1px solid #e0e0e0;
   padding: 0.75rem 2.5rem 0.75rem 1rem;
@@ -157,6 +170,38 @@ main.table {
 .view-selector select:hover {
   background-color: #fff8;
   box-shadow: 0 .1rem .4rem #0002;
+}
+
+/* Toggle Filters Button */
+.toggle-filters-button {
+  background-color: var(--primary-color);
+  color: var(--white);
+  border: none;
+  padding: 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  height: 44px;
+  width: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.toggle-filters-button:hover {
+  background-color: #c55535;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+}
+
+.toggle-filters-button svg {
+  transition: transform 0.3s ease;
+}
+
+.toggle-filters-button.active svg {
+  transform: rotate(45deg);
 }
 
 /* Actions Buttons View */
@@ -554,6 +599,47 @@ thead th.active {
   background-color: #c55535;
   transform: translateY(-1px);
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+}
+
+/* Loading Indicator */
+.loading-indicator {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background-color: rgba(255, 255, 255, 0.95);
+  color: var(--text-color);
+  padding: 15px 25px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  display: none;
+  z-index: 1000;
+  align-items: center;
+  gap: 12px;
+  border: 2px solid var(--primary-color);
+}
+
+.loading-indicator.show {
+  display: flex;
+}
+
+.loading-spinner {
+  width: 20px;
+  height: 20px;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid var(--primary-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-indicator p {
+  margin: 0;
+  font-weight: 600;
+  font-size: 14px;
 }
 
 /* Error Message */
