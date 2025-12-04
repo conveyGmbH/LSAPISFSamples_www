@@ -1,0 +1,35 @@
+# Azure deployment ignore file
+# Only ignore files that should NOT be deployed to production
+
+# Development files
+.git/
+.github/
+.vscode/
+.idea/
+
+# Logs (local development only)
+*.log
+
+# Environment files (should use Azure App Settings instead)
+.env.local
+.env.development
+
+# Node modules (will be installed via npm install during deployment)
+node_modules/
+
+# Test files
+test/
+tests/
+*.test.js
+*.spec.js
+
+# Documentation
+*.md
+!README.md
+
+# IMPORTANT: DO NOT IGNORE THESE
+# views/ - Required for serving HTML pages
+# public/ - Required for static assets
+# server.js - Main application file
+# package.json - Required for dependencies
+# web.config - Required for IIS configuration
