@@ -5,7 +5,6 @@ const bodyParser = require('body-parser');
 const crypto = require('crypto');
 const jsforce = require('jsforce');
 const path = require('path');
-const fs = require('fs');
 require('dotenv').config();
 
 // Import new service modules
@@ -2615,53 +2614,20 @@ app.use((error, req, res, next) => {
 // ==============================================
 
 // Set up views directory
-const viewsDir = path.join(__dirname, 'views');
-app.set('views', viewsDir);
-
-// Log directory structure for debugging
-console.log('📂 __dirname:', __dirname);
-console.log('📂 Views directory:', viewsDir);
-try {
-    if (fs.existsSync(viewsDir)) {
-        console.log('✅ Views directory exists');
-        const files = fs.readdirSync(viewsDir);
-        console.log('📄 Files in views:', files);
-    } else {
-        console.error('❌ Views directory does not exist!');
-    }
-} catch (error) {
-    console.error('❌ Error checking views directory:', error);
-}
+app.set('views', path.join(__dirname, 'views'));
 
 // Serve homepage at root
 app.get('/', (_req, res) => {
     const indexPath = path.join(__dirname, 'views', 'index.html');
-    console.log('🔍 Attempting to serve index.html from:', indexPath);
-    console.log('🔍 File exists?', fs.existsSync(indexPath));
-
-    // Check if file exists before sending
-    if (!fs.existsSync(indexPath)) {
-        console.error('❌ index.html not found at:', indexPath);
-        return res.status(500).json({
-            message: 'Internal server error',
-            error: 'ENOENT: no such file or directory',
-            path: indexPath,
-            __dirname: __dirname,
-            viewsDir: viewsDir,
-            availableFiles: fs.existsSync(viewsDir) ? fs.readdirSync(viewsDir) : 'views directory not found'
-        });
-    }
-
+    console.log('Serving index.html from:', indexPath);
     res.sendFile(indexPath, (err) => {
         if (err) {
-            console.error('❌ Error serving index.html:', err);
+            console.error('Error serving index.html:', err);
             res.status(500).json({
                 message: 'Error loading homepage',
                 path: indexPath,
                 error: err.message
             });
-        } else {
-            console.log('✅ Successfully served index.html');
         }
     });
 });
