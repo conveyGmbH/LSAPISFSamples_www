@@ -290,9 +290,9 @@ main.table {
   visibility: hidden;
 }
 
-.table__body:hover::-webkit-scrollbar-thumb { 
+.table__body:hover::-webkit-scrollbar-thumb {
   visibility: visible;
-  background-color: var(--primary-color);
+  background-color: var(--light-gray);
 }
 
 .table__body table {
@@ -357,8 +357,8 @@ tbody tr:hover {
 }
 
 tbody tr.event-row:hover {
-  background-color: var(--primary-color) !important;
-  color: var(--white);
+  background-color: var(--light-gray) !important;
+  color: var(--text-color);
   transition: none;
   cursor: pointer;
 }

@@ -8,8 +8,6 @@ const path = require('path');
 require('dotenv').config();
 
 // Import new service modules
-const salesforceService = require('./salesforce');
-const { authMiddleware, setupOrgMiddleware } = require('./middleware/auth');
 const { transferLeadWithAutoFieldCreation } = require('./leadTransferService');
 const fieldConfigStorage = require('./fieldConfigStorage');
 const leadTransferStatusService = require('./leadTransferStatusService');
@@ -124,6 +122,11 @@ app.use(cors({
 app.use(bodyParser.json({ limit: '100mb' }));
 app.use(bodyParser.urlencoded({ limit: '100mb', extended: true }));
 app.use(session(config.session));
+
+// Backend homepage route - MUST be before static files middleware
+app.get('/', (_req, res) => {
+    res.sendFile(path.join(__dirname, 'views', 'index.html'));
+});
 
 // Static files
 app.use(express.static(path.join(__dirname, '../')));
@@ -632,21 +635,6 @@ app.get('/oauth/callback', async (req, res) => {
             });
         }
 
-        // Also store in the new multi-org service for better persistence
-        try {
-            await salesforceService.connectToOrg(
-                userInfo.organizationId,
-                config.salesforce.clientId,
-                config.salesforce.clientSecret,
-                config.salesforce.redirectUri,
-                conn.refreshToken,
-                conn.instanceUrl,
-                conn.accessToken
-            );
-        } catch (multiOrgError) {
-            console.warn('Failed to store multi-org connection:', multiOrgError.message);
-        }
-
         res.send(`
             <!DOCTYPE html>
             <html lang="en">
@@ -811,211 +799,6 @@ app.get('/oauth/callback', async (req, res) => {
 });
 
 // API ROUTES
-
-// NEW MULTI-ORG AUTHENTICATION API ROUTES
-
-// Setup new organization connection
-app.post('/api/orgs/setup', setupOrgMiddleware, (req, res) => {
-    res.json({
-        success: true,
-        message: `Organization ${req.orgId} connected successfully`,
-        orgId: req.orgId
-    });
-});
-
-// Get connection info for specific org
-app.get('/api/orgs/:orgId/info', authMiddleware, async (req, res) => {
-    try {
-        const orgId = req.params.orgId;
-        const userInfo = await req.sfConnection.identity();
-
-        res.json({
-            success: true,
-            orgId: orgId,
-            userInfo: {
-                id: userInfo.id,
-                username: userInfo.username,
-                display_name: userInfo.display_name,
-                organization_id: userInfo.organization_id,
-                organization_name: userInfo.organization_name
-            }
-        });
-    } catch (error) {
-        console.error('Error getting org info:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Failed to get org info',
-            message: error.message
-        });
-    }
-});
-
-// Create lead using multi-org authentication
-app.post('/api/orgs/:orgId/leads', authMiddleware, async (req, res) => {
-    try {
-        const orgId = req.params.orgId;
-        const leadData = req.body;
-
-        console.log(`Creating lead for org ${orgId}:`, leadData);
-
-        const result = await salesforceService.createLead(orgId, leadData);
-
-        res.json({
-            success: true,
-            orgId: orgId,
-            leadId: result.id,
-            message: 'Lead created successfully'
-        });
-    } catch (error) {
-        console.error('Error creating lead:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Failed to create lead',
-            message: error.message
-        });
-    }
-});
-
-// Get leads using multi-org authentication
-app.get('/api/orgs/:orgId/leads', authMiddleware, async (req, res) => {
-    try {
-        const orgId = req.params.orgId;
-        const limit = req.query.limit || 100;
-
-        const leads = await salesforceService.getLeads(orgId, limit);
-
-        res.json({
-            success: true,
-            orgId: orgId,
-            leads: leads,
-            count: leads.length
-        });
-    } catch (error) {
-        console.error('Error fetching leads:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Failed to fetch leads',
-            message: error.message
-        });
-    }
-});
-
-// Update lead using multi-org authentication
-app.patch('/api/orgs/:orgId/leads/:leadId', authMiddleware, async (req, res) => {
-    try {
-        const { orgId, leadId } = req.params;
-        const leadData = req.body;
-
-        const result = await salesforceService.updateLead(orgId, leadId, leadData);
-
-        res.json({
-            success: true,
-            orgId: orgId,
-            leadId: leadId,
-            result: result,
-            message: 'Lead updated successfully'
-        });
-    } catch (error) {
-        console.error('Error updating lead:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Failed to update lead',
-            message: error.message
-        });
-    }
-});
-
-// Delete lead using multi-org authentication
-app.delete('/api/orgs/:orgId/leads/:leadId', authMiddleware, async (req, res) => {
-    try {
-        const { orgId, leadId } = req.params;
-
-        const result = await salesforceService.deleteLead(orgId, leadId);
-
-        res.json({
-            success: true,
-            orgId: orgId,
-            leadId: leadId,
-            result: result,
-            message: 'Lead deleted successfully'
-        });
-    } catch (error) {
-        console.error('Error deleting lead:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Failed to delete lead',
-            message: error.message
-        });
-    }
-});
-
-// Check duplicate leads using multi-org authentication
-app.post('/api/orgs/:orgId/leads/check-duplicate', authMiddleware, async (req, res) => {
-    try {
-        const orgId = req.params.orgId;
-        const { FirstName, LastName, Company, Email } = req.body;
-
-        if (!LastName || !Company) {
-            return res.status(400).json({
-                success: false,
-                message: 'LastName and Company are required'
-            });
-        }
-
-        // Build SOQL query to find potential duplicates
-        let whereConditions = [];
-
-        // Check by name and company
-        whereConditions.push(`(LastName = '${LastName.replace(/'/g, "\\'")}' AND Company = '${Company.replace(/'/g, "\\'")}')`);
-
-        // Check by email if provided
-        if (Email) {
-            whereConditions.push(`Email = '${Email.replace(/'/g, "\\'")}'`);
-        }
-
-        const duplicateQuery = `
-            SELECT Id, FirstName, LastName, Company, Email, Name
-            FROM Lead
-            WHERE ${whereConditions.join(' OR ')}
-            LIMIT 10
-        `;
-
-        const duplicateResult = await req.sfConnection.query(duplicateQuery);
-
-        if (duplicateResult.records.length > 0) {
-            res.json({
-                success: true,
-                orgId: orgId,
-                hasDuplicates: true,
-                duplicates: duplicateResult.records.map(record => ({
-                    Id: record.Id,
-                    Name: record.Name || `${record.FirstName || ''} ${record.LastName}`.trim(),
-                    Company: record.Company,
-                    Email: record.Email
-                }))
-            });
-        } else {
-            res.json({
-                success: true,
-                orgId: orgId,
-                hasDuplicates: false,
-                duplicates: []
-            });
-        }
-
-    } catch (error) {
-        console.error('Duplicate check error:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Failed to check for duplicates',
-            message: error.message
-        });
-    }
-});
-
-// =======================================================================
-// LEGACY API ROUTES (for backward compatibility)
-// =======================================================================
 
 // Get Salesforce auth URL (supports both GET and POST)
 app.get('/api/salesforce/auth', (req, res) => {
@@ -1348,11 +1131,20 @@ app.post('/api/salesforce/refresh', async (req, res) => {
     }
 });
 
-// Check authentication status - Using new authMiddleware
-app.get('/api/user', authMiddleware, async (req, res) => {
+// Check authentication status
+app.get('/api/user', async (req, res) => {
     try {
-        // authMiddleware provides req.sfConnection and req.orgId
-        const info = await req.sfConnection.identity();
+        const orgId = getCurrentOrgId(req);
+        const conn = getConnection(orgId);
+
+        if (!conn) {
+            return res.status(401).json({
+                error: 'Unauthorized',
+                message: 'No active Salesforce connection'
+            });
+        }
+
+        const info = await conn.identity();
 
         console.log('🔍 Returning user info via jsforce:', {
             username: info.username,
@@ -2281,164 +2073,10 @@ app.get('/api/health', (req, res) => {
 
 // STATIC ROUTES
 
-
-// Serve main pages
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, '../index.html'));
-});
+// Note: Backend homepage route (/) is defined earlier, before express.static middleware
 
 app.get('/displayLeadTransfer', (req, res) => {
     res.sendFile(path.join(__dirname, '../pages/displayLeadTransfer.html'));
-});
-
-app.get('/displayDashboard', (req, res) => {
-    res.sendFile(path.join(__dirname, '../pages/displayDashboard.html'));
-});
-
-// DASHBOARD API ENDPOINTS
-
-// Get dashboard summary statistics
-app.get('/api/dashboard/summary', async (req, res) => {
-    try {
-        if (!req.session.connectionData) {
-            return res.status(401).json({
-                success: false,
-                error: 'Not authenticated with Salesforce'
-            });
-        }
-
-        const conn = new jsforce.Connection({
-            instanceUrl: req.session.connectionData.instance_url,
-            accessToken: req.session.connectionData.access_token
-        });
-
-        // Query lead statistics
-        const leadStats = await conn.query(`
-            SELECT Status, COUNT(Id) recordCount
-            FROM Lead
-            WHERE CreatedDate = LAST_N_DAYS:30
-            GROUP BY Status
-        `);
-
-        // Get total leads count
-        const totalLeadsResult = await conn.query(`
-            SELECT COUNT(Id) totalLeads
-            FROM Lead
-            WHERE CreatedDate = LAST_N_DAYS:30
-        `);
-
-        const totalLeads = totalLeadsResult.records[0]?.totalLeads || 0;
-
-        // Process status counts
-        const statusCounts = {};
-        let qualifiedCount = 0;
-        let workingCount = 0;
-        let newCount = 0;
-
-        leadStats.records.forEach(record => {
-            const status = record.Status;
-            const count = record.recordCount;
-            statusCounts[status] = count;
-
-            // Categorize into dashboard metrics
-            if (status === 'Qualified') {
-                qualifiedCount += count;
-            } else if (['Working - Contacted', 'Working'].includes(status)) {
-                workingCount += count;
-            } else if (['New', 'Open - Not Contacted'].includes(status)) {
-                newCount += count;
-            }
-        });
-
-        console.log('📊 Dashboard summary:', {
-            totalLeads,
-            qualified: qualifiedCount,
-            working: workingCount,
-            new: newCount,
-            statusBreakdown: statusCounts
-        });
-
-        res.json({
-            success: true,
-            data: {
-                totalLeads: totalLeads,
-                qualified: qualifiedCount,
-                working: workingCount,
-                new: newCount,
-                statusBreakdown: statusCounts
-            }
-        });
-
-    } catch (error) {
-        console.error('Dashboard summary error:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Failed to fetch dashboard summary',
-            details: error.message
-        });
-    }
-});
-
-// Get recent leads for dashboard table
-app.get('/api/dashboard/leads', async (req, res) => {
-    try {
-        if (!req.session.connectionData) {
-            return res.status(401).json({
-                success: false,
-                error: 'Not authenticated with Salesforce'
-            });
-        }
-
-        const limit = req.query.limit || 20;
-        const offset = req.query.offset || 0;
-
-        const conn = new jsforce.Connection({
-            instanceUrl: req.session.connectionData.instance_url,
-            accessToken: req.session.connectionData.access_token
-        });
-
-        // Query recent leads with essential fields
-        const leadsResult = await conn.query(`
-            SELECT Id, Name, FirstName, LastName, Company, Email, Phone,
-                   MobilePhone, State, Status, CreatedDate, LastModifiedDate
-            FROM Lead
-            WHERE CreatedDate = LAST_N_DAYS:30
-            ORDER BY CreatedDate DESC
-            LIMIT ${limit} OFFSET ${offset}
-        `);
-
-        // Format leads data for dashboard
-        const formattedLeads = leadsResult.records.map(lead => ({
-            id: lead.Id,
-            name: lead.Name || `${lead.FirstName || ''} ${lead.LastName || ''}`.trim(),
-            company: lead.Company,
-            email: lead.Email,
-            phone: lead.Phone || lead.MobilePhone,
-            state: lead.State,
-            status: lead.Status,
-            createdDate: lead.CreatedDate,
-            lastModifiedDate: lead.LastModifiedDate
-        }));
-
-        console.log(`📊 Retrieved ${formattedLeads.length} leads for dashboard`);
-
-        res.json({
-            success: true,
-            data: {
-                leads: formattedLeads,
-                totalRecords: leadsResult.totalSize || formattedLeads.length,
-                hasMore: leadsResult.done === false
-            }
-        });
-
-    } catch (error) {
-        console.error('Dashboard leads error:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Failed to fetch dashboard leads',
-            details: error.message
-        });
-    }
 });
 
 
@@ -2644,41 +2282,15 @@ fieldConfigStorage.initializeStorage().then(() => {
 app.listen(port, () => {
     console.log('\n🚀 Salesforce Lead Manager Backend');
     console.log('=====================================');
-    console.log(`🌐 Server running on: http://localhost:${port}`);
+    console.log(`🌐 Server: http://localhost:${port}`);
     console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`🔑 Client ID: ${config.salesforce.clientId ? ' Configured' : 'Missing'}`);
-    console.log(`🔐 Client Secret: ${config.salesforce.clientSecret ? ' Configured' : 'Missing'}`);
-    console.log(`Redirect URI: ${config.salesforce.redirectUri}`);
-    console.log(`🏢 Salesforce URL: ${config.salesforce.loginUrl}`);
+    console.log(`🔐 OAuth: ${config.salesforce.clientId ? '✅ Configured' : '❌ Missing'}`);
     console.log('=====================================');
-    console.log(' Available Routes:');
-    console.log('  🔐 GET  /auth/salesforce     - Start OAuth flow');
-    console.log('  🔐 GET  /oauth/callback      - OAuth callback');
-    console.log('');
-    console.log(' NEW MULTI-ORG API ROUTES:');
-    console.log('  🏢 POST /api/orgs/setup     - Setup organization connection');
-    console.log('  📋 GET  /api/orgs/:orgId/info - Get organization info');
-    console.log('  📊 GET  /api/orgs/:orgId/leads - Get leads for org');
-    console.log('  ➕ POST /api/orgs/:orgId/leads - Create lead in org');
-    console.log('  📝 PATCH /api/orgs/:orgId/leads/:id - Update lead in org');
-    console.log('  🗑️ DELETE /api/orgs/:orgId/leads/:id - Delete lead in org');
-    console.log('  🔍 POST /api/orgs/:orgId/leads/check-duplicate - Check duplicates in org');
-    console.log('');
-    console.log(' LEGACY API ROUTES:');
-    console.log('  🔗 GET  /api/salesforce/auth - Get auth URL');
-    console.log('  🔍 GET  /api/salesforce/check - Check connection status');
-    console.log('   GET  /api/salesforce/userinfo - Get user info');
-    console.log('  👤 GET  /api/user           - Get user info');
-    console.log('  🚪 POST /api/logout         - Logout');
-    console.log('  📊 GET  /api/leads          - Get all leads');
-    console.log('  ➕ POST /api/leads          - Create new lead');
-    console.log('  📤 POST /api/salesforce/leads - Transfer lead with attachments');
-    console.log('  ❤️  GET  /api/health        - Health check');
-    console.log('  🏠 GET  /                   - Home page');
-    console.log('  📄 GET  /displayLeadTransfer - Lead transfer page');
-    console.log('  📊 GET  /displayDashboard   - Dashboard page');
-    console.log('  📊 GET  /api/dashboard/summary - Dashboard statistics');
-    console.log('  📊 GET  /api/dashboard/leads - Recent leads data');
+    console.log('Key Routes:');
+    console.log('  🏠 /                        - Backend homepage');
+    console.log('  🔐 /auth/salesforce         - OAuth flow');
+    console.log('  📤 /api/salesforce/transfer - Transfer leads');
+    console.log('  ❤️  /api/health             - Health check');
     console.log('=====================================\n');
 });
 
