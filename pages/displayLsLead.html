@@ -187,33 +187,41 @@
         <div class="logo">
             <img src="../images/leadsuccess_white.svg" />
         </div>
+        <div class="header-center">
+            <span class="header-title">Salesforce API Manager</span>
+            <span class="header-divider">•</span>
+            <span class="report-name">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px; vertical-align: middle;">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                </svg>
+                LS Lead - <span id="userNameDisplay" class="user-name"></span>
+            </span>
+        </div>
         <div class="header-right">
+            <button id="postmanButton" class="postman-button">
+                <img src="/images/postman-icon.svg" alt="Postman" width="14" height="14">
+                Postman
+            </button>
+            <a href="/docs/LeadSuccess_API_for SalesForce.pdf" download class="doc-link">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px; vertical-align: middle;">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                </svg>
+                API Docs
+            </a>
             <button id="logoutButton" class="logout-button">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
                     <polyline points="16 17 21 12 16 7"></polyline>
                     <line x1="21" y1="12" x2="9" y2="12"></line>
-                </svg>Logout</button>
+                </svg>
+                Logout
+            </button>
         </div>
     </header>
-
-
-    <div class="sub-header">
-        <h1 class="head-line">Salesforce API Manager</h1>
-
-        <h3>API documentation available
-            <a href="/docs/LeadSuccess_API_for SalesForce.pdf" download>here</a>
-
-            -
-            <button id="postmanButton" class="postman-button">
-                <img src="/images/postman-icon.svg" alt="Postman" width="16" height="16">
-                Test API in Postman
-            </button>
-        </h3>
-    </div>
-
-    <h2 class="head-line">LS Lead - <span id="userNameDisplay"></span></h2>
 
     <main class="table">
 
