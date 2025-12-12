@@ -916,12 +916,14 @@ function createVirtualFieldItem(field) {
         console.log(`Field ${field.name} ${isChecked ? 'activated' : 'deactivated'}`);
     });
 
-    // Input change handler
-    input.addEventListener('input', (e) => {
-        const fieldName = field.isCustomField ? field.name : field.name;
-        virtualData[fieldName] = e.target.value;
-        console.log(`Updated ${fieldName}:`, e.target.value);
-    });
+    // Input change handler (only for custom fields that have input elements)
+   if (input) {
+        input.addEventListener('input', (e) => {
+            const fieldName = field.isCustomField ? field.name : field.name;
+            virtualData[fieldName] = e.target.value;
+            console.log(`Updated ${fieldName}:`, e.target.value);
+        });
+    }
 
     // Edit button handler for custom fields - Opens modal to edit field
     if (editBtn) {
