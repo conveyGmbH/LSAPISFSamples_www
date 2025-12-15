@@ -571,7 +571,7 @@ function renderFields() {
     }
 }
 
-// Create a field item element with proper event listeners (NORMAL MODE)
+// Create a field item element with proper event listeners 
 function createFieldItem(field) {
     const label = document.createElement('label');
     label.className = `field-item ${field.active ? 'active' : ''} ${field.required ? 'required' : ''} ${field.isCustomField ? 'user-custom-field' : ''}`;
@@ -917,7 +917,7 @@ function createVirtualFieldItem(field) {
     });
 
     // Input change handler (only for custom fields that have input elements)
-   if (input) {
+    if (input) {
         input.addEventListener('input', (e) => {
             const fieldName = field.isCustomField ? field.name : field.name;
             virtualData[fieldName] = e.target.value;
