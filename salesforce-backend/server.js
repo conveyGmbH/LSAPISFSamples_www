@@ -101,6 +101,9 @@ app.use(cors({
     'https://lsapisfsamples.convey.de',
     'https://lstest.convey.de',
     'https://lsapisfbackend.convey.de',
+
+    // Portal origins
+    'https://deimos.convey.de',
   ]; 
 
   if(!origin) return callback(null, true);
