@@ -303,6 +303,47 @@ function validateAndFixLeadData(leadData) {
         }
     });
 
+    // Convert numeric fields to proper types (Salesforce requires numbers, not strings)
+    const numericFields = ['AnnualRevenue', 'NumberOfEmployees'];
+    numericFields.forEach(fieldName => {
+        if (fixedData.hasOwnProperty(fieldName)) {
+            const value = fixedData[fieldName];
+            if (value !== null && value !== undefined && value !== '') {
+                // Convert to number
+                const numValue = Number(value);
+                if (!isNaN(numValue)) {
+                    fixedData[fieldName] = numValue;
+                    console.log(`Converted ${fieldName} to number: ${value} → ${numValue}`);
+                } else {
+                    // Invalid number - remove field to prevent Salesforce error
+                    warnings.push(`Removed invalid numeric value for ${fieldName}: ${value}`);
+                    delete fixedData[fieldName];
+                }
+            } else {
+                // Empty value - remove field
+                delete fixedData[fieldName];
+            }
+        }
+    });
+
+    // Convert integer fields
+    const integerFields = ['Latitude', 'Longitude'];
+    integerFields.forEach(fieldName => {
+        if (fixedData.hasOwnProperty(fieldName)) {
+            const value = fixedData[fieldName];
+            if (value !== null && value !== undefined && value !== '') {
+                const numValue = parseFloat(value);
+                if (!isNaN(numValue)) {
+                    fixedData[fieldName] = numValue;
+                } else {
+                    delete fixedData[fieldName];
+                }
+            } else {
+                delete fixedData[fieldName];
+            }
+        }
+    });
+
     console.log('Filtered lead data:', fixedData);
 
     return {
