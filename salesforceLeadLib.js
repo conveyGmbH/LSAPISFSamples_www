@@ -1170,8 +1170,56 @@ input:checked + .toggle-slider:before {
             return config ? config.active !== false : true;
         }
 
+        /**
+         * Ensures a Salesforce custom field name ends with __c suffix
+         * Standard SF fields (like FirstName, LastName, Company, Email) are not modified
+         * @param {string} fieldName - The field name to check
+         * @param {boolean} isCustomField - Whether this is explicitly a custom field
+         * @returns {string} - The field name with __c suffix if needed
+         */
+        ensureSfCustomFieldSuffix(fieldName, isCustomField = false) {
+            if (!fieldName || typeof fieldName !== 'string') return fieldName;
+
+            const trimmed = fieldName.trim();
+            if (!trimmed) return fieldName;
+
+            // Standard Salesforce Lead fields that should NOT have __c
+            const standardSfFields = new Set([
+                'FirstName', 'LastName', 'Company', 'Email', 'Phone', 'MobilePhone',
+                'Title', 'LeadSource', 'Status', 'Industry', 'Rating', 'AnnualRevenue',
+                'NumberOfEmployees', 'Website', 'Description', 'Street', 'City', 'State',
+                'PostalCode', 'Country', 'Salutation', 'OwnerId', 'IsConverted',
+                'ConvertedAccountId', 'ConvertedContactId', 'ConvertedOpportunityId',
+                'ConvertedDate', 'IsUnreadByOwner', 'Jigsaw', 'CleanStatus',
+                'CompanyDunsNumber', 'DandbCompanyId', 'EmailBouncedDate',
+                'EmailBouncedReason', 'IndividualId', 'ProductInterest__c',
+                'SICCode__c', 'Primary__c', 'CurrentGenerators__c', 'NumberofLocations__c'
+            ]);
+
+            // If it's a standard field, don't add __c
+            if (standardSfFields.has(trimmed)) {
+                return trimmed;
+            }
+
+            // If it already ends with __c, return as-is
+            if (trimmed.endsWith('__c')) {
+                return trimmed;
+            }
+
+            // For explicitly marked custom fields, or if the name looks like a custom field
+            // (starts with uppercase and contains only valid SF API name characters)
+            if (isCustomField || /^[A-Z][a-zA-Z0-9_]*$/.test(trimmed)) {
+                console.log(`Adding __c suffix: ${trimmed} → ${trimmed}__c`);
+                return `${trimmed}__c`;
+            }
+
+            return trimmed;
+        }
+
         setCustomFieldName(originalFieldName, salesforceFieldName) {
-            this.customFieldNames[originalFieldName] = salesforceFieldName;
+            // Ensure __c suffix for custom field names
+            const sfName = this.ensureSfCustomFieldSuffix(salesforceFieldName, true);
+            this.customFieldNames[originalFieldName] = sfName;
             this.saveCustomFieldNames();
         }
 
@@ -1240,7 +1288,8 @@ input:checked + .toggle-slider:before {
                     const trimmedLabel = customLabel.trim();
 
                     if (isValidSalesforceFieldName(trimmedLabel)) {
-                        salesforceFieldName = trimmedLabel;
+                        // Apply __c suffix if needed for custom label
+                        salesforceFieldName = this.ensureSfCustomFieldSuffix(trimmedLabel, true);
                         console.log(`Using custom label: ${originalField} → ${salesforceFieldName}`);
                     } else {
                         console.warn(`Invalid custom label "${trimmedLabel}" for "${originalField}", using original name`);
@@ -1248,6 +1297,7 @@ input:checked + .toggle-slider:before {
                     }
                 }
                 else if (this.customFieldNames[originalField]) {
+                    // Already has __c suffix applied via setCustomFieldName
                     salesforceFieldName = this.customFieldNames[originalField];
                     console.log(`Using custom field name: ${originalField} → ${salesforceFieldName}`);
                 }
@@ -1446,10 +1496,13 @@ input:checked + .toggle-slider:before {
         }
 
         async addCustomField(fieldData) {
+            // Ensure __c suffix for Salesforce custom field name
+            const sfFieldName = this.ensureSfCustomFieldSuffix(fieldData.sfFieldName || '', true);
+
             const newField = {
                 id: `custom_${Date.now()}`,
                 label: fieldData.label || '',
-                sfFieldName: fieldData.sfFieldName || '',
+                sfFieldName: sfFieldName,
                 value: fieldData.value || '',
                 active: fieldData.active !== false,
                 isCustom: true,
@@ -1474,6 +1527,11 @@ input:checked + .toggle-slider:before {
             if (index === -1) {
                 console.error(`Custom field not found: ${fieldId}`);
                 return false;
+            }
+
+            // Ensure __c suffix for Salesforce custom field name if being updated
+            if (updates.sfFieldName) {
+                updates.sfFieldName = this.ensureSfCustomFieldSuffix(updates.sfFieldName, true);
             }
 
             this.customFields[index] = {
@@ -1758,7 +1816,7 @@ input:checked + .toggle-slider:before {
                     </div>
                 </div>
                 <div style="padding: 24px;">
-                    <p style="margin: 0; color: #374151; font-size: 14px; white-space: pre-wrap; line-height: 1.5;">${message}</p>
+                    <p style="margin: 0; color: #374151; font-size: 14px; white-space: pre-wrap; line-height: 1.5; word-wrap: break-word; overflow-wrap: break-word;">${message}</p>
                 </div>
                 <div style="padding: 16px 24px; border-top: 1px solid #e5e7eb; background: #f9fafb; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; display: flex; justify-content: flex-end;">
                     <button id="sf-lib-close-error-modal" style="padding: 10px 20px; border: none; background: #dc2626; color: white; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 14px; transition: background 0.2s;">
@@ -1815,7 +1873,7 @@ input:checked + .toggle-slider:before {
                     </div>
                 </div>
                 <div style="padding: 24px;">
-                    <p style="margin: 0; color: #374151; font-size: 14px; white-space: pre-wrap; line-height: 1.5;">${message}</p>
+                    <p style="margin: 0; color: #374151; font-size: 14px; white-space: pre-wrap; line-height: 1.5; word-wrap: break-word; overflow-wrap: break-word;">${message}</p>
                 </div>
                 <div style="padding: 16px 24px; border-top: 1px solid #e5e7eb; background: #f9fafb; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; display: flex; justify-content: space-between; align-items: center;">
                     <span id="sf-lib-auto-close-countdown" style="color: #6b7280; font-size: 13px;"></span>
@@ -1945,7 +2003,7 @@ input:checked + .toggle-slider:before {
                 right: 0;
                 bottom: 0;
                 background: rgba(0, 0, 0, 0.5);
-                z-index: 10000;
+                z-index: 100001;
                 align-items: center;
                 justify-content: center;
                 padding: 20px;
@@ -1966,7 +2024,7 @@ input:checked + .toggle-slider:before {
                         <h2 style="margin: 0; font-size: 18px; font-weight: 700; color: #111827;">${title}</h2>
                     </div>
                     <div style="padding: 24px;">
-                        <p style="margin: 0; color: #374151; font-size: 14px; white-space: pre-wrap; line-height: 1.5;">${message}</p>
+                        <p style="margin: 0; color: #374151; font-size: 14px; white-space: pre-wrap; line-height: 1.5; word-wrap: break-word; overflow-wrap: break-word;">${message}</p>
                     </div>
                     <div style="padding: 16px 24px; border-top: 1px solid #e5e7eb; background: #f9fafb; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; display: flex; justify-content: flex-end; gap: 12px;">
                         <button id="sf-lib-cancel-confirm" style="padding: 10px 20px; border: 1px solid #d1d5db; background: white; color: #374151; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 14px; transition: all 0.2s;">
@@ -2053,7 +2111,7 @@ input:checked + .toggle-slider:before {
                         <h2 style="margin: 0; font-size: 18px; font-weight: 700; color: #111827;">${title}</h2>
                     </div>
                     <div style="padding: 24px;">
-                        <p style="margin: 0; color: #374151; font-size: 14px; white-space: pre-wrap; line-height: 1.5;">${message}</p>
+                        <p style="margin: 0; color: #374151; font-size: 14px; white-space: pre-wrap; line-height: 1.5; word-wrap: break-word; overflow-wrap: break-word;">${message}</p>
                     </div>
                     <div style="padding: 16px 24px; border-top: 1px solid #e5e7eb; background: #f9fafb; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; display: flex; justify-content: flex-end;">
                         <button id="sf-lib-close-alert" style="padding: 10px 20px; border: none; background: ${color.bg}; color: white; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 14px; transition: background 0.2s;">
@@ -2596,6 +2654,8 @@ input:checked + .toggle-slider:before {
                 let sfFieldName = fieldName;
                 if (!isStandardSalesforceField(fieldName)) {
                     sfFieldName = this.fieldMappingService.customLabels?.[fieldName] || fieldName;
+                    // Ensure __c suffix for custom fields
+                    sfFieldName = this.fieldMappingService.ensureSfCustomFieldSuffix(sfFieldName, true);
                 }
 
                 salesforceData[sfFieldName] = typeof value === 'string' ? value.trim() : value;
