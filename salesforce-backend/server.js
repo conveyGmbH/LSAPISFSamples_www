@@ -7,7 +7,6 @@ const jsforce = require('jsforce');
 const path = require('path');
 require('dotenv').config();
 
-// Import new service modules
 const { transferLeadWithAutoFieldCreation } = require('./leadTransferService');
 const fieldConfigStorage = require('./fieldConfigStorage');
 const leadTransferStatusService = require('./leadTransferStatusService');
@@ -16,13 +15,11 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 
-// ENVIRONMENT DETECTION AND CONFIGURATION
 function determineEnvironmentAndConfig() {
     const isProd = process.env.NODE_ENV === 'production';
     const hostname = process.env.HOSTNAME || process.env.WEBSITE_HOSTNAME || '';
     const port = process.env.PORT || 3000;
 
-    // Auto-detect production environment based on hostname patterns or Azure environment variables
     const isAzure = process.env.WEBSITE_HOSTNAME || process.env.WEBSITE_SITE_NAME;
     const isProductionHost = hostname.includes('convey.de') ||
                            hostname.includes('azurewebsites.net') ||
@@ -31,7 +28,6 @@ function determineEnvironmentAndConfig() {
 
     const isProduction = isProd || isProductionHost || port !== 3000;
 
-    // Determine redirect URI based on environment
     let redirectUri;
     if (isProduction) {
         redirectUri = process.env.SF_REDIRECT_URI_PRODUCTION || 'https://lsapisfbackend.convey.de/oauth/callback';
@@ -53,13 +49,11 @@ function determineEnvironmentAndConfig() {
 
 const envConfig = determineEnvironmentAndConfig();
 
-// CONFIGURATION
 const config = {
     environment: {
         isProduction: envConfig.isProduction
     },
     salesforce: {
-        // Optional default credentials (for backward compatibility)
         clientId: process.env.SF_CLIENT_ID || null,
         clientSecret: process.env.SF_CLIENT_SECRET || null,
         redirectUri: envConfig.redirectUri,
@@ -79,43 +73,31 @@ const config = {
     }
 };
 
-// Log configuration status
-if (config.salesforce.clientId && config.salesforce.clientSecret) {
-} else {
+if (!config.salesforce.clientId || !config.salesforce.clientSecret) {
     console.log('No default Salesforce credentials - clients will provide their own credentials');
 }
 
-app.use(cors({
-  origin: function (origin, callback) {
-    
-    // Allow requests from specific origins
-    const allowedOrigins = [
-    // Development origins
+const allowedOrigins = [
     'http://127.0.0.1:5504',
     'http://localhost:5504',
     'http://localhost:3000',
     'https://leadsuccess.convey.de/apisflsm/',
     'https://leadsuccess.convey.de',
-
-    // Production origins
     'https://lsapisfsamples.convey.de',
     'https://lstest.convey.de',
     'https://lsapisfbackend.convey.de',
-
-    // Portal origins
     'https://deimos.convey.de',
-  ]; 
+];
 
-  if(!origin) return callback(null, true);
-
-  if(allowedOrigins.includes(origin)){
-    callback(null, true);
-  }else{
-    if(process.env.NODE_ENV === 'development'){
-      callback(null, true)}
-      else{
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else if (process.env.NODE_ENV === 'development') {
+      callback(null, true);
+    } else {
       callback(new Error('Not allowed by CORS'));
-      }
     }
   },
   credentials: true,
@@ -126,20 +108,17 @@ app.use(bodyParser.json({ limit: '100mb' }));
 app.use(bodyParser.urlencoded({ limit: '100mb', extended: true }));
 app.use(session(config.session));
 
-// Backend homepage route - MUST be before static files middleware
+// Homepage must be before static files middleware
 app.get('/', (_req, res) => {
     res.sendFile(path.join(__dirname, 'views', 'index.html'));
 });
-
-// Static files
 app.use(express.static(path.join(__dirname, '../')));
 
-// SALESFORCE CONNECTION MANAGER
+// --- SALESFORCE CONNECTION MANAGER ---
 
-const connections = new Map(); 
+const connections = new Map();
 
 function createConnection(sessionData) {
-    // Use client-specific credentials if available, otherwise fall back to default
     const clientId = sessionData.clientId || config.salesforce.clientId;
     const clientSecret = sessionData.clientSecret || config.salesforce.clientSecret;
     const loginUrl = sessionData.loginUrl || config.salesforce.loginUrl;
@@ -156,7 +135,6 @@ function createConnection(sessionData) {
         instanceUrl: sessionData.instanceUrl
     });
 
-    // Auto-refresh token
     conn.on('refresh', (accessToken, res) => {
         console.log('Token refreshed for org:', sessionData.organizationId);
         sessionData.accessToken = accessToken;
@@ -196,7 +174,7 @@ function removeConnection(orgId) {
     connections.delete(orgId);
 }
 
-// UTILITY FUNCTIONS
+// --- UTILITY FUNCTIONS ---
 
 function generateState() {
     return crypto.randomBytes(32).toString('hex');
@@ -222,7 +200,6 @@ function validateAndFixLeadData(leadData) {
     const warnings = [];
     const fixedData = { ...leadData };
 
-    // Validate and fix required fields
     if (!fixedData.LastName || !fixedData.LastName.trim()) {
         errors.push('LastName is required and cannot be empty');
     }
@@ -231,21 +208,17 @@ function validateAndFixLeadData(leadData) {
         errors.push('Company is required and cannot be empty');
     }
 
-    // Validate and fix email format
     if (fixedData.Email) {
         const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailPattern.test(fixedData.Email)) {
             warnings.push(`Invalid email format: ${fixedData.Email}`);
-            // Don't include invalid email
             delete fixedData.Email;
         }
     }
 
-    // Validate and fix phone numbers (remove non-numeric characters except +)
     ['Phone', 'MobilePhone', 'Fax'].forEach(phoneField => {
         if (fixedData[phoneField]) {
             const originalPhone = fixedData[phoneField];
-            // Keep only digits, +, spaces, and common separators
             const cleanPhone = originalPhone.replace(/[^\d\+\-\(\)\s]/g, '');
             if (cleanPhone !== originalPhone) {
                 warnings.push(`Cleaned phone number ${phoneField}: ${originalPhone} → ${cleanPhone}`);
@@ -254,7 +227,6 @@ function validateAndFixLeadData(leadData) {
         }
     });
 
-    // Validate and fix website URL
     if (fixedData.Website) {
         let website = fixedData.Website.trim();
         if (website && !website.match(/^https?:\/\//)) {
@@ -264,7 +236,6 @@ function validateAndFixLeadData(leadData) {
         }
     }
 
-    // Validate Salesforce-specific field constraints
     const salesforceFieldLimits = {
         FirstName: 40,
         LastName: 80,
@@ -294,7 +265,6 @@ function validateAndFixLeadData(leadData) {
         }
     });
 
-    // Filter out invalid fields for Lead object but keep valid empty fields
     const invalidLeadFields = ['Suffix', 'MiddleName', 'SalesArea', 'Department'];
     invalidLeadFields.forEach(fieldName => {
         if (fixedData.hasOwnProperty(fieldName)) {
@@ -303,30 +273,24 @@ function validateAndFixLeadData(leadData) {
         }
     });
 
-    // Convert numeric fields to proper types (Salesforce requires numbers, not strings)
     const numericFields = ['AnnualRevenue', 'NumberOfEmployees'];
     numericFields.forEach(fieldName => {
         if (fixedData.hasOwnProperty(fieldName)) {
             const value = fixedData[fieldName];
             if (value !== null && value !== undefined && value !== '') {
-                // Convert to number
                 const numValue = Number(value);
                 if (!isNaN(numValue)) {
                     fixedData[fieldName] = numValue;
-                    console.log(`Converted ${fieldName} to number: ${value} → ${numValue}`);
                 } else {
-                    // Invalid number - remove field to prevent Salesforce error
                     warnings.push(`Removed invalid numeric value for ${fieldName}: ${value}`);
                     delete fixedData[fieldName];
                 }
             } else {
-                // Empty value - remove field
                 delete fixedData[fieldName];
             }
         }
     });
 
-    // Convert integer fields
     const integerFields = ['Latitude', 'Longitude'];
     integerFields.forEach(fieldName => {
         if (fixedData.hasOwnProperty(fieldName)) {
@@ -353,14 +317,12 @@ function validateAndFixLeadData(leadData) {
     };
 }
 
-// AUTHENTICATION ROUTES
+// --- AUTHENTICATION ROUTES ---
 
-// Show environment selection page
 app.get('/auth/salesforce', (req, res) => {
     res.sendFile(path.join(__dirname, 'views', 'auth-start.html'));
 });
 
-// OAuth redirect with environment selection
 app.get('/auth/salesforce/redirect', (req, res) => {
     try {
         const orgId = req.query.orgId || 'default';
@@ -368,7 +330,6 @@ app.get('/auth/salesforce/redirect', (req, res) => {
         const clientSecret = req.query.clientSecret || config.salesforce.clientSecret;
         const loginUrl = req.query.loginUrl || config.salesforce.loginUrl;
 
-        // Validate that credentials are available (either from params or config)
         if (!clientId || !clientSecret) {
             console.error('No credentials available - neither from query params nor from environment');
             return res.status(400).send(`
@@ -466,7 +427,6 @@ app.get('/auth/salesforce/redirect', (req, res) => {
         const state = `${generateState()}:${orgId}`;
         req.session.oauthState = state;
 
-        // Store client credentials in session for callback
         req.session.clientCredentials = {
             clientId,
             clientSecret,
@@ -590,7 +550,6 @@ app.get('/oauth/callback', async (req, res) => {
             throw new Error('No authorization code received');
         }
 
-        // Validate state exists
         if (!state) {
             console.log('State parameter is missing');
             throw new Error('Invalid state parameter - missing state');
@@ -598,8 +557,6 @@ app.get('/oauth/callback', async (req, res) => {
 
         const orgId = state.includes(':') ? state.split(':')[1] : 'default';
         
-        // Use default credentials from environment variables (Azure config)
-        // This avoids session dependency which causes issues with load balancing
         const clientId = config.salesforce.clientId;
         const clientSecret = config.salesforce.clientSecret;
         const loginUrl = config.salesforce.loginUrl;
@@ -617,14 +574,11 @@ app.get('/oauth/callback', async (req, res) => {
         });
 
 
-        // Exchange code for tokens
         const conn = new jsforce.Connection({ oauth2 });
         const userInfo = await conn.authorize(code);
 
-        // Get detailed user info from Salesforce API
         let fullUserInfo = userInfo;
         try {
-            // Query current user details
             const userQuery = await conn.query(`SELECT Id, Username, Name, Email FROM User WHERE Id = '${userInfo.id}'`);
             const orgQuery = await conn.query(`SELECT Id, Name FROM Organization WHERE Id = '${userInfo.organizationId}'`);
 
@@ -644,7 +598,6 @@ app.get('/oauth/callback', async (req, res) => {
             console.log('Could not fetch detailed user info, using basic info:', apiError.message);
         }
 
-        // Store session data with client credentials
         const sessionData = {
             accessToken: conn.accessToken,
             refreshToken: conn.refreshToken,
@@ -652,23 +605,18 @@ app.get('/oauth/callback', async (req, res) => {
             organizationId: userInfo.organizationId,
             userId: userInfo.id,
             userInfo: fullUserInfo,
-            // Store client-specific credentials
             clientId: clientId,
             clientSecret: clientSecret,
             loginUrl: loginUrl,
-            // Store the orgId from state parameter for mapping
             stateOrgId: orgId
         };
 
-        // Store in session and connection manager
         req.session.salesforce = sessionData;
-        req.session.currentOrgId = orgId; 
+        req.session.currentOrgId = orgId;
         req.session.authenticated = true;
 
-        // Store with BOTH identifiers for flexibility
-        storeConnection(sessionData); 
+        storeConnection(sessionData);
 
-        // Also store with the state orgId (default, custom, etc.)
         if (orgId !== userInfo.organizationId) {
             const conn = createConnection(sessionData);
             connections.set(orgId, {
@@ -842,12 +790,9 @@ app.get('/oauth/callback', async (req, res) => {
     }
 });
 
-// API ROUTES
-
-// Get Salesforce auth URL (supports both GET and POST)
+// --- API ROUTES ---
 app.get('/api/salesforce/auth', (req, res) => {
     try {
-        // Get credentials from query params or use defaults
         const clientId = req.query.clientId || config.salesforce.clientId;
         const clientSecret = req.query.clientSecret || config.salesforce.clientSecret;
         const loginUrl = req.query.loginUrl || config.salesforce.loginUrl;
@@ -862,14 +807,8 @@ app.get('/api/salesforce/auth', (req, res) => {
 
         const randomState = generateState();
 
-        // Build state parameter
-        // If orgId provided: "randomState:orgId" (multi-org)
-        // If not provided: just "randomState" (single org, backward compatible)
         const state = orgId ? `${randomState}:${orgId}` : randomState;
-
-        req.session.oauthState = randomState; // Store only random part for CSRF validation
-
-        // Store credentials in session for callback (fallback if needed)
+        req.session.oauthState = randomState;
         req.session.clientCredentials = {
             clientId,
             clientSecret,
@@ -901,7 +840,6 @@ app.get('/api/salesforce/auth', (req, res) => {
     }
 });
 
-// POST version for sending credentials in body (more secure)
 app.post('/api/salesforce/auth', (req, res) => {
     console.log('\n========================================');
     console.log('📨 POST /api/salesforce/auth - Request received');
@@ -972,7 +910,6 @@ app.post('/api/salesforce/auth', (req, res) => {
     }
 });
 
-// Check Salesforce connection status
 app.get('/api/salesforce/check', async (req, res) => {
     console.log('\n========================================');
     console.log('🔍 GET /api/salesforce/check - Checking connection');
@@ -1076,7 +1013,6 @@ app.get('/api/salesforce/check', async (req, res) => {
     }
 });
 
-// Get user info
 app.get('/api/salesforce/userinfo', (req, res) => {
     try {
         const orgId = getCurrentOrgId(req);
@@ -1100,7 +1036,6 @@ app.get('/api/salesforce/userinfo', (req, res) => {
     }
 });
 
-// Refresh Salesforce access token using refresh token
 app.post('/api/salesforce/refresh', async (req, res) => {
     console.log('\n========================================');
     console.log('POST /api/salesforce/refresh - Refreshing token');
@@ -1175,7 +1110,6 @@ app.post('/api/salesforce/refresh', async (req, res) => {
     }
 });
 
-// Check authentication status
 app.get('/api/user', async (req, res) => {
     try {
         const orgId = getCurrentOrgId(req);
@@ -1213,7 +1147,6 @@ app.get('/api/user', async (req, res) => {
     }
 });
 
-// Logout
 app.post('/api/logout', (req, res) => {
     try {
         const orgId = getCurrentOrgId(req);
@@ -1233,7 +1166,6 @@ app.post('/api/logout', (req, res) => {
     }
 });
 
-// Get all leads
 app.get('/api/leads', async (req, res) => {
     try {
         const orgId = getCurrentOrgId(req);
@@ -1261,7 +1193,6 @@ app.get('/api/leads', async (req, res) => {
     }
 });
 
-// Create new lead
 app.post('/api/leads', async (req, res) => {
     try {
         const orgId = getCurrentOrgId(req);
@@ -1340,7 +1271,6 @@ app.post('/api/leads', async (req, res) => {
     }
 });
 
-// Update existing lead
 app.put('/api/leads/:id', async (req, res) => {
     try {
         const orgId = getCurrentOrgId(req);
@@ -1399,7 +1329,6 @@ app.put('/api/leads/:id', async (req, res) => {
     }
 });
 
-// Delete lead
 app.delete('/api/leads/:id', async (req, res) => {
     try {
         const orgId = getCurrentOrgId(req);
@@ -1434,7 +1363,6 @@ app.delete('/api/leads/:id', async (req, res) => {
     }
 });
 
-// Check which fields exist in Salesforce Lead object
 app.post('/api/salesforce/fields/check', async (req, res) => {
     try {
         const orgId = getCurrentOrgId(req);
@@ -1500,7 +1428,6 @@ app.post('/api/salesforce/fields/check', async (req, res) => {
     }
 });
 
-// Create custom fields in Salesforce using Tooling API
 app.post('/api/salesforce/fields/create', async (req, res) => {
     try {
         const orgId = getCurrentOrgId(req);
@@ -1592,7 +1519,6 @@ app.post('/api/salesforce/fields/create', async (req, res) => {
     }
 });
 
-// Check for duplicate leads
 app.post('/api/leads/check-duplicate', async (req, res) => {
     try {
         const orgId = getCurrentOrgId(req);
@@ -1654,12 +1580,10 @@ app.post('/api/leads/check-duplicate', async (req, res) => {
     }
 });
 
-// Cache for Lead object valid fields
 let leadObjectFieldsCache = null;
 let leadObjectFieldsCacheTimestamp = 0;
-const LEAD_FIELDS_CACHE_TTL = 60 * 60 * 1000; // 1 hour cache TTL
+const LEAD_FIELDS_CACHE_TTL = 60 * 60 * 1000;
 
-// Function to fetch Lead object fields metadata from Salesforce
 async function fetchLeadObjectFields(conn) {
     const now = Date.now();
     if (leadObjectFieldsCache && (now - leadObjectFieldsCacheTimestamp) < LEAD_FIELDS_CACHE_TTL) {
@@ -1674,12 +1598,10 @@ async function fetchLeadObjectFields(conn) {
         return leadObjectFieldsCache;
     } catch (error) {
         console.error('Failed to fetch Lead object fields metadata:', error);
-        // Fallback: return null to skip filtering
         return null;
     }
 }
 
-// Transfer lead with attachments - enhanced with field filtering and detailed error
 app.post('/api/salesforce/leads', async (req, res) => {
     try {
         const orgId = getCurrentOrgId(req);
@@ -1693,34 +1615,24 @@ app.post('/api/salesforce/leads', async (req, res) => {
 
         console.log('📝 Creating lead with data:', leadData);
 
-        // Process lead data - frontend already filtered active fields
-        // Backend should not filter again to avoid desynchronization
         const processedLeadData = {};
 
         Object.keys(leadData).forEach(field => {
             const value = leadData[field];
-
-            // Include all fields sent by frontend (already filtered)
-            // Only exclude if explicitly null/undefined for non-Question/Answers/Text fields
             const isQuestionAnswerTextField = /^(Question|Answers|Text)\d{2}(__c)?$/.test(field);
 
             if (isQuestionAnswerTextField) {
-                // Include Question/Answers/Text fields even if null (allows clearing in Salesforce)
                 processedLeadData[field] = value !== undefined ? value : null;
-                console.log(`✅ Including field: ${field} = ${value}`);
             } else {
-                // For standard fields, only include if not null/undefined
                 if (value !== null && value !== undefined) {
                     processedLeadData[field] = value;
                 }
             }
         });
 
-        // Validate and fix lead data
         const validationResults = validateAndFixLeadData(processedLeadData);
         let validatedLeadData = validationResults.data;
 
-        // Check for blocking validation errors
         if (validationResults.errors.length > 0) {
             return res.status(400).json({
                 message: 'Lead data validation failed',
@@ -1729,19 +1641,27 @@ app.post('/api/salesforce/leads', async (req, res) => {
             });
         }
 
-        // Fetch valid Lead fields from Salesforce metadata
-        const validLeadFields = await fetchLeadObjectFields(conn);
+        let validLeadFields = await fetchLeadObjectFields(conn);
 
         let unknownFields = [];
         if (validLeadFields) {
-            // Get all fields that don't exist in Salesforce
             unknownFields = Object.keys(validatedLeadData).filter(field => !validLeadFields.has(field));
+
+            // Invalidate cache and retry if unknown fields found (may have been created recently)
+            if (unknownFields.length > 0) {
+                console.log(`Found ${unknownFields.length} unknown field(s), refreshing SF metadata cache...`);
+                leadObjectFieldsCache = null;
+                leadObjectFieldsCacheTimestamp = 0;
+                validLeadFields = await fetchLeadObjectFields(conn);
+
+                if (validLeadFields) {
+                    unknownFields = Object.keys(validatedLeadData).filter(field => !validLeadFields.has(field));
+                }
+            }
 
             if (unknownFields.length > 0) {
                 console.error(`Field(s) not found in Salesforce: ${unknownFields.join(', ')}`);
 
-                // Build detailed error message with helpful guidance
-                // Format field names in bold for better visibility
                 const boldFields = unknownFields.map(f => `<strong>${f}</strong>`).join(', ');
 
                 const errorMessage = [
@@ -1928,7 +1848,6 @@ app.post('/api/salesforce/leads', async (req, res) => {
 });
 
 
-// NEW ENDPOINT: Check and prepare fields before transfer
 app.post('/api/salesforce/leads/prepare', async (req, res) => {
     try {
         const orgId = getCurrentOrgId(req);
@@ -1965,7 +1884,6 @@ app.post('/api/salesforce/leads/prepare', async (req, res) => {
     }
 });
 
-// Get field configuration for current client
 app.get('/api/salesforce/field-config', (req, res) => {
     try {
         const orgId = getCurrentOrgId(req);
@@ -1983,7 +1901,6 @@ app.get('/api/salesforce/field-config', (req, res) => {
     }
 });
 
-// Set field configuration for current client
 app.post('/api/salesforce/field-config', async (req, res) => {
     try {
         const orgId = getCurrentOrgId(req);
@@ -2016,7 +1933,6 @@ app.post('/api/salesforce/field-config', async (req, res) => {
 // LEAD TRANSFER STATUS ENDPOINTS
 // ========================================
 
-// Get transfer status for a specific lead (with Salesforce verification)
 app.get('/api/leads/transfer-status/:leadId', async (req, res) => {
     try {
         const orgId = getCurrentOrgId(req);
@@ -2027,7 +1943,6 @@ app.get('/api/leads/transfer-status/:leadId', async (req, res) => {
         const { leadId } = req.params;
         const conn = getConnection(orgId);
 
-        // Get enhanced status with Salesforce verification
         const enhancedStatus = await leadTransferStatusService.getEnhancedLeadStatus(conn, orgId, leadId);
 
         res.json(enhancedStatus);
@@ -2037,7 +1952,6 @@ app.get('/api/leads/transfer-status/:leadId', async (req, res) => {
     }
 });
 
-// Get transfer statuses for multiple leads (batch with Salesforce verification)
 app.post('/api/leads/transfer-status/batch', async (req, res) => {
     try {
         const orgId = getCurrentOrgId(req);
@@ -2054,7 +1968,6 @@ app.post('/api/leads/transfer-status/batch', async (req, res) => {
         const conn = getConnection(orgId);
         const enhancedStatuses = {};
 
-        // Get enhanced status for each lead
         for (const leadId of leadIds) {
             enhancedStatuses[leadId] = await leadTransferStatusService.getEnhancedLeadStatus(conn, orgId, leadId);
         }
@@ -2066,7 +1979,6 @@ app.post('/api/leads/transfer-status/batch', async (req, res) => {
     }
 });
 
-// Set transfer status for a lead
 app.post('/api/leads/transfer-status', async (req, res) => {
     try {
         const orgId = getCurrentOrgId(req);
@@ -2102,7 +2014,6 @@ app.post('/api/leads/transfer-status', async (req, res) => {
     }
 });
 
-// Health check
 app.get('/api/health', (req, res) => {
     res.json({
         status: 'healthy server run',
@@ -2115,20 +2026,16 @@ app.get('/api/health', (req, res) => {
 
 
 
-// STATIC ROUTES
-
-// Note: Backend homepage route (/) is defined earlier, before express.static middleware
-
 app.get('/displayLeadTransfer', (req, res) => {
     res.sendFile(path.join(__dirname, '../pages/displayLeadTransfer.html'));
 });
 
 
-// LEAD FIELD UPDATES API
+// --- LEAD FIELD UPDATES ---
+
 const fs = require('fs').promises;
 const leadUpdatesFile = path.join(__dirname, 'lead-field-updates.json');
 
-// Helper function to load lead field updates
 async function loadLeadUpdates() {
     try {
         const data = await fs.readFile(leadUpdatesFile, 'utf8');
@@ -2139,7 +2046,6 @@ async function loadLeadUpdates() {
     }
 }
 
-// Helper function to save lead field updates
 async function saveLeadUpdates(updates) {
     try {
         await fs.writeFile(leadUpdatesFile, JSON.stringify(updates, null, 2));
@@ -2150,7 +2056,6 @@ async function saveLeadUpdates(updates) {
     }
 }
 
-// GET lead field updates for a specific EventId
 app.get('/api/lead-field-updates/:eventId', async (req, res) => {
     try {
         const { eventId } = req.params;
@@ -2175,7 +2080,6 @@ app.get('/api/lead-field-updates/:eventId', async (req, res) => {
     }
 });
 
-// POST save lead field updates for a specific EventId
 app.post('/v1/test', async (req, res) => {
     try {
         const { eventId, fieldUpdates } = req.body;
@@ -2233,7 +2137,6 @@ app.post('/v1/test', async (req, res) => {
     }
 });
 
-// DELETE lead field updates for a specific EventId
 app.delete('/api/lead-field-updates/:eventId', async (req, res) => {
     try {
         const { eventId } = req.params;
@@ -2272,7 +2175,8 @@ app.delete('/api/lead-field-updates/:eventId', async (req, res) => {
     }
 });
 
-// ERROR HANDLING
+// --- ERROR HANDLING ---
+
 app.use((req, res, next) => {
     res.status(404).json({
         message: 'Route not found',
@@ -2291,32 +2195,9 @@ app.use((error, req, res, next) => {
 });
 
 
-// ==============================================
-// HOME PAGE ROUTE
-// ==============================================
+// --- SERVER STARTUP ---
 
-// Set up views directory
 app.set('views', path.join(__dirname, 'views'));
-
-// Serve homepage at root
-app.get('/', (_req, res) => {
-    const indexPath = path.join(__dirname, 'views', 'index.html');
-    console.log('Serving index.html from:', indexPath);
-    res.sendFile(indexPath, (err) => {
-        if (err) {
-            console.error('Error serving index.html:', err);
-            res.status(500).json({
-                message: 'Error loading homepage',
-                path: indexPath,
-                error: err.message
-            });
-        }
-    });
-});
-
-// SERVER STARTUP
-
-// Initialize field configuration storage
 fieldConfigStorage.initializeStorage().then(() => {
     console.log('✅ Field configuration storage initialized');
 }).catch(error => {
@@ -2338,7 +2219,6 @@ app.listen(port, () => {
     console.log('=====================================\n');
 });
 
-// Graceful shutdown
 process.on('SIGINT', () => {
     console.log('\n🛑 Shutting down server...');
     process.exit(0);

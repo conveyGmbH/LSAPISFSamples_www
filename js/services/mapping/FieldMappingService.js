@@ -2,9 +2,9 @@
 class FieldMappingService {
     constructor() {
         this.fieldConfig = this.loadConfig();
-        this.customLabels = {};
+        this.customLabels = this.loadCustomLabels();
         this.customFieldNames = {};
-        this.customFields = []; 
+        this.customFields = [];
         this.credentials = sessionStorage.getItem('credentials');
         this.currentEventId = null;
 
@@ -197,10 +197,23 @@ setFieldConfigLocal(fieldName, config) {
                         this.customLabels = parsedConfig.customLabels;
                     }
 
-                    // 🆕 Load custom fields if available
+                    // Sync sfLabel from fieldConfig into customLabels
+                    // The Field Configurator stores SF mappings in fieldConfig.config.fields[].sfLabel
+                    // but the Transfer Controller reads from this.customLabels
+                    if (this.fieldConfig?.config?.fields) {
+                        for (const field of this.fieldConfig.config.fields) {
+                            if (field.sfLabel && field.sfLabel !== field.fieldName) {
+                                this.customLabels[field.fieldName] = field.sfLabel;
+                            }
+                        }
+                        this.saveCustomLabels();
+                        console.log(`Synced sfLabel → customLabels:`, this.customLabels);
+                    }
+
+                    // Load custom fields if available
                     if (parsedConfig.customFields && Array.isArray(parsedConfig.customFields)) {
                         this.customFields = parsedConfig.customFields;
-                        console.log(`✅ Loaded ${this.customFields.length} custom fields from API`);
+                        console.log(`Loaded ${this.customFields.length} custom fields from API`);
                     }
 
                 } catch (parseError) {
@@ -760,54 +773,82 @@ async bulkSaveToDatabase() {
     mapFieldNamesForSalesforce(leadData) {
         const mappedData = {};
 
+        // Standard Salesforce Lead fields (no __c suffix needed)
+        const standardSalesforceFields = new Set([
+            'ActionCadenceAssigneeId', 'ActionCadenceId', 'ActionCadenceState',
+            'ActiveTrackerCount', 'ActivityMetricId', 'ActivityMetricRollupId',
+            'Address', 'AnnualRevenue', 'City', 'CleanStatus', 'Company',
+            'CompanyDunsNumber', 'ConvertedAccountId', 'ConvertedContactId',
+            'ConvertedDate', 'ConvertedOpportunityId', 'ConnectionReceivedId',
+            'ConnectionSentId', 'Country', 'CountryCode', 'CurrencyIsoCode',
+            'DandbCompanyId', 'Description', 'Division', 'Email',
+            'EmailBouncedDate', 'EmailBouncedReason', 'ExportStatus', 'Fax',
+            'FirstCallDateTime', 'FirstEmailDateTime', 'FirstName',
+            'GeocodeAccuracy', 'GenderIdentity', 'HasOptedOutOfEmail',
+            'HasOptedOutOfFax', 'IndividualId', 'Industry', 'IsConverted',
+            'IsDeleted', 'IsPriorityRecord', 'IsUnreadByOwner', 'Jigsaw',
+            'JigsawContactId', 'LastActivityDate', 'LastName', 'LastReferencedDate',
+            'LastViewedDate', 'Latitude', 'LeadSource', 'Longitude',
+            'MasterRecordId', 'MiddleName', 'MobilePhone', 'Name',
+            'NumberOfEmployees', 'OwnerId', 'PartnerAccountId', 'Phone',
+            'PhotoUrl', 'PostalCode', 'Pronouns', 'Rating', 'RecordTypeId',
+            'Salutation', 'ScheduledResumeDateTime', 'ScoreIntelligenceId',
+            'State', 'StateCode', 'Status', 'Street', 'Suffix', 'Title', 'Website',
+            'Id', 'CreatedDate', 'LastModifiedDate', 'SystemModstamp'
+        ]);
+
         // Excluding system field from SF transfer
         const systemFieldsToExclude = [
             '__metadata', 'KontaktViewId', 'Id', 'CreatedDate', 'LastModifiedDate',
             'CreatedById', 'LastModifiedById', 'DeviceId', 'DeviceRecordId',
             'RequestBarcode', 'EventId', 'SystemModstamp','AttachmentIdList',
-            'IsReviewed', 'StatusMessage'
+            'IsReviewed', 'StatusMessage',
+            'LastExportStatus', 'LastExportTimestamp', 'LastExportMilliseconds',
+            'LastExportMessage', 'ExportAttempts'
         ];
 
         for (const [originalField, value] of Object.entries(leadData)) {
             if (systemFieldsToExclude.includes(originalField)) {
-                console.log(`Excluding system field from SF transfer: ${originalField}`);
                 continue;
             }
 
             const isActive = this.isFieldActive(originalField);
             if (isActive === false) {
-                console.log(`Excluding inactive field from SF transfer: ${originalField}`);
                 continue;
             }
 
-            let salesforceFieldName = originalField;
+            let salesforceFieldName;
 
-            // Use custom label if set (user must set exact SF field name)
-            const customLabel = this.customLabels[originalField];
-            const defaultLabel = this.formatFieldLabel(originalField);
-
-            const isValidSalesforceFieldName = (name) => {
-                if (!name || name.trim() === '') return false;
-                return /^[a-zA-Z][a-zA-Z0-9_]*(__c)?$/.test(name.trim());
-            };
-
-            if (customLabel && customLabel.trim() !== '' && customLabel !== defaultLabel) {
-                const trimmedLabel = customLabel.trim();
-
-                if (isValidSalesforceFieldName(trimmedLabel)) {
-                    salesforceFieldName = trimmedLabel;
-                    console.log(`Using custom label: ${originalField} → ${salesforceFieldName}`);
+            // Decision tree (same as LSPortal):
+            // 1. Standard SF field? → use as-is
+            // 2. Non-standard? → use custom label if set, otherwise original name
+            // 3. Non-standard without __c? → append __c
+            if (standardSalesforceFields.has(originalField)) {
+                salesforceFieldName = originalField;
+            } else {
+                // Use custom label as SF field name if mapped
+                const customLabel = this.customLabels[originalField];
+                if (customLabel && customLabel.trim() !== '' && customLabel !== originalField) {
+                    salesforceFieldName = customLabel.trim();
+                } else if (this.customFieldNames[originalField]) {
+                    salesforceFieldName = this.customFieldNames[originalField];
                 } else {
-                    console.warn(`⚠️ Invalid custom label "${trimmedLabel}" for "${originalField}", using original name`);
                     salesforceFieldName = originalField;
                 }
+
+                // Append __c suffix if not already present
+                if (!salesforceFieldName.endsWith('__c')) {
+                    salesforceFieldName = salesforceFieldName + '__c';
+                }
             }
-            else if (this.customFieldNames[originalField]) {
-                salesforceFieldName = this.customFieldNames[originalField];
-                console.log(`Using custom field name: ${originalField} → ${salesforceFieldName}`);
-            }
-            else {
-                console.log(`Using original field name: ${originalField}`);
+
+            // Convert numeric fields - Salesforce requires numbers, not strings
+            if (salesforceFieldName === 'AnnualRevenue' || salesforceFieldName === 'NumberOfEmployees') {
+                const numValue = Number(value);
+                if (!isNaN(numValue)) {
+                    mappedData[salesforceFieldName] = numValue;
+                }
+                continue;
             }
 
             mappedData[salesforceFieldName] = value;

@@ -257,9 +257,15 @@
         <div class="flex-1 flex flex-col overflow-hidden">
             <!-- Header -->
             <header class="bg-white border-b border-gray-200 py-4 px-6">
-                <div>
-                    <h1 class="text-xl font-bold text-gray-800">Field Configurator</h1>
-                    <p id="event-info" class="text-sm text-gray-600 mt-2">Configure which fields will be transferred to Salesforce for this event. Required fields (LastName, Company) are always included.</p>
+                <div class="flex flex-wrap justify-between items-start gap-3">
+                    <div class="flex-1 min-w-0">
+                        <h1 class="text-xl font-bold text-gray-800">Field Configurator</h1>
+                        <p id="event-info" class="text-sm text-gray-600 mt-2 break-words">Configure which fields will be transferred to Salesforce for this event. Required fields (LastName, Company) are always included.</p>
+                    </div>
+                    <button id="transferToSalesforceBtn" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium text-sm flex items-center flex-shrink-0" onclick="saveAndContinue()">
+                        <i class="fas fa-cloud-upload-alt mr-2"></i>
+                        Transfer to Salesforce
+                    </button>
                 </div>
             </header>
 
@@ -299,7 +305,7 @@
                 <!-- Configuration Section -->
                 <div class="card rounded-xl p-4">
                     <!-- Search Bar -->
-                    <div class="relative mb-4">
+                    <div class="relative mb-4" style="max-width: 400px;">
                         <i class="fas fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
                         <input type="text" id="searchField" placeholder="Search fields..."
                             class="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />

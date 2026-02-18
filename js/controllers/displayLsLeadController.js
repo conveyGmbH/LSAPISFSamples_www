@@ -11,44 +11,14 @@ const DEFAULT_ACTIVE_FIELDS = [
     'Title', 'Industry', 'Description'
 ];
 
-const columnConfig = {
-  LS_Lead: {
-    "Id": "500px",
-    "CreatedDate": "200px",
-    "LastModifiedDate": "200px",
-    "CreatedById": "400px",
-    "LastModifiedById": "400px",
-    "Salutation": "400px",
-    "Suffix": "200px",
-    "FirstName": "400px",
-    "MiddleName": "400px",
-    "LastName": "400px",
-    "Company": "500px",
-    "Title": "400px",
-    "Phone": "400px",
-    "MobilePhone": "400px",
-    "Fax": "400px",
-    "Email": "400px",
-    "Website": "500px",
-    "Street": "400px",
-    "PostalCode": "400px",
-    "City": "300px",
-    "Country": "300px",
-    "CountryCode": "200px",
-    "State": "300px",
-    "Description": "500px",
-    "AttachmentIdList": "800px",
-    "SalesArea": "400px",
-    "RequestBarcode": "500px",
-    "StatusMessage": "500px",
-    "DeviceId": "200px",
-    "DeviceRecordId": "200px",
-    "SystemModstamp": "200px",
-    "EventId": "500px",
-    "IsReviewed": "400px",
-    "Department": "400px",
-    "Industry": "200px"
-  }
+// Column size classes: col-xs (tiny), col-sm (small), col-md (medium), col-lg (large), col-xl (extra large)
+const COLUMN_SIZE_OVERRIDES = {
+    ExportAttempts: 'col-xs', IsReviewed: 'col-xs', CountryCode: 'col-xs',
+    Salutation: 'col-sm', Suffix: 'col-sm', DeviceId: 'col-sm', DeviceRecordId: 'col-sm',
+    LastExportStatus: 'col-md', LastExportTimestamp: 'col-md',
+    PostalCode: 'col-md', State: 'col-md', Country: 'col-md', City: 'col-md',
+    Company: 'col-lg', Email: 'col-lg', LastExportMessage: 'col-lg',
+    Description: 'col-xl', AttachmentIdList: 'col-xl',
 };
 
 
@@ -1012,21 +982,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 // Function to get the configured width of a column (dynamic if not in config)
-function getColumnWidth(header, entity) {
-
-  // Check if there is a configuration for this entity and column
-  if (columnConfig[entity] && columnConfig[entity][header] !== undefined) {
-    return columnConfig[entity][header];
-  }
-
-  // Return dynamic width for fields not in config (e.g., custom fields)
-  if (header.includes('Id')) return '500px';
-  if (header.includes('Date') || header === 'SystemModstamp') return '200px';
-  if (header.includes('Description') || header.includes('Message')) return '600px';
-  if (header.includes('Attachment')) return '800px';
-
-  // Default width for custom fields and unknown fields
-  return '300px';
+function getColumnSizeClass(header) {
+  if (COLUMN_SIZE_OVERRIDES[header]) return COLUMN_SIZE_OVERRIDES[header];
+  if (header.includes('Id') || header.includes('Barcode')) return 'col-lg';
+  if (header.includes('Date') || header === 'SystemModstamp' || header.includes('Timestamp')) return 'col-sm';
+  if (header.includes('Description') || header.includes('Attachment')) return 'col-xl';
+  if (header.includes('Message') || header.includes('Status')) return 'col-lg';
+  return 'col-md';
 }
 
 
@@ -1195,10 +1157,15 @@ function displayData(data, showAllFields = false) {
   const activeFieldNames = window.fieldMappingService?.getActiveFieldNames() || [];
   const activeCustomFields = window.fieldMappingService?.getAllCustomFields().filter(f => f.active !== false) || [];
 
+  // Export status columns - always visible when present in data
+  const EXPORT_STATUS_FIELDS = ['LastExportStatus', 'LastExportTimestamp', 'ExportAttempts', 'LastExportMessage'];
+
   // Filter to show only active fields (unless showAllFields is true)
   const headers = showAllFields ? allHeaders : allHeaders.filter(header => {
     // Always show required fields
     if (header === 'LastName' || header === 'Company') return true;
+    // Always show export status fields
+    if (EXPORT_STATUS_FIELDS.includes(header)) return true;
     // Check if field is in active configuration
     return activeFieldNames.includes(header);
   });
@@ -1214,10 +1181,7 @@ function displayData(data, showAllFields = false) {
   headersWithCustom.forEach((header, index) => {
     const th = document.createElement('th');
 
-    const width = getColumnWidth(header, 'LS_Lead');
-    if (width) {
-      th.style.width = width;
-    }
+    th.classList.add(getColumnSizeClass(header));
 
     const headerText = document.createTextNode(header);
     th.appendChild(headerText);
@@ -1244,35 +1208,82 @@ function displayData(data, showAllFields = false) {
   data.forEach(item => {
     const row = document.createElement('tr');
 
+    // Row tinting based on export status
+    const exportStatus = item.LastExportStatus;
+    if (exportStatus === 'Success') row.classList.add('export-row-success');
+    else if (exportStatus === 'Failed') row.classList.add('export-row-failed');
+    else if (exportStatus === 'Duplicate') row.classList.add('export-row-duplicate');
+
+    let isFirstCell = true;
+
     headersWithCustom.forEach(header => {
       const td = document.createElement('td');
 
-      const width = getColumnWidth(header, 'LS_Lead');
-      if (width) {
-        td.style.width = width;
-      }
+      td.classList.add(getColumnSizeClass(header));
 
       if (header === lastSortedColumn) {
         td.classList.add('active');
       }
 
+      // First visible cell: add export status badge dot
+      if (isFirstCell) {
+        isFirstCell = false;
+        const text = item[header] != null ? item[header] : '';
+        if (exportStatus) {
+          const badge = document.createElement('span');
+          badge.className = 'export-badge';
+          const dot = document.createElement('span');
+          dot.className = 'export-badge-dot';
+          if (exportStatus === 'Success') dot.classList.add('dot-success');
+          else if (exportStatus === 'Failed') dot.classList.add('dot-failed');
+          else if (exportStatus === 'Duplicate') dot.classList.add('dot-duplicate');
+          badge.appendChild(dot);
+          badge.appendChild(document.createTextNode(text));
+          td.appendChild(badge);
+        } else {
+          td.textContent = text;
+        }
+      // Handle export status columns
+      } else if (header === 'LastExportStatus') {
+        if (exportStatus) {
+          td.textContent = exportStatus;
+          if (exportStatus === 'Success') td.classList.add('export-status-success');
+          else if (exportStatus === 'Failed') td.classList.add('export-status-failed');
+          else if (exportStatus === 'Duplicate') td.classList.add('export-status-duplicate');
+          else td.classList.add('export-status-other');
+        }
+      } else if (header === 'LastExportTimestamp') {
+        const val = item[header];
+        td.textContent = val ? formatDate(val) : '';
+      } else if (header === 'ExportAttempts') {
+        const attempts = item[header];
+        if (attempts != null && attempts > 0) {
+          td.textContent = attempts;
+          td.classList.add('export-col-attempts');
+        }
+      } else if (header === 'LastExportMessage') {
+        const msg = item[header] || '';
+        td.textContent = msg.length > 80 ? msg.substring(0, 80) + '...' : msg;
+        if (msg.length > 80) td.title = msg;
       // Handle Date columns
-      if (header.includes('Date') || header === 'SystemModstamp') {
+      } else if (header.includes('Date') || header === 'SystemModstamp') {
         td.textContent = formatDate(item[header]);
       } else {
         // Check if this is a custom field
         const customField = activeCustomFields.find(f => f.sfFieldName === header);
         if (customField) {
-          // In virtual mode, use the value from item (virtualData), otherwise use default value
-          td.textContent = item[header] || customField.value || 'N/A';
+          td.textContent = item[header] || customField.value || '';
           td.style.fontStyle = 'italic';
           td.style.color = '#8b5cf6';
         } else {
-          td.textContent = item[header] || 'N/A';
+          td.textContent = item[header] != null ? item[header] : '';
         }
       }
       row.appendChild(td);
     });
+
+    // Store the full OData item on the row (includes Id, __metadata, KontaktViewId, etc.)
+    row._itemData = item;
 
     tableBody.appendChild(row);
   });
@@ -1307,7 +1318,7 @@ function restoreRowSelection(previousItem) {
   let matchFound = false;
   
   rows.forEach(row => {
-    const rowItem = getItemFromRow(row);
+    const rowItem = row._itemData || getItemFromRow(row);
     if (rowItem.Id === previousItem.Id) {
       row.click(); 
       matchFound = true;
@@ -1399,24 +1410,9 @@ function initializeRowToggle() {
 
 function handleRowClickWrapper(event) {
   const row = event.currentTarget;
-  const cells = Array.from(row.cells);
-  
-  const item = {};
-  const headers = Array.from(document.querySelectorAll('thead th')).map(th => 
-    th.textContent.trim().replace(/[↑↓]/g, '')
-  );
-  
-  cells.forEach((cell, index) => {
-    if (headers[index]) {
-      item[headers[index]] = cell.textContent.trim();
-    }
-  });
-  
-  const attachmentColumn = headers.findIndex(h => h === 'AttachmentIdList');
-  if (attachmentColumn >= 0) {
-    item.AttachmentIdList = cells[attachmentColumn].textContent.trim();
-  }
-  
+  // Use stored OData data (includes Id, __metadata, KontaktViewId, etc.)
+  const item = row._itemData || getItemFromRow(row);
+
   handleRowSelection(item, event);
 }
 

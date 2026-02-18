@@ -3,10 +3,34 @@ import { formatDate } from '../utils/helper.js';
 const REQUIRED_FIELDS = ['LastName', 'Company'];
 
 // Fields to exclude from display
-const EXCLUDED_FIELDS = ['KontaktViewId', '__metadata'];
+const EXCLUDED_FIELDS = ['KontaktViewId', '__metadata', 'LastExportStatus', 'LastExportTimestamp', 'LastExportMilliseconds', 'LastExportMessage', 'ExportAttempts'];
 
 // Default active fields
 const DEFAULT_ACTIVE_FIELDS = [ 'FirstName', 'LastName', 'Email', 'Company', 'Phone', 'MobilePhone', 'Street', 'City', 'PostalCode', 'State', 'Country', 'Title', 'Industry', 'Description'
+];
+
+// Standard Salesforce Lead fields - these cannot be remapped via sfLabel
+const STANDARD_SF_FIELDS = [
+    'ActionCadenceAssigneeId', 'ActionCadenceId', 'ActionCadenceState',
+    'ActiveTrackerCount', 'ActivityMetricId', 'ActivityMetricRollupId',
+    'Address', 'AnnualRevenue', 'City', 'CleanStatus', 'Company',
+    'CompanyDunsNumber', 'ConvertedAccountId', 'ConvertedContactId',
+    'ConvertedDate', 'ConvertedOpportunityId', 'ConnectionReceivedId',
+    'ConnectionSentId', 'Country', 'CountryCode', 'CurrencyIsoCode',
+    'DandbCompanyId', 'Description', 'Division', 'Email',
+    'EmailBouncedDate', 'EmailBouncedReason', 'ExportStatus', 'Fax',
+    'FirstCallDateTime', 'FirstEmailDateTime', 'FirstName',
+    'GeocodeAccuracy', 'GenderIdentity', 'HasOptedOutOfEmail',
+    'HasOptedOutOfFax', 'IndividualId', 'Industry', 'IsConverted',
+    'IsDeleted', 'IsPriorityRecord', 'IsUnreadByOwner', 'Jigsaw',
+    'JigsawContactId', 'LastActivityDate', 'LastName', 'LastReferencedDate',
+    'LastViewedDate', 'Latitude', 'LeadSource', 'Longitude',
+    'MasterRecordId', 'MiddleName', 'MobilePhone', 'Name',
+    'NumberOfEmployees', 'OwnerId', 'PartnerAccountId', 'Phone',
+    'PhotoUrl', 'PostalCode', 'Pronouns', 'Rating', 'RecordTypeId',
+    'Salutation', 'ScheduledResumeDateTime', 'ScoreIntelligenceId',
+    'State', 'StateCode', 'Status', 'Street', 'Suffix', 'Title', 'Website',
+    'Id', 'CreatedDate', 'LastModifiedDate', 'SystemModstamp'
 ];
 
 
@@ -617,9 +641,11 @@ function createFieldItem(field) {
                     <span style="color: #009EDB; font-weight: 600;">${sfLabel}</span>
                 ` : ''}
                 ${field.required ? '<span class="required-badge">REQUIRED</span>' : ''}
+                ${(!field.isCustomField && STANDARD_SF_FIELDS.includes(field.name)) ? '' : `
                 <button class="edit-label-btn" title="Edit label mapping" style="margin-left: auto; background: none; border: none; color: #718096; cursor: pointer; padding: 4px; font-size: 14px;">
                     ✏️
                 </button>
+                `}
             </div>
             ${field.isCustomField ? `
                 <input
@@ -940,20 +966,33 @@ function createVirtualFieldItem(field) {
             e.preventDefault();
             e.stopPropagation();
 
-            if (confirm(`Delete custom field "${field.name}"?`)) {
-                try {
-                    await fieldMappingService.deleteCustomField(field.id);
-
-                    // Reload custom fields from service to ensure sync
-                    await loadCustomFields();
-
-                    // Re-render fields
-                    renderFields();
-                    showNotification(`Custom field "${field.name}" deleted successfully`, 'success');
-                } catch (error) {
-                    console.error('Failed to delete custom field:', error);
-                    showNotification('Failed to delete custom field', 'error');
+            // Use modern confirmation dialog
+            const confirmed = await showConfirmDialog(
+                'Delete Custom Field?',
+                `Are you sure you want to delete the custom field "${field.name}"?\n\nThis action cannot be undone.`,
+                {
+                    confirmText: 'Delete',
+                    cancelText: 'Cancel',
+                    type: 'danger'
                 }
+            );
+
+            if (!confirmed) {
+                return;
+            }
+
+            try {
+                await fieldMappingService.deleteCustomField(field.id);
+
+                // Reload custom fields from service to ensure sync
+                await loadCustomFields();
+
+                // Re-render fields
+                renderFields();
+                showNotification(`Custom field "${field.name}" deleted successfully`, 'success');
+            } catch (error) {
+                console.error('Failed to delete custom field:', error);
+                showNotification('Failed to delete custom field', 'error');
             }
         });
     }
@@ -1158,6 +1197,16 @@ window.saveAndContinue = async function() {
                 customField.value = field.value; // Also save updated value
             }
         }
+
+        // Sync sfLabel into customLabels so Transfer Controller can read them
+        for (const field of allFields) {
+            if (field.sfLabel && field.sfLabel !== field.name) {
+                fieldMappingService.customLabels[field.name] = field.sfLabel;
+            } else {
+                delete fieldMappingService.customLabels[field.name];
+            }
+        }
+        fieldMappingService.saveCustomLabels();
 
         // Save local config
         fieldMappingService.saveConfig();
@@ -1513,7 +1562,7 @@ function showConfirmDialog(title, message, options = {}) {
                 left: 0;
                 right: 0;
                 bottom: 0;
-                z-index: 9999;
+                z-index: 100001;
                 display: flex;
                 align-items: center;
                 justify-content: center;
@@ -1542,6 +1591,8 @@ function showConfirmDialog(title, message, options = {}) {
                             margin-bottom: 1.5rem;
                             white-space: pre-line;
                             line-height: 1.5;
+                            word-wrap: break-word;
+                            overflow-wrap: break-word;
                         ">${escapeHtml(message)}</p>
                         <div style="
                             display: flex;

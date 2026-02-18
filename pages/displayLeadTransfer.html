@@ -290,6 +290,11 @@
                         <button id="connectButton" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium flex items-center text-sm">
                             <i class="fas fa-plug mr-2"></i> Connect to Salesforce
                         </button>
+
+                        <!-- Transfer to Salesforce Button (in header, hidden until connected) -->
+                        <button id="transferToSalesforceBtn" class="px-4 py-2 text-white rounded-lg font-medium flex items-center text-sm disabled:opacity-50 disabled:cursor-not-allowed" style="display: none; background: #10b981; box-shadow: 0 1px 2px rgba(0,0,0,0.1);" disabled>
+                            <i class="fas fa-paper-plane mr-2"></i> Transfer to Salesforce
+                        </button>
                     </div>
                 </div>
 
@@ -328,6 +333,11 @@
                         <button id="connectButton-mobile" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded font-medium text-xs">
                             <i class="fas fa-plug mr-1"></i> Connect
                         </button>
+
+                        <!-- Transfer Button (mobile) -->
+                        <button id="transferToSalesforceBtn-mobile" class="text-white px-3 py-1 rounded font-medium text-xs disabled:opacity-50 disabled:cursor-not-allowed" style="display: none; background: #10b981;" disabled>
+                            <i class="fas fa-paper-plane mr-1"></i> Transfer
+                        </button>
                         </div>
                     </div>
                 </div>
@@ -339,8 +349,6 @@
                 <div id="lead-data-container" class="card rounded-xl p-4">
                     <div class="flex justify-between items-center mb-4">
                         <h2 class="text-lg font-bold text-gray-800">Lead Information</h2>
-
-                        <!-- View Toggle Buttons (replaces Back to Lead Selection) -->
                         <div class="flex items-center space-x-2">
                             <button id="listViewBtn" class="view-toggle-btn active px-3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded text-sm flex items-center font-medium">
                                 <i class="fas fa-list mr-2"></i> List
@@ -453,9 +461,6 @@
                     <div class="flex justify-end space-x-3">
                         <button id="cancelButton" class="px-6 py-3 text-gray-700 rounded-lg font-medium text-base flex items-center" style="background: #e2e8f0; border: none;">
                              Cancel
-                        </button>
-                        <button id="transferToSalesforceBtn" class="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium text-base flex items-center disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-                            <i class="fas fa-sync-alt mr-2"></i> Transfer Lead
                         </button>
                     </div>
                 </div>

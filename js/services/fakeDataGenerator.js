@@ -1,6 +1,3 @@
-// fakeDataGenerator.js - Generate realistic fake data for empty/N/A fields
-// This ensures we never send empty required fields to Salesforce
-
 /**
  * Fake Data Generator Service
  * Generates realistic data for empty or N/A fields before Salesforce transfer
@@ -20,13 +17,7 @@ class FakeDataGenerator {
 
         // Company names pool (realistic B2B companies)
         this.companyNames = [
-            'TechVision GmbH', 'DataFlow Solutions', 'CloudFirst Systems', 'InnovateLab AG',
-            'NextGen Technologies', 'SmartBusiness Group', 'FutureTech Industries', 'Digitalize Pro',
-            'SystemWorks GmbH', 'ProActive Solutions', 'Synergy Partners', 'Global Dynamics',
-            'Enterprise Connect', 'BlueSky Ventures', 'Prime Solutions AG', 'CoreBusiness Systems',
-            'Quantum Technologies', 'Nexus Group', 'Pinnacle Partners', 'Vanguard Solutions',
-            'Meridian Systems', 'Catalyst Ventures', 'Horizon Enterprises', 'Summit Group',
-            'Apex Technologies', 'Vertex Solutions', 'Matrix Systems', 'Fusion Partners'
+            'TechVision GmbH', 'DataFlow Solutions', 'CloudFirst Systems', 'InnovateLab AG', 'NextGen Technologies', 'SmartBusiness Group', 'FutureTech Industries', 'Digitalize Pro', 'SystemWorks GmbH', 'ProActive Solutions', 'Synergy Partners', 'Global Dynamics', 'Enterprise Connect', 'BlueSky Ventures', 'Prime Solutions AG', 'CoreBusiness Systems', 'Quantum Technologies', 'Nexus Group', 'Pinnacle Partners', 'Vanguard Solutions', 'Meridian Systems', 'Catalyst Ventures', 'Horizon Enterprises', 'Summit Group', 'Apex Technologies', 'Vertex Solutions', 'Matrix Systems', 'Fusion Partners'
         ];
 
         // Job titles pool
@@ -60,6 +51,18 @@ class FakeDataGenerator {
         this.leadSources = [
             'Website', 'Trade Show', 'Referral', 'Partner', 'Web Form', 'Email Campaign'
         ];
+
+        // Lead Status
+        this.leadStatus = [
+            'New', 'Contacted', 'Qualified', 'Unqualified', 'Converted', 'Working', 'Nurturing', 'Qualified', 'Unqualified'
+        ];
+
+        // Ratings
+        this.ratings = [
+            'Hot', 'Warm', 'Cold'
+        ];
+
+        
     }
 
     // Check if a value is empty, null, undefined, or "N/A"

@@ -350,19 +350,76 @@ main.table {
 .table__body table {
     width: 100%;
     border-collapse: collapse;
-    table-layout: fixed;
+    table-layout: auto;
     margin: 0 .6rem;
 }
 
 /* Table Elements */
 table, th, td {
     border-collapse: collapse;
-    padding: 1rem;
+    padding: .6rem .8rem;
     text-align: left;
-    word-break: break-word; 
 }
 
+td {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Column min-widths (no max-width - let content breathe) */
+th.col-xs, td.col-xs { min-width: 80px; }
+th.col-sm, td.col-sm { min-width: 140px; }
+th.col-md, td.col-md { min-width: 180px; }
+th.col-lg, td.col-lg { min-width: 280px; }
+th.col-xl, td.col-xl { min-width: 400px; }
+
+/* Export status - row tinting (overrides nth-child(even) and default bg) */
+tbody tr.export-row-success,
+tbody tr:nth-child(even).export-row-success {
+    background-color: rgba(220, 252, 231, 0.55) !important;
+}
+tbody tr.export-row-failed,
+tbody tr:nth-child(even).export-row-failed {
+    background-color: rgba(254, 226, 226, 0.55) !important;
+}
+tbody tr.export-row-duplicate,
+tbody tr:nth-child(even).export-row-duplicate {
+    background-color: rgba(254, 243, 199, 0.55) !important;
+}
+
+/* Export status badge (dot + text in first visible column) */
+.export-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.export-badge-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: inline-block;
+}
+.export-badge-dot.dot-success { background-color: #16a34a; }
+.export-badge-dot.dot-failed { background-color: #dc2626; }
+.export-badge-dot.dot-duplicate { background-color: #d97706; }
+
+/* Export status column - LastExportStatus cell */
+td.export-status-success { color: #166534 !important; font-weight: 600; }
+td.export-status-failed { color: #991b1b !important; font-weight: 600; }
+td.export-status-duplicate { color: #92400e !important; font-weight: 600; }
+td.export-status-other { color: #374151 !important; font-weight: 600; }
+
+/* Export detail columns - same font size as other columns */
+td.export-col-attempts {
+    font-weight: 600;
+    text-align: center;
+}
+
+/* Headers: never truncate */
 thead th {
+    white-space: nowrap;
+    overflow: visible;
     position: sticky;
     top: 0;
     background-color: var(--background-color);

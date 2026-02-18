@@ -20,134 +20,21 @@ const apiService = new ApiService(serverName, apiName);
 console.log("API Service initialized with server:", serverName, "and API:", apiName, "apiService:", apiService);
 let nextUrl = "";
 
-const columnConfig = {
-  LS_LeadReport: {
-    Id: "400px",
-    CreatedDate: "200px",
-    LastModifiedDate: "300px",
-    CreatedById: "300px",
-    LastModifiedById: "300px",
-    Salutation: "300px",
-    Suffix: "300px",
-    FirstName: "300px",
-    MiddleName: "300px",
-    LastName: "300px",
-    Company: "500px",
-    Title: "300px",
-    Phone: "300px",
-    MobilePhone: "300px",
-    Fax: "300px",
-    Email: "300px",
-    Website: "300px",
-    Street: "300px",
-    PostalCode: "300px",
-    City: "300px",
-    Country: "300px",
-    CountryCode: "300px",
-    State: "300px",
-    Description: "700px",
-    IsReviewed: "300px",
-    AttachmentIdList: "800px",
-    SalesArea: "300px",
-    RequestBarcode: "500px",
-    StatusMessage: "600px",
-    DeviceId: "600px",
-    DeviceRecordId: "300px",
-    SystemModstamp: "300px",
-    EventId: "600px",
-    Department: "300px",
-    Industry: "300px",
-    Question01: "300px",
-    Answers01: "300px",
-    Text01: "300px",
-    Question02: "300px",
-    Answers02: "300px",
-    Text02: "300px",
-    Question03: "300px",
-    Answers03: "300px",
-    Text03: "300px",
-    Question04: "300px",
-    Answers04: "300px",
-    Text04: "300px",
-    Question05: "300px",
-    Answers05: "300px",
-    Text05: "300px",
-    Question06: "300px",
-    Answers06: "300px",
-    Text06: "300px",
-    Question07: "300px",
-    Answers07: "300px",
-    Text07: "300px",
-    Question08: "300px",
-    Answers08: "300px",
-    Text08: "300px",
-    Question09: "300px",
-    Answers09: "300px",
-    Text09: "300px",
-    Question10: "300px",
-    Answers10: "300px",
-    Text10: "300px",
-    Question11: "300px",
-    Answers11: "300px",
-    Text11: "300px",
-    Question12: "300px",
-    Answers12: "300px",
-    Text12: "300px",
-    Question13: "300px",
-    Answers13: "300px",
-    Text13: "300px",
-    Question14: "300px",
-    Answers14: "300px",
-    Text14: "300px",
-    Question15: "300px",
-    Answers15: "300px",
-    Text15: "300px",
-    Question16: "300px",
-    Answers16: "300px",
-    Text16: "300px",
-    Question17: "300px",
-    Answers17: "300px",
-    Text17: "300px",
-    Question18: "300px",
-    Answers18: "300px",
-    Text18: "300px",
-    Question19: "300px",
-    Answers19: "300px",
-    Text19: "300px",
-    Question20: "300px",
-    Answers20: "300px",
-    Text20: "300px",
-    Question21: "300px",
-    Answers21: "300px",
-    Text21: "300px",
-    Question22: "300px",
-    Answers22: "300px",
-    Text22: "300px",
-    Question23: "300px",
-    Answers23: "300px",
-    Text23: "300px",
-    Question24: "300px",
-    Answers24: "300px",
-    Text24: "300px",
-    Question25: "300px",
-    Answers25: "300px",
-    Text25: "300px",
-    Question26: "300px",
-    Answers26: "300px",
-    Text26: "300px",
-    Question27: "300px",
-    Answers27: "300px",
-    Text27: "300px",
-    Question28: "300px",
-    Answers28: "300px",
-    Text28: "300px",
-    Question29: "300px",
-    Answers29: "300px",
-    Text29: "300px",
-    Question30: "300px",
-    Answers30: "300px",
-    Text30: "300px",
-  },
+// Column size classes: col-xs (tiny), col-sm (small), col-md (medium), col-lg (large), col-xl (extra large)
+// Sizes are applied via CSS classes instead of fixed px widths
+const COLUMN_SIZE_OVERRIDES = {
+    // XS - tiny columns (numbers, codes, flags)
+    ExportAttempts: 'col-xs', IsReviewed: 'col-xs', CountryCode: 'col-xs',
+    IsIncomplete: 'col-xs', QuestionnaireEmpty: 'col-xs', QuestionnaireIncomplete: 'col-xs',
+    // SM - small columns (short text)
+    Salutation: 'col-sm', Suffix: 'col-sm', DeviceId: 'col-sm', DeviceRecordId: 'col-sm',
+    // MD - medium columns (status, city, dates, postal)
+    LastExportStatus: 'col-md', LastExportTimestamp: 'col-md',
+    PostalCode: 'col-md', State: 'col-md', Country: 'col-md', City: 'col-md',
+    // LG - large columns
+    Company: 'col-lg', Email: 'col-lg', LastExportMessage: 'col-lg',
+    // XL - extra large columns
+    Description: 'col-xl', AttachmentIdList: 'col-xl',
 };
 
 const pagination = setupPagination(apiService, displayData);
@@ -1060,20 +947,18 @@ async function refreshTransferStatuses() {
 
 
 // Function to get the configured width of a column (dynamic if not in config)
-function getColumnWidth(header, entity) {
-  if (columnConfig[entity] && columnConfig[entity][header] !== undefined) {
-    return columnConfig[entity][header];
-  }
+function getColumnSizeClass(header) {
+  // Check explicit overrides first
+  if (COLUMN_SIZE_OVERRIDES[header]) return COLUMN_SIZE_OVERRIDES[header];
 
-  // Return dynamic width for fields not in config (e.g., custom fields)
-  if (header.includes('Id')) return '400px';
-  if (header.includes('Date') || header === 'SystemModstamp') return '200px';
-  if (header.includes('Description') || header.includes('Message')) return '600px';
-  if (header.includes('Attachment')) return '800px';
-  if (header.includes('Question') || header.includes('Answer') || header.includes('Text')) return '300px';
+  // Auto-detect by field name patterns
+  if (header.includes('Id') || header.includes('Barcode')) return 'col-lg';
+  if (header.includes('Date') || header === 'SystemModstamp' || header.includes('Timestamp')) return 'col-sm';
+  if (header.includes('Description') || header.includes('Attachment')) return 'col-xl';
+  if (header.includes('Message') || header.includes('Status')) return 'col-lg';
 
-  // Default width for custom fields and unknown fields
-  return '300px';
+  // Default
+  return 'col-lg';
 }
 
 async function loadNextRows() {
@@ -1539,10 +1424,15 @@ function displayData(data, append = false) {
   const activeFieldNames = window.fieldMappingService?.getActiveFieldNames() || [];
   const activeCustomFields = window.fieldMappingService?.getAllCustomFields().filter(f => f.active !== false) || [];
 
+  // Export status columns - always visible when present in data
+  const EXPORT_STATUS_FIELDS = ['LastExportStatus', 'LastExportTimestamp', 'ExportAttempts', 'LastExportMessage'];
+
   // Filter to show only active fields
   const headers = allHeaders.filter(header => {
     // Always show required fields
     if (header === 'LastName' || header === 'Company') return true;
+    // Always show export status fields
+    if (EXPORT_STATUS_FIELDS.includes(header)) return true;
     // Check if field is in active configuration
     return activeFieldNames.includes(header);
   });
@@ -1562,10 +1452,7 @@ function displayData(data, append = false) {
     headersWithCustom.forEach((header, index) => {
       const th = document.createElement("th");
 
-      const width = getColumnWidth(header, "LS_LeadReport");
-      if (width) {
-        th.style.width = width;
-      }
+      th.classList.add(getColumnSizeClass(header));
 
       const headerText = document.createTextNode(header);
       th.appendChild(headerText);
@@ -1595,35 +1482,82 @@ function displayData(data, append = false) {
   data.forEach((item) => {
     const row = document.createElement("tr");
 
+    // Row tinting based on export status
+    const exportStatus = item.LastExportStatus;
+    if (exportStatus === 'Success') row.classList.add('export-row-success');
+    else if (exportStatus === 'Failed') row.classList.add('export-row-failed');
+    else if (exportStatus === 'Duplicate') row.classList.add('export-row-duplicate');
+
+    let isFirstCell = true;
+
     headersWithCustom.forEach((header) => {
       const td = document.createElement("td");
 
-      const width = getColumnWidth(header, "LS_LeadReport");
-      if (width) {
-        td.style.width = width;
-      }
+      td.classList.add(getColumnSizeClass(header));
 
       if (header === lastSortedColumn) {
         td.classList.add("active");
       }
 
+      // First visible cell: add export status badge dot
+      if (isFirstCell) {
+        isFirstCell = false;
+        const text = item[header] != null ? item[header] : '';
+        if (exportStatus) {
+          const badge = document.createElement("span");
+          badge.className = "export-badge";
+          const dot = document.createElement("span");
+          dot.className = "export-badge-dot";
+          if (exportStatus === 'Success') dot.classList.add('dot-success');
+          else if (exportStatus === 'Failed') dot.classList.add('dot-failed');
+          else if (exportStatus === 'Duplicate') dot.classList.add('dot-duplicate');
+          badge.appendChild(dot);
+          badge.appendChild(document.createTextNode(text));
+          td.appendChild(badge);
+        } else {
+          td.textContent = text;
+        }
+      // Handle export status columns
+      } else if (header === 'LastExportStatus') {
+        if (exportStatus) {
+          td.textContent = exportStatus;
+          if (exportStatus === 'Success') td.classList.add('export-status-success');
+          else if (exportStatus === 'Failed') td.classList.add('export-status-failed');
+          else if (exportStatus === 'Duplicate') td.classList.add('export-status-duplicate');
+          else td.classList.add('export-status-other');
+        }
+      } else if (header === 'LastExportTimestamp') {
+        const val = item[header];
+        td.textContent = val ? formatDate(val) : '';
+      } else if (header === 'ExportAttempts') {
+        const attempts = item[header];
+        if (attempts != null && attempts > 0) {
+          td.textContent = attempts;
+          td.classList.add('export-col-attempts');
+        }
+      } else if (header === 'LastExportMessage') {
+        const msg = item[header] || '';
+        td.textContent = msg.length > 80 ? msg.substring(0, 80) + '...' : msg;
+        if (msg.length > 80) td.title = msg;
       // Handle Date columns
-      if (header.includes("Date") || header === "SystemModstamp") {
+      } else if (header.includes("Date") || header === "SystemModstamp") {
         td.textContent = formatDate(item[header]);
       } else {
         // Check if this is a custom field
         const customField = activeCustomFields.find(f => f.sfFieldName === header);
         if (customField) {
-          // In virtual mode, use the value from item (virtualData), otherwise use default value
-          td.textContent = item[header] || customField.value || 'N/A';
+          td.textContent = item[header] || customField.value || '';
           td.style.fontStyle = 'italic';
           td.style.color = '#8b5cf6';
         } else {
-          td.textContent = item[header] || "N/A";
+          td.textContent = item[header] != null ? item[header] : '';
         }
       }
       row.appendChild(td);
     });
+
+    // Store the full OData item on the row (includes Id, __metadata, KontaktViewId, etc.)
+    row._itemData = item;
 
     tableBody.appendChild(row);
   });
@@ -1747,17 +1681,8 @@ function initializeRowToggle() {
 // Wrapper function to handle row clicks
 function handleRowClickWrapper(event) {
   const row = event.currentTarget;
-  const item = getItemFromRow(row);
-
-  // Add attachment ID to the item if available
-  const headers = Array.from(document.querySelectorAll("thead th")).map((th) =>
-    th.textContent.trim().replace(/[↑↓]/g, "")
-  );
-
-  const attachmentColumn = headers.findIndex((h) => h === "AttachmentIdList");
-  if (attachmentColumn >= 0 && row.cells[attachmentColumn]) {
-    item.AttachmentIdList = row.cells[attachmentColumn].textContent.trim();
-  }
+  // Use stored OData data (includes Id, __metadata, KontaktViewId, etc.)
+  const item = row._itemData || getItemFromRow(row);
 
   handleRowSelection(item, event);
 }

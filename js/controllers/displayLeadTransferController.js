@@ -246,13 +246,20 @@ function initializeButtonListeners() {
     window.location.href = 'displayDashboard.html';
   });
 
-  // Transfer button
+  // Transfer button (desktop header)
   const transferBtn = document.getElementById('transferToSalesforceBtn');
   if (transferBtn) {
     transferBtn.addEventListener('click', handleTransferButtonClick);
     transferBtn.disabled = true;
-    transferBtn.classList.add('disabled');
     transferBtn.title = 'Please connect to Salesforce first';
+  }
+
+  // Transfer button (mobile header)
+  const transferBtnMobile = document.getElementById('transferToSalesforceBtn-mobile');
+  if (transferBtnMobile) {
+    transferBtnMobile.addEventListener('click', handleTransferButtonClick);
+    transferBtnMobile.disabled = true;
+    transferBtnMobile.title = 'Please connect to Salesforce first';
   }
 
   // Initially hide dashboard button - will be shown when connected
@@ -310,31 +317,42 @@ function displayUserInfo(userInfo) {
 
 // Update Transfer button state based on active fields
 function updateTransferButtonState() {
-    const transferBtn = document.getElementById('transferToSalesforceBtn');
-    if (!transferBtn) return;
+    const transferBtns = ['transferToSalesforceBtn', 'transferToSalesforceBtn-mobile']
+        .map(id => document.getElementById(id))
+        .filter(Boolean);
+
+    if (transferBtns.length === 0) return;
+
+    // Helper to apply state to all transfer buttons
+    const applyToAll = (fn) => transferBtns.forEach(fn);
 
     // Check connection state
-    const isConnected = !transferBtn.classList.contains('disabled');
+    const isConnected = !transferBtns[0].classList.contains('disabled');
 
     if (!isConnected) {
-        // Keep disabled if not connected
-        transferBtn.disabled = true;
-        transferBtn.title = 'Please connect to Salesforce first';
+        applyToAll(btn => {
+            btn.disabled = true;
+            btn.title = 'Please connect to Salesforce first';
+        });
         return;
     }
 
-    // Count active fields from window.selectedLeadData 
+    // Count active fields from window.selectedLeadData
     if (!window.selectedLeadData) {
-        transferBtn.disabled = true;
-        transferBtn.title = 'No lead data loaded';
-        transferBtn.style.opacity = '0.5';
-        transferBtn.style.cursor = 'not-allowed';
+        applyToAll(btn => {
+            btn.disabled = true;
+            btn.title = 'No lead data loaded';
+            btn.style.opacity = '0.5';
+            btn.style.cursor = 'not-allowed';
+        });
         return;
     }
 
     // System/metadata fields to exclude
     const excludedFields = new Set([
-        '__metadata', 'KontaktViewId'
+        '__metadata', 'KontaktViewId',
+        'LastExportStatus', 'LastExportTimestamp', 'LastExportMilliseconds',
+        'LastExportMessage', 'ExportAttempts'
     ]);
 
     // Process data with labels
@@ -357,7 +375,8 @@ function updateTransferButtonState() {
         const fieldInfo = processedData[fieldName];
 
         const value = typeof fieldInfo === 'object' ? fieldInfo.value : fieldInfo;
-        const hasValue = value && value.trim() !== '' && value !== 'N/A';
+        const strValue = value != null ? String(value) : '';
+        const hasValue = strValue.trim() !== '' && strValue !== 'N/A';
 
         const isActive = typeof fieldInfo === 'object' ? (fieldInfo.active !== false) : true;
 
@@ -380,34 +399,37 @@ function updateTransferButtonState() {
 
     // Update button state
     if (activeFieldCount === 0) {
-        transferBtn.disabled = true;
-        transferBtn.classList.add('no-active-fields');
-        transferBtn.classList.remove('missing-required-fields');
-        transferBtn.title = 'No active fields to transfer. Please activate some fields first.';
-        transferBtn.style.opacity = '0.5';
-        transferBtn.style.cursor = 'not-allowed';
+        applyToAll(btn => {
+            btn.disabled = true;
+            btn.classList.add('no-active-fields');
+            btn.classList.remove('missing-required-fields');
+            btn.title = 'No active fields to transfer. Please activate some fields first.';
+            btn.style.opacity = '0.5';
+            btn.style.cursor = 'not-allowed';
+        });
     } else if (!hasRequiredFields) {
-        // Has active fields but missing required fields
-        transferBtn.disabled = true;
-        transferBtn.classList.add('missing-required-fields');
-        transferBtn.classList.remove('no-active-fields');
-
-        // Provide specific feedback about what's missing
         const missing = [];
         if (!hasLastName) missing.push('LastName');
         if (!hasCompany) missing.push('Company');
 
-        transferBtn.title = `⚠️ Required: ${missing.join(' and ')} must be active and have a value`;
-        transferBtn.style.opacity = '0.6';
-        transferBtn.style.cursor = 'not-allowed';
-        transferBtn.style.backgroundColor = '#f59e0b';
+        applyToAll(btn => {
+            btn.disabled = true;
+            btn.classList.add('missing-required-fields');
+            btn.classList.remove('no-active-fields');
+            btn.title = `Required: ${missing.join(' and ')} must be active and have a value`;
+            btn.style.opacity = '0.6';
+            btn.style.cursor = 'not-allowed';
+            btn.style.backgroundColor = '#f59e0b';
+        });
     } else {
-        transferBtn.disabled = false;
-        transferBtn.classList.remove('no-active-fields', 'missing-required-fields');
-        transferBtn.title = `Transfer ${activeFieldCount} active field${activeFieldCount > 1 ? 's' : ''} to Salesforce`;
-        transferBtn.style.opacity = '1';
-        transferBtn.style.cursor = 'pointer';
-        transferBtn.style.backgroundColor = '';
+        applyToAll(btn => {
+            btn.disabled = false;
+            btn.classList.remove('no-active-fields', 'missing-required-fields');
+            btn.title = `Transfer ${activeFieldCount} active field${activeFieldCount > 1 ? 's' : ''} to Salesforce`;
+            btn.style.opacity = '1';
+            btn.style.cursor = 'pointer';
+            btn.style.backgroundColor = '#10b981';
+        });
     }
 
 }
@@ -440,7 +462,9 @@ function collectActiveFieldsOnly() {
         'LastViewedDate', 'LastReferencedDate', 'Jigsaw', 'JigsawContactId',
         'CleanStatus', 'CompanyDunsNumber', 'DandbCompanyId', 'EmailBouncedReason',
         'EmailBouncedDate', 'IndividualId', 'apiEndpoint', 'credentials',
-        'serverName', 'apiName', 'AttachmentIdList', 'EventID', '__metadata', 'KontaktViewId'
+        'serverName', 'apiName', 'AttachmentIdList', 'EventID', '__metadata', 'KontaktViewId',
+        'LastExportStatus', 'LastExportTimestamp', 'LastExportMilliseconds',
+        'LastExportMessage', 'ExportAttempts'
     ]);
 
     if (!window.selectedLeadData) {
@@ -511,28 +535,50 @@ function collectActiveFieldsOnly() {
             }
         }
 
-        // Get Salesforce field name
+        // Get Salesforce field name using the same logic as LSPortal:
+        // 1. Standard SF field? → use as-is (no __c)
+        // 2. Non-standard? → use custom label if set, otherwise original name
+        // 3. Non-standard without __c? → append __c
         let sfFieldName;
 
-        // For STANDARD fields: always use API name (ignore custom labels)
         if (isStandardSalesforceField(apiFieldName)) {
             sfFieldName = apiFieldName;
-
-            // Warn if user tried to set a custom label on a standard field
-            const customLabel = window.fieldMappingService?.customLabels?.[apiFieldName];
-            if (customLabel && customLabel !== apiFieldName) {
-                console.warn(`⚠️ Custom label "${customLabel}" ignored for standard field "${apiFieldName}"`);
-            }
         }
         else {
-            sfFieldName = window.fieldMappingService?.customLabels?.[apiFieldName] || apiFieldName;
+            // Use custom label as SF field name if mapped
+            const customLabel = window.fieldMappingService?.customLabels?.[apiFieldName];
+            if (customLabel && customLabel.trim() !== '' && customLabel !== apiFieldName) {
+                sfFieldName = customLabel.trim();
+            } else {
+                sfFieldName = apiFieldName;
+            }
+
+            // Append __c suffix if not already present (Salesforce custom field requirement)
+            if (!sfFieldName.endsWith('__c')) {
+                sfFieldName = sfFieldName + '__c';
+            }
+        }
+
+        // Convert numeric fields - Salesforce requires numbers, not strings
+        if (sfFieldName === 'AnnualRevenue' || sfFieldName === 'NumberOfEmployees') {
+            const numValue = Number(value);
+            if (!isNaN(numValue)) {
+                salesforceData[sfFieldName] = numValue;
+            }
+            // Skip field if value is not a valid number
+            else {
+                console.warn(`⚠️ Skipping ${sfFieldName}: invalid numeric value "${value}"`);
+                return;
+            }
         }
 
         // Get display label
         const displayLabel = typeof fieldInfo === 'object' ? fieldInfo.label : formatFieldLabel(apiFieldName);
 
         // Add to salesforceData with SF field name
-        salesforceData[sfFieldName] = typeof value === 'string' ? value.trim() : value;
+        if (salesforceData[sfFieldName] === undefined) {
+            salesforceData[sfFieldName] = typeof value === 'string' ? value.trim() : value;
+        }
         fieldsList.push(sfFieldName);
         labels[sfFieldName] = displayLabel;
 
@@ -566,7 +612,7 @@ function isStandardSalesforceField(fieldName) {
         'CompanyDunsNumber', 'ConvertedAccountId', 'ConvertedContactId',
         'ConvertedDate', 'ConvertedOpportunityId', 'ConnectionReceivedId',
         'ConnectionSentId', 'Country', 'CountryCode', 'CurrencyIsoCode',
-        'DandBCompanyId', 'Description', 'Division', 'Email',
+        'DandbCompanyId', 'Description', 'Division', 'Email',
         'EmailBouncedDate', 'EmailBouncedReason', 'ExportStatus', 'Fax',
         'FirstCallDateTime', 'FirstEmailDateTime', 'FirstName',
         'GeocodeAccuracy', 'GenderIdentity', 'HasOptedOutOfEmail',
@@ -823,13 +869,19 @@ async function handleTransferButtonClick() {
       return;
     }
 
-    // Transfer Lead to Salesforce 
+    // Transfer Lead to Salesforce
     const transferModal = showTransferLoadingModal('Transferring lead to Salesforce...');
     isTransferInProgress = true;
+    const transferStartTime = performance.now();
 
     // Prepare attachments if present
     const attachmentIds = leadData.AttachmentIdList || window.selectedLeadData?.AttachmentIdList;
     const attachments = await fetchAttachments(attachmentIds);
+
+    // Get contact GUID for export status tracking
+    // The GUID is in the 'Id' field (not KontaktViewId which is an integer)
+    const kontaktViewId = window.selectedLeadData?.Id
+        || extractGuidFromMetadata(window.selectedLeadData);
 
     // Transfer ONLY active fields
     const response = await transferLeadDirectlyToSalesforce(leadData, attachments);
@@ -842,7 +894,12 @@ async function handleTransferButtonClick() {
     // Close loading modal
     if (transferModal) transferModal.remove();
 
- 
+    // Log export status to DB (fire-and-forget, don't block error display)
+    const transferDuration = Math.round(performance.now() - transferStartTime);
+    const statusLabel = response.status === 409 ? 'Duplicate' : 'Failed';
+    const statusMsg = errorData.message || `HTTP ${response.status}`;
+    callSetLeadExportStatus(kontaktViewId, statusLabel, statusMsg, transferDuration);
+
     // Handle 409 Conflict - Duplicate lead
     if (response.status === 409) {
 
@@ -925,6 +982,11 @@ async function handleTransferButtonClick() {
     // Close transfer modal
     if (transferModal) transferModal.remove();
 
+    // Log export status to DB (fire-and-forget)
+    const transferDuration = Math.round(performance.now() - transferStartTime);
+    const sfId = result.salesforceId || '';
+    callSetLeadExportStatus(kontaktViewId, 'Success', `SF Lead ID: ${sfId}`, transferDuration);
+
     // Success!
     // Build success message with details
     let successMessage = `Lead successfully transferred to Salesforce!\n\n`;
@@ -986,6 +1048,10 @@ async function handleTransferButtonClick() {
 
     // Close any loading modals first
     document.querySelectorAll('.transfer-loading-modal').forEach(m => m.remove());
+
+    // Log export status to DB (fire-and-forget)
+    const transferDuration = Math.round(performance.now() - transferStartTime);
+    callSetLeadExportStatus(kontaktViewId, 'Failed', error.message || 'Unknown error', transferDuration);
 
     // Parse error message for better user experience
     let errorTitle = 'Transfer Failed';
@@ -1152,15 +1218,17 @@ function performDisconnect() {
     console.warn("Error updating UI:", error);
   }
 
-  // Disable transfer button
+  // Disable and hide transfer button
   try {
-    const transferBtn = document.getElementById('transferToSalesforceBtn');
-    if (transferBtn) {
-      transferBtn.disabled = true;
-      transferBtn.classList.add('disabled');
-      transferBtn.title = 'Please connect to Salesforce first';
-      console.log("Transfer button disabled");
-    }
+    ['transferToSalesforceBtn', 'transferToSalesforceBtn-mobile'].forEach(id => {
+      const btn = document.getElementById(id);
+      if (btn) {
+        btn.disabled = true;
+        btn.style.display = 'none';
+        btn.title = 'Please connect to Salesforce first';
+      }
+    });
+    console.log("Transfer button disabled");
   } catch (error) {
     console.warn("Error disabling transfer button:", error);
   }
@@ -1242,15 +1310,17 @@ async function checkSalesforceConnection() {
         });
 
         // Keep buttons disabled until backend verification completes
-        const transferBtn = document.getElementById('transferToSalesforceBtn');
         const dashboardButton = document.getElementById('dashboardButton');
         const authNotice = document.getElementById('auth-required-notice');
 
-        if (transferBtn) {
-          transferBtn.disabled = true;
-          transferBtn.classList.add('disabled');
-          transferBtn.title = 'Verifying connection with Salesforce...';
-        }
+        ['transferToSalesforceBtn', 'transferToSalesforceBtn-mobile'].forEach(id => {
+          const btn = document.getElementById(id);
+          if (btn) {
+            btn.disabled = true;
+            btn.classList.add('disabled');
+            btn.title = 'Verifying connection with Salesforce...';
+          }
+        });
 
         if (dashboardButton) {
           dashboardButton.style.display = 'none';
@@ -1635,7 +1705,9 @@ function isSystemField(fieldName) {
     const systemFields = [
         '__metadata', 'KontaktViewId', 'Id', 'CreatedDate', 'LastModifiedDate',
         'CreatedById', 'LastModifiedById', 'SystemModstamp', 'DeviceId',
-        'DeviceRecordId', 'EventId', 'RequestBarcode', 'StatusMessage'
+        'DeviceRecordId', 'EventId', 'RequestBarcode', 'StatusMessage',
+        'LastExportStatus', 'LastExportTimestamp', 'LastExportMilliseconds',
+        'LastExportMessage', 'ExportAttempts'
     ];
     return systemFields.includes(fieldName);
 }
@@ -1748,26 +1820,12 @@ function getSalesforceFieldConfig(fieldName) {
 
 
 async function transferLeadDirectlyToSalesforce(leadData, attachments) {
-  try {  
+  try {
 
-    let salesforceLeadData = {};
-
-    if (window.fieldMappingService && window.fieldMappingService.mapFieldNamesForSalesforce) {
-
-      // Appliquer le mapping directement
-      salesforceLeadData = window.fieldMappingService.mapFieldNamesForSalesforce(leadData);
-    } else {
-      console.warn('⚠️ FieldMappingService not available - using original field names');
-      const systemFields = ['__metadata', 'KontaktViewId', 'Id', 'CreatedDate', 'LastModifiedDate',
-        'CreatedById', 'LastModifiedById', 'DeviceId', 'DeviceRecordId', 'RequestBarcode',
-        'EventId', 'SystemModstamp', 'AttachmentIdList', 'IsReviewed', 'StatusMessage'];
-
-      Object.keys(leadData).forEach(key => {
-        if (!systemFields.includes(key)) {
-          salesforceLeadData[key] = leadData[key];
-        }
-      });
-    }
+    // leadData is already mapped by collectActiveFieldsOnly() with correct SF field names
+    // (standard fields as-is, custom labels applied, __c suffix added for non-standard)
+    // Do NOT re-map here to avoid double mapping issues
+    let salesforceLeadData = { ...leadData };
 
     // Remove null/empty values
     Object.keys(salesforceLeadData).forEach(key => {
@@ -1775,6 +1833,8 @@ async function transferLeadDirectlyToSalesforce(leadData, attachments) {
         delete salesforceLeadData[key];
       }
     });
+
+    console.log('Final Salesforce payload:', JSON.stringify(salesforceLeadData, null, 2));
 
     // Make call to backend API which handles Salesforce transfer
     const apiUrl = `${appConfig.apiBaseUrl}/salesforce/leads`;
@@ -1842,6 +1902,89 @@ async function transferLeadDirectlyToSalesforce(leadData, attachments) {
       })
     };
   }
+}
+
+/**
+ * Extract GUID from OData __metadata.uri
+ * URI format: "https://server/api/LS_Lead(guid'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx')"
+ * @param {Object} data - OData entity with __metadata
+ * @returns {string|null} The extracted GUID or null
+ */
+function extractGuidFromMetadata(data) {
+    try {
+        const uri = data?.__metadata?.uri;
+        if (!uri) return null;
+        const match = uri.match(/guid'([0-9a-f-]{36})'/i);
+        return match ? match[1] : null;
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Call LS_SetLeadExportStatus stored procedure on the convey OData server
+ * Records the transfer status (success/error) for a contact in the database
+ * @param {string} kontaktViewId - The contact's GUID (KontaktViewId)
+ * @param {string} status - Status string, max 32 chars (e.g. 'Success', 'Failed', 'Duplicate')
+ * @param {string} message - Status message, max 1024 chars
+ * @param {number} milliseconds - Transfer duration in ms
+ * @returns {Promise<Object|null>} The response data or null on error
+ */
+async function callSetLeadExportStatus(kontaktViewId, status, message, milliseconds) {
+    const serverName = sessionStorage.getItem('serverName');
+    const apiName = sessionStorage.getItem('apiName');
+    const credentials = sessionStorage.getItem('credentials');
+
+    if (!serverName || !apiName) {
+        console.warn('LS_SetLeadExportStatus: Missing serverName or apiName in sessionStorage');
+        return null;
+    }
+
+    if (!kontaktViewId) {
+        console.warn('LS_SetLeadExportStatus: Missing kontaktViewId');
+        return null;
+    }
+
+    // Truncate values to fit DB constraints
+    const safeStatus = (status || 'Unknown').substring(0, 32);
+    const safeMessage = (message || '').substring(0, 1024);
+    const safeMs = Math.max(0, Math.round(milliseconds || 0));
+
+    // Build OData function import URL
+    // id must be lowercase GUID, single-quoted
+    const id = kontaktViewId.toLowerCase();
+    const encodedMessage = encodeURIComponent(safeMessage);
+    const url = `https://${serverName}/${apiName}/LS_SetLeadExportStatus?id='${id}'&status='${safeStatus}'&message='${encodedMessage}'&milliseconds=${safeMs}&$format=json`;
+
+    try {
+        const headers = {
+            'Accept': 'application/json'
+        };
+        if (credentials) {
+            headers['Authorization'] = 'Basic ' + credentials;
+        }
+
+        console.log(`📊 Calling LS_SetLeadExportStatus: status=${safeStatus}, ms=${safeMs}, id=${id}`);
+
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: headers
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`LS_SetLeadExportStatus failed (${response.status}):`, errorText);
+            return null;
+        }
+
+        const data = await response.json();
+        const result = data.d?.results?.[0] || data.d;
+        console.log(`✅ LS_SetLeadExportStatus recorded: attempts=${result?.ExportAttempts}, timestamp=${result?.LastExportTimestamp}`);
+        return result;
+    } catch (error) {
+        console.error('LS_SetLeadExportStatus error:', error);
+        return null;
+    }
 }
 
 /**
@@ -2933,12 +3076,16 @@ function updateConnectionStatus(status, message, userInfo = null) {
             connectButtonMobile.style.display = 'none';
         }
 
-        // Enable transfer button ONLY if there are active fields
-        if (transferBtn) {
-            transferBtn.classList.remove('disabled');
-            // Don't enable yet - updateTransferButtonState() will check for active fields
-            setTimeout(() => updateTransferButtonState(), 300);
-        }
+        // Show and enable transfer button ONLY if there are active fields
+        ['transferToSalesforceBtn', 'transferToSalesforceBtn-mobile'].forEach(id => {
+            const btn = document.getElementById(id);
+            if (btn) {
+                btn.style.display = 'flex';
+                btn.classList.remove('disabled');
+            }
+        });
+        // Don't enable yet - updateTransferButtonState() will check for active fields
+        setTimeout(() => updateTransferButtonState(), 300);
 
         // Dashboard button enabled - ready with OAuth integration
         if (dashboardButton) {
@@ -2973,11 +3120,15 @@ function updateConnectionStatus(status, message, userInfo = null) {
             connectButtonMobile.style.display = 'inline-block';
         }
 
-        if (transferBtn) {
-            transferBtn.disabled = true;
-            transferBtn.classList.add('disabled');
-            transferBtn.title = 'Please connect to Salesforce first';
-        }
+        // Hide and disable transfer button
+        ['transferToSalesforceBtn', 'transferToSalesforceBtn-mobile'].forEach(id => {
+            const btn = document.getElementById(id);
+            if (btn) {
+                btn.disabled = true;
+                btn.style.display = 'none';
+                btn.title = 'Please connect to Salesforce first';
+            }
+        });
 
         // Hide dashboard button when not connected to Salesforce
         if (dashboardButton) {
@@ -4331,12 +4482,12 @@ function showConfirmDialog(title, message, options = {}) {
         };
 
         const modalHTML = `
-            <div id="modern-confirm-modal" class="fixed inset-0 z-[9999] flex items-center justify-center" style="background: rgba(0, 0, 0, 0.5); animation: fadeIn 0.2s ease-out;">
+            <div id="modern-confirm-modal" class="fixed inset-0 z-[100001] flex items-center justify-center" style="background: rgba(0, 0, 0, 0.5); animation: fadeIn 0.2s ease-out;">
                 <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 transform" style="animation: slideUp 0.3s ease-out;">
                     <div class="p-6 text-center">
                         ${typeIcons[type]}
                         <h3 class="text-xl font-bold text-gray-900 mb-2">${escapeHtml(title)}</h3>
-                        <p class="text-gray-600 mb-6 whitespace-pre-line">${escapeHtml(message)}</p>
+                        <p class="text-gray-600 mb-6 whitespace-pre-line break-words">${escapeHtml(message)}</p>
                         <div class="flex gap-3 justify-center">
                             <button id="modal-cancel-btn" class="px-6 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-medium transition-colors">
                                 ${escapeHtml(cancelText)}
@@ -4424,12 +4575,12 @@ function showAlertDialog(title, message, options = {}) {
         };
 
         const modalHTML = `
-            <div id="modern-alert-modal" class="fixed inset-0 z-[9999] flex items-center justify-center" style="background: rgba(0, 0, 0, 0.5); animation: fadeIn 0.2s ease-out;">
+            <div id="modern-alert-modal" class="fixed inset-0 z-[100001] flex items-center justify-center" style="background: rgba(0, 0, 0, 0.5); animation: fadeIn 0.2s ease-out;">
                 <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 transform" style="animation: slideUp 0.3s ease-out;">
                     <div class="p-6 text-center">
                         ${typeIcons[type]}
                         <h3 class="text-xl font-bold text-gray-900 mb-2">${escapeHtml(title)}</h3>
-                        <p class="text-gray-600 mb-6 whitespace-pre-line">${escapeHtml(message)}</p>
+                        <p class="text-gray-600 mb-6 whitespace-pre-line break-words">${escapeHtml(message)}</p>
                         <button id="modal-ok-btn" class="px-8 py-2.5 ${typeColors[type]} text-white rounded-lg font-medium transition-colors">
                             ${escapeHtml(buttonText)}
                         </button>
@@ -5290,7 +5441,11 @@ function showBulkActionErrorModal(message) {
 function updateFieldStats() {
     let activeCount = 0;
     let inactiveCount = 0;
-    const excludedFields = new Set(['__metadata', 'KontaktViewId']);
+    const excludedFields = new Set([
+        '__metadata', 'KontaktViewId',
+        'LastExportStatus', 'LastExportTimestamp', 'LastExportMilliseconds',
+        'LastExportMessage', 'ExportAttempts'
+    ]);
 
     // Count from data source instead of DOM for accuracy
     if (window.selectedLeadData && window.fieldMappingService) {
