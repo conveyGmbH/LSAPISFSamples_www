@@ -16,15 +16,68 @@
 
     <!-- Custom Styles -->
     <style>
-        /* Smooth transitions */
-        * {
-            transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+        :root {
+            --primary-color: #d9613f;
+            --accent-color: #d9613f;
         }
 
-        /* Sidebar */
-        .sidebar {
-            transition: all 0.3s ease;
+        *, *::before, *::after { box-sizing: border-box; }
+
+        /* ===== App Header ===== */
+        .app-header {
+            height: 72px; width: 100%; padding: 0 20px;
+            display: flex; align-items: center; justify-content: space-between;
+            color: #fff; background: linear-gradient(90deg, var(--primary-color), #c75432);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.14); z-index: 10; flex-shrink: 0;
         }
+        .header-left { display: flex; align-items: center; gap: 16px; min-width: 0; }
+        .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: #fff; cursor: pointer; }
+        .brand-mark {
+            width: 36px; height: 36px; border-radius: 12px;
+            display: grid; place-items: center;
+            background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.22);
+            font-weight: 800; letter-spacing: 0.5px; font-size: 14px;
+        }
+        .brand-name { font-weight: 800; font-size: 18px; }
+        .header-divider { width: 1px; height: 34px; background: rgba(255,255,255,0.22); }
+        .header-context { min-width: 0; }
+        .header-title { font-weight: 800; font-size: 18px; line-height: 1.1; }
+        .header-subtitle {
+            margin-top: 4px; display: flex; align-items: center; gap: 8px;
+            font-size: 13px; color: rgba(255,255,255,0.88);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .header-pill {
+            padding: 4px 10px; border-radius: 999px;
+            background: rgba(0,0,0,0.10); border: 1px solid rgba(255,255,255,0.18); font-weight: 700;
+        }
+        .header-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+        .header-btn {
+            height: 38px; padding: 0 14px; border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.22);
+            display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+            color: #fff; font-weight: 700; font-size: 14px;
+            cursor: pointer; transition: 0.15s ease; white-space: nowrap; background: none;
+            text-decoration: none;
+        }
+        .header-btn-ghost { background: rgba(255,255,255,0.14); }
+        .header-btn-ghost:hover { background: rgba(255,255,255,0.22); transform: translateY(-1px); }
+        .header-btn-danger { background: rgba(0,0,0,0.12); border-color: rgba(255,255,255,0.22); }
+        .header-btn-danger:hover { background: rgba(0,0,0,0.20); transform: translateY(-1px); }
+        .header-btn-sf { background: rgba(0,127,212,0.35); border-color: rgba(0,176,255,0.4); }
+        .header-btn-sf:hover { background: rgba(0,127,212,0.55); transform: translateY(-1px); }
+        .header-btn-sf.connected { background: rgba(16,185,129,0.3); border-color: rgba(52,211,153,0.4); }
+        .header-btn-green { background: rgba(16,185,129,0.35); border-color: rgba(52,211,153,0.4); }
+        .header-btn-green:hover { background: rgba(16,185,129,0.55); transform: translateY(-1px); }
+
+        /* SF connection status */
+        .sf-connection-group { display: flex; align-items: center; gap: 8px; }
+        .sf-status { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: rgba(255,255,255,0.8); }
+        .sf-status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+        .sf-status-disconnected .sf-status-dot { background: #f87171; }
+        .sf-status-connecting .sf-status-dot { background: #fbbf24; animation: pulse-dot 1s ease-in-out infinite; }
+        .sf-status-connected .sf-status-dot { background: #34d399; }
+        @keyframes pulse-dot { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
 
         /* Cards */
         .card {
@@ -48,155 +101,53 @@
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
             border-color: #3b82f6;
         }
-        .field-card.active-field {
-            border-left: 4px solid #10B981;
-        }
-        .field-card.inactive-field {
-            border-left: 4px solid #EF4444;
-            opacity: 0.7;
-            background-color: #f9fafb;
-        }
+        .field-card.active-field { border-left: 4px solid #10B981; }
+        .field-card.inactive-field { border-left: 4px solid #EF4444; opacity: 0.7; background-color: #f9fafb; }
 
-        /* Toggle switch - Reduced size */
-        .toggle-switch {
-            position: relative;
-            display: inline-block;
-            width: 36px;
-            height: 18px;
-        }
-        .toggle-switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
+        /* Toggle switch */
+        .toggle-switch { position: relative; display: inline-block; width: 36px; height: 18px; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
         .toggle-slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: #ccc;
-            transition: .3s;
-            border-radius: 18px;
+            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #ccc; transition: .3s; border-radius: 18px;
         }
         .toggle-slider:before {
-            position: absolute;
-            content: "";
-            height: 14px;
-            width: 14px;
-            left: 2px;
-            bottom: 2px;
-            background-color: white;
-            transition: .3s;
-            border-radius: 50%;
+            position: absolute; content: ""; height: 14px; width: 14px;
+            left: 2px; bottom: 2px; background-color: white; transition: .3s; border-radius: 50%;
         }
-        input:checked + .toggle-slider {
-            background-color: #10B981;
-        }
-        input:checked + .toggle-slider:before {
-            transform: translateX(18px);
-        }
+        input:checked + .toggle-slider { background-color: #10B981; }
+        input:checked + .toggle-slider:before { transform: translateX(18px); }
 
         /* Modal */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            z-index: 1000;
-            align-items: center;
-            justify-content: center;
-        }
-        .modal.show {
-            display: flex;
-        }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+        .modal.show { display: flex; }
         .modal-content {
-            position: relative;
-            background-color: white;
-            padding: 0;
-            width: 90%;
-            max-width: 500px;
-            border-radius: 12px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-            animation: modalSlideIn 0.3s ease-out;
+            position: relative; background-color: white; padding: 0;
+            width: 90%; max-width: 500px; border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2); animation: modalSlideIn 0.3s ease-out;
         }
-        @keyframes modalSlideIn {
-            from {
-                opacity: 0;
-                transform: translateY(-50px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
+        @keyframes modalSlideIn { from { opacity: 0; transform: translateY(-50px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* View toggle buttons */
-        .view-toggle-btn.active {
-            background-color: #3B82F6;
-            color: white;
-        }
+        .view-toggle-btn.active { background-color: #3B82F6; color: white; }
 
-        /* Scrollbar styling */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #f1f1f1;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #888;
-            border-radius: 4px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #555;
-        }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
 
-        /* Attachment items styling */
+        /* Attachment items */
         .attachment-item {
-            display: flex;
-            align-items: center;
-            padding: 12px;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            margin-bottom: 8px;
-            background: white;
-            transition: all 0.2s ease;
+            display: flex; align-items: center; padding: 12px;
+            border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 8px;
+            background: white; transition: all 0.2s ease;
         }
-        .attachment-item:hover {
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            border-color: #3b82f6;
-        }
-        .attachment-icon {
-            margin-right: 12px;
-            font-size: 24px;
-            color: #6b7280;
-        }
-        .attachment-details {
-            flex: 1;
-            min-width: 0;
-        }
-        .attachment-name {
-            font-weight: 500;
-            color: #1f2937;
-            margin-bottom: 4px;
-        }
-        .attachment-meta {
-            display: flex;
-            gap: 12px;
-            font-size: 12px;
-            color: #6b7280;
-        }
+        .attachment-item:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-color: #3b82f6; }
+        .attachment-icon { margin-right: 12px; font-size: 24px; color: #6b7280; }
+        .attachment-details { flex: 1; min-width: 0; }
+        .attachment-name { font-weight: 500; color: #1f2937; margin-bottom: 4px; }
+        .attachment-meta { display: flex; gap: 12px; font-size: 12px; color: #6b7280; }
         .view-attachment-btn {
-            padding: 6px 10px;
-            background: #3b82f6;
-            color: white;
-            border: none;
+            padding: 6px 10px; background: #3b82f6; color: white; border: none;
             border-radius: 6px;
             cursor: pointer;
             transition: all 0.2s ease;
@@ -250,101 +201,67 @@
 
     <link rel="icon" type="image/x-icon" href="/images/api-sf.ico">
 </head>
-<body class="text-gray-800" style="background-color: rgb(249, 250, 251); overflow: hidden; height: 100vh;">
-    <div class="flex h-screen flex-col">
-        <!-- Main Content (no sidebar) -->
-        <div class="flex-1 flex flex-col overflow-hidden">
-            <!-- Header with API Status + User Profile integrated -->
-            <header class="bg-white border-b border-gray-200 py-4 px-6">
-                <!-- Desktop Layout -->
-                <div class="hidden md:flex justify-between items-center">
-                    <!-- Left: Title -->
-                    <div>
-                        <h1 id="page-title" class="text-xl font-bold text-gray-800 cursor-pointer hover:text-blue-600 transition-colors" title="Return to contact list">Transfer Lead to Salesforce</h1>
-                    </div>
+<body style="background-color: rgb(249, 250, 251); overflow: hidden; height: 100vh; margin: 0; display: flex; flex-direction: column; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">
 
-                    <!-- Right: Combined API Status + User Profile + Buttons -->
-                    <div class="flex items-center space-x-4">
-                        <!-- Combined API Status & User Profile Card -->
-                        <div id="api-status-user-card" class="px-3 py-2 bg-gray-100 border border-gray-200 rounded-lg">
-                            <!-- API Status (always visible) -->
-                            <div class="flex items-center mb-1">
-                                <div id="api-status-indicator" class="w-2 h-2 bg-gray-400 rounded-full mr-2"></div>
-                                <span class="text-xs font-medium text-gray-600">API Status:</span>
-                                <span id="api-status-text" class="text-xs text-gray-500 ml-1">Disconnected</span>
-                            </div>
-                            <!-- User Profile (shown when connected) -->
-                            <div id="user-profile-section" class="flex items-center" style="display: none;">
-                                <div id="user-avatar-header" class="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold text-xs mr-2">?</div>
-                                <p id="user-name-header" class="text-xs font-medium text-gray-800">Not connected</p>
-                            </div>
-                        </div>
+    <!-- Hidden stubs for mobile IDs referenced by controller -->
+    <div style="display:none;">
+        <div id="api-status-user-card-mobile"></div>
+        <div id="api-status-indicator-mobile"></div>
+        <span id="api-status-text-mobile"></span>
+        <div id="user-profile-section-mobile"></div>
+        <div id="user-avatar-header-mobile"></div>
+        <p id="user-name-header-mobile"></p>
+        <button id="disconnect-sf-btn-mobile"></button>
+        <button id="connectButton-mobile"></button>
+        <button id="transferToSalesforceBtn-mobile"></button>
+        <h1 id="page-title-mobile"></h1>
+    </div>
 
-                        <!-- Disconnect Button (hidden initially) -->
-                        <button id="disconnect-sf-btn" class="px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 text-sm font-medium rounded-lg transition-colors flex items-center" style="display: none;">
-                            <i class="fas fa-sign-out-alt mr-2"></i>
-                            Disconnect
-                        </button>
-
-                        <!-- Connect Button -->
-                        <button id="connectButton" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium flex items-center text-sm">
-                            <i class="fas fa-plug mr-2"></i> Connect to Salesforce
-                        </button>
-
-                        <!-- Transfer to Salesforce Button (in header, hidden until connected) -->
-                        <button id="transferToSalesforceBtn" class="px-4 py-2 text-white rounded-lg font-medium flex items-center text-sm disabled:opacity-50 disabled:cursor-not-allowed" style="display: none; background: #10b981; box-shadow: 0 1px 2px rgba(0,0,0,0.1);" disabled>
-                            <i class="fas fa-paper-plane mr-2"></i> Transfer to Salesforce
-                        </button>
-                    </div>
+    <header class="app-header">
+        <div class="header-left">
+            <a class="brand" id="page-title" title="Return to contact list">
+                <span class="brand-mark">LS</span>
+                <span class="brand-name">LeadSuccess</span>
+            </a>
+            <div class="header-divider"></div>
+            <div class="header-context">
+                <div class="header-title">Salesforce API Manager</div>
+                <div class="header-subtitle">
+                    <span class="header-pill">Transfer Lead</span>
+                    <span style="opacity:0.7;">&bull;</span>
+                    <span id="user-name-header" style="opacity:0.88;"></span>
                 </div>
-
-                <!-- Mobile/Tablet Layout -->
-                <div class="md:hidden">
-                    <div class="flex justify-between items-center mb-3">
-                        <h1 id="page-title-mobile" class="text-lg font-bold text-gray-800 cursor-pointer hover:text-blue-600 transition-colors" title="Return to contact list">Transfer Lead to Salesforce</h1>
-                    </div>
-
-                    <!-- Combined Status + Buttons below on mobile -->
-                    <div class="flex flex-col gap-2">
-                        <!-- Combined API Status & User Profile Card -->
-                        <div id="api-status-user-card-mobile" class="px-2 py-2 bg-gray-100 border border-gray-200 rounded">
-                            <!-- API Status (always visible) -->
-                            <div class="flex items-center mb-1">
-                                <div id="api-status-indicator-mobile" class="w-2 h-2 bg-gray-400 rounded-full mr-1"></div>
-                                <span class="text-xs font-medium text-gray-600">API Status:</span>
-                                <span id="api-status-text-mobile" class="text-xs text-gray-500 ml-1">Disconnected</span>
-                            </div>
-                            <!-- User Profile (shown when connected) -->
-                            <div id="user-profile-section-mobile" class="flex items-center" style="display: none;">
-                                <div id="user-avatar-header-mobile" class="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold text-xs mr-1">?</div>
-                                <p id="user-name-header-mobile" class="text-xs font-medium text-gray-800">Not connected</p>
-                            </div>
-                        </div>
-
-                        <!-- Action Buttons Row -->
-                        <div class="flex flex-wrap gap-2 items-center">
-
-                        <!-- Disconnect Button -->
-                        <button id="disconnect-sf-btn-mobile" class="px-3 py-1 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-medium rounded transition-colors" style="display: none;">
-                            <i class="fas fa-sign-out-alt mr-1"></i> Disconnect
-                        </button>
-
-                        <!-- Connect Button -->
-                        <button id="connectButton-mobile" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded font-medium text-xs">
-                            <i class="fas fa-plug mr-1"></i> Connect
-                        </button>
-
-                        <!-- Transfer Button (mobile) -->
-                        <button id="transferToSalesforceBtn-mobile" class="text-white px-3 py-1 rounded font-medium text-xs disabled:opacity-50 disabled:cursor-not-allowed" style="display: none; background: #10b981;" disabled>
-                            <i class="fas fa-paper-plane mr-1"></i> Transfer
-                        </button>
-                        </div>
-                    </div>
+            </div>
+        </div>
+        <nav class="header-actions">
+            <!-- SF connection status -->
+            <div class="sf-connection-group">
+                <span id="api-status-user-card" class="sf-status sf-status-disconnected">
+                    <span id="api-status-indicator" class="sf-status-dot"></span>
+                    <span id="api-status-text">Not connected</span>
+                </span>
+                <!-- User profile (shown when connected) -->
+                <div id="user-profile-section" style="display:none; align-items:center; gap:6px; margin-left:4px;">
+                    <div id="user-avatar-header" style="width:24px; height:24px; background:rgba(255,255,255,0.25); border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:10px;">?</div>
                 </div>
-            </header>
+                <!-- Disconnect button -->
+                <button id="disconnect-sf-btn" class="header-btn header-btn-danger" style="display:none;">
+                    <i class="fas fa-sign-out-alt"></i> Disconnect
+                </button>
+                <!-- Connect button -->
+                <button id="connectButton" class="header-btn header-btn-sf">
+                    <i class="fas fa-plug"></i> Connect SF
+                </button>
+                <!-- Transfer button (shown when connected) -->
+                <button id="transferToSalesforceBtn" class="header-btn header-btn-green" style="display:none;" disabled>
+                    <i class="fas fa-paper-plane"></i> Transfer to Salesforce
+                </button>
+            </div>
+        </nav>
+    </header>
 
-            <!-- Content -->
-            <main class="flex-1 overflow-y-auto p-4">
+    <!-- Content -->
+    <div style="flex:1; overflow-y:auto; padding: 16px;">
                 <!-- Lead Information -->
                 <div id="lead-data-container" class="card rounded-xl p-4">
                     <div class="flex justify-between items-center mb-4">
@@ -464,8 +381,6 @@
                         </button>
                     </div>
                 </div>
-            </main>
-        </div>
     </div>
 
     <!-- Edit Field Modal -->
