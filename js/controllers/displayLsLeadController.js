@@ -1,4 +1,5 @@
 import ApiService from '../services/apiService.js';
+import { appConfig } from '../config/salesforceConfig.js';
 import {escapeODataValue, formatDateForOData, formatDate, setupPagination } from '../utils/helper.js';
 
 
@@ -174,6 +175,22 @@ async function hasContactsForEvent(eventId) {
   }
 }
 
+function showPageLoading(message = 'Loading data...') {
+  let overlay = document.querySelector('.page-loading-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.className = 'page-loading-overlay';
+    overlay.innerHTML = `<div class="spinner"></div><p>${message}</p>`;
+    const main = document.querySelector('main.table');
+    if (main) main.appendChild(overlay);
+  }
+}
+
+function hidePageLoading() {
+  const overlay = document.querySelector('.page-loading-overlay');
+  if (overlay) overlay.remove();
+}
+
 // Check if field mapping exists, if not show configuration dialog
 async function checkFieldMappingAndLoad() {
   const eventId = sessionStorage.getItem('selectedEventId');
@@ -183,6 +200,8 @@ async function checkFieldMappingAndLoad() {
     return;
   }
 
+  showPageLoading('Loading field configuration...');
+
   try {
     // Check if we're in virtual mode (coming from fieldConfigurator with fake data)
     const urlParams = new URLSearchParams(window.location.search);
@@ -191,6 +210,7 @@ async function checkFieldMappingAndLoad() {
     if (mode === 'virtual') {
       // 🧪 VIRTUAL MODE: Load fake data from sessionStorage
       console.log('🧪 Virtual mode detected - loading fake data from sessionStorage');
+      hidePageLoading();
       loadVirtualData();
       return;
     }
@@ -203,6 +223,7 @@ async function checkFieldMappingAndLoad() {
       // ❌ NO CONTACTS → Redirect to fieldConfigurator in virtual mode
       console.log('⚠️ No contacts found for this event');
       console.log('🧪 Redirecting to Field Configurator in virtual mode (no real contacts to display)');
+      hidePageLoading();
 
       // Redirect to fieldConfigurator.html in virtual mode
       window.location.href = `fieldConfigurator.html?mode=virtual&eventId=${eventId}&entityType=LS_Lead`;
@@ -221,7 +242,8 @@ async function checkFieldMappingAndLoad() {
       console.log('📊 Loading real contact data with default configuration...');
 
       // Proceed with normal data loading (will use default fields from fieldMappingService)
-      fetchLsLeadData();
+      await fetchLsLeadData();
+      hidePageLoading();
       return;
     }
 
@@ -236,11 +258,17 @@ async function checkFieldMappingAndLoad() {
     console.log(`📋 Active fields found: ${activeFields.length}`);
 
     // Proceed with normal data loading
-    fetchLsLeadData();
-    
+    await fetchLsLeadData();
+    hidePageLoading();
+
   } catch (error) {
     console.error('❌ Error in checkFieldMappingAndLoad:', error);
-    alert('Error loading field configuration. Please try again.');
+    hidePageLoading();
+    if (window.batchTransferModals && window.batchTransferModals.showAlertModal) {
+      await window.batchTransferModals.showAlertModal('Error loading field configuration. Please try again.', { title: 'Error', okColor: '#dc2626' });
+    } else {
+      alert('Error loading field configuration. Please try again.');
+    }
   }
 }
 
@@ -956,6 +984,172 @@ async function refreshTransferStatuses() {
   }
 }
 
+// Add Batch Transfer button next to the Transfer button
+function addBatchTransferButton() {
+  if (document.getElementById('batchTransferButton')) return;
+
+  const batchButton = document.createElement("button");
+  batchButton.id = "batchTransferButton";
+  batchButton.className = "action-button batch-transfer-button";
+  batchButton.disabled = true;
+  batchButton.innerHTML = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M17 1l4 4-4 4"/>
+      <path d="M3 11V9a4 4 0 0 1 4-4h14"/>
+      <path d="M7 23l-4-4 4-4"/>
+      <path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+    </svg>
+    <span>Batch Transfer (0)</span>
+  `;
+
+  batchButton.addEventListener("click", handleBatchTransferClick);
+
+  const transferButton = document.getElementById("transferButton");
+  if (transferButton && transferButton.parentNode) {
+    transferButton.parentNode.insertBefore(batchButton, transferButton.nextSibling);
+  } else {
+    const actionsContainer = document.querySelector('.actions');
+    if (actionsContainer) actionsContainer.appendChild(batchButton);
+  }
+}
+
+function updateBatchSelectionCount() {
+  const checkboxes = document.querySelectorAll("tbody .batch-checkbox:checked");
+  const count = checkboxes.length;
+  const batchButton = document.getElementById("batchTransferButton");
+
+  if (batchButton) {
+    batchButton.querySelector("span").textContent = `Batch Transfer (${count})`;
+    batchButton.disabled = count < 2;
+  }
+
+  const selectAll = document.getElementById("selectAllCheckbox");
+  if (selectAll) {
+    const total = document.querySelectorAll("tbody .batch-checkbox").length;
+    selectAll.checked = total > 0 && count === total;
+    selectAll.indeterminate = count > 0 && count < total;
+  }
+}
+
+async function handleBatchTransferClick() {
+  const modals = window.batchTransferModals;
+
+  const checkedRows = [];
+  const rows = document.querySelectorAll("tbody tr");
+  rows.forEach(row => {
+    const checkbox = row.querySelector(".batch-checkbox");
+    if (checkbox && checkbox.checked && row._itemData) {
+      checkedRows.push(row._itemData);
+    }
+  });
+
+  if (checkedRows.length < 2) {
+    await modals.showAlertModal("Please select at least 2 leads for batch transfer.", { title: 'Selection Required' });
+    return;
+  }
+
+  const connectionStatus = localStorage.getItem('sf_connection_status');
+  if (connectionStatus !== 'connected') {
+    await modals.showAlertModal("Please connect to Salesforce first using the Transfer button.", { title: 'Not Connected', color: '#f59e0b' });
+    return;
+  }
+
+  const confirmed = await modals.showConfirmModal(
+    `Transfer ${checkedRows.length} leads to Salesforce?\n\nThis will process them sequentially.`,
+    { title: 'Batch Transfer', okText: 'Transfer', okColor: '#2563eb' }
+  );
+  if (!confirmed) return;
+
+  if (!window.batchTransferService) {
+    await modals.showAlertModal("Batch transfer service not loaded. Please refresh the page.", { title: 'Error', color: '#ef4444' });
+    return;
+  }
+
+  const progressModal = modals.showBatchProgressModal(checkedRows.length);
+  const batchButton = document.getElementById("batchTransferButton");
+  if (batchButton) batchButton.disabled = true;
+
+  try {
+    const summary = await window.batchTransferService.executeBatchTransfer(checkedRows, {
+      fieldMappingService: window.fieldMappingService,
+      apiBaseUrl: appConfig.apiBaseUrl,
+      onProgress: (current, total, leadName) => {
+        progressModal.updateProgress(current, total, leadName);
+      },
+      onLeadComplete: (result) => {
+        progressModal.updateLeadStatus(result);
+      }
+    });
+
+    progressModal.close();
+    modals.showBatchSummaryModal(summary);
+    refreshRowTintingAfterBatch(summary.results);
+
+    document.querySelectorAll("tbody .batch-checkbox").forEach(cb => { cb.checked = false; });
+    const selectAll = document.getElementById("selectAllCheckbox");
+    if (selectAll) { selectAll.checked = false; selectAll.indeterminate = false; }
+    updateBatchSelectionCount();
+
+  } catch (error) {
+    progressModal.close();
+    await modals.showAlertModal("Batch transfer error: " + error.message, { title: 'Transfer Error', color: '#ef4444' });
+    console.error("Batch transfer error:", error);
+  }
+}
+
+function refreshRowTintingAfterBatch(results) {
+  const rows = document.querySelectorAll("tbody tr");
+
+  results.forEach(result => {
+    if (!result.itemData) return;
+    const itemId = result.itemData.Id || result.itemData.KontaktViewId;
+    if (!itemId) return;
+
+    rows.forEach(row => {
+      if (!row._itemData) return;
+      const rowId = row._itemData.Id || row._itemData.KontaktViewId;
+      if (rowId !== itemId) return;
+
+      row.classList.remove('export-row-success', 'export-row-failed', 'export-row-duplicate');
+      if (result.status === 'success') row.classList.add('export-row-success');
+      else if (result.status === 'failed') row.classList.add('export-row-failed');
+      else if (result.status === 'duplicate') row.classList.add('export-row-duplicate');
+
+      if (result.status !== 'skipped') {
+        row._itemData.LastExportStatus = result.status === 'success' ? 'Success' :
+          result.status === 'duplicate' ? 'Duplicate' : 'Failed';
+      }
+
+      const firstDataCell = row.cells[1];
+      if (firstDataCell && result.status !== 'skipped') {
+        const existingBadge = firstDataCell.querySelector('.export-badge');
+        if (existingBadge) {
+          const dot = existingBadge.querySelector('.export-badge-dot');
+          if (dot) {
+            dot.className = 'export-badge-dot';
+            if (result.status === 'success') dot.classList.add('dot-success');
+            else if (result.status === 'failed') dot.classList.add('dot-failed');
+            else if (result.status === 'duplicate') dot.classList.add('dot-duplicate');
+          }
+        } else {
+          const text = firstDataCell.textContent;
+          firstDataCell.textContent = '';
+          const badge = document.createElement("span");
+          badge.className = "export-badge";
+          const dot = document.createElement("span");
+          dot.className = "export-badge-dot";
+          if (result.status === 'success') dot.classList.add('dot-success');
+          else if (result.status === 'failed') dot.classList.add('dot-failed');
+          else if (result.status === 'duplicate') dot.classList.add('dot-duplicate');
+          badge.appendChild(dot);
+          badge.appendChild(document.createTextNode(text));
+          firstDataCell.appendChild(badge);
+        }
+      }
+    });
+  });
+}
+
 /**
  * Display userName from sessionStorage in the page header
  */
@@ -968,12 +1162,172 @@ function displayUserName() {
   }
 }
 
+// ========================================
+// Salesforce Connection Management
+// ========================================
+
+function updateSfConnectionUI(status, userName) {
+  const statusEl = document.getElementById('sfConnectionStatus');
+  const connectBtn = document.getElementById('sfConnectBtn');
+  if (!statusEl || !connectBtn) return;
+
+  const text = statusEl.querySelector('.sf-status-text');
+
+  // Reset classes
+  statusEl.className = 'sf-status';
+
+  if (status === 'connected') {
+    statusEl.classList.add('sf-status-connected');
+    text.textContent = userName || 'Connected';
+    connectBtn.textContent = 'Disconnect';
+    connectBtn.classList.add('connected');
+    connectBtn.disabled = false;
+    connectBtn.title = 'Disconnect from Salesforce';
+  } else if (status === 'connecting') {
+    statusEl.classList.add('sf-status-connecting');
+    text.textContent = 'Verifying...';
+    connectBtn.disabled = true;
+  } else {
+    statusEl.classList.add('sf-status-disconnected');
+    text.textContent = 'Not connected';
+    connectBtn.innerHTML = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+        <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+      </svg>
+      Connect SF`;
+    connectBtn.classList.remove('connected');
+    connectBtn.disabled = false;
+    connectBtn.title = 'Connect to Salesforce';
+  }
+}
+
+async function checkSfConnection() {
+  try {
+    // Show connecting state from persisted data if available
+    const connectionStr = localStorage.getItem('sf_user_info');
+    if (connectionStr) {
+      const connection = JSON.parse(connectionStr);
+      if (connection.status === 'connected' && connection.expiresAt > Date.now()) {
+        const name = connection.userInfo?.display_name || connection.userInfo?.username || 'Connected';
+        updateSfConnectionUI('connecting', name);
+      }
+    }
+
+    // Always verify with backend (handles both persisted and fresh OAuth)
+    const orgId = localStorage.getItem('orgId') || 'default';
+    const response = await fetch(`${appConfig.apiBaseUrl}/salesforce/check`, {
+      method: 'GET', credentials: 'include',
+      headers: { 'Content-Type': 'application/json', 'X-Org-Id': orgId }
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      const userInfo = data.userInfo || data;
+      const displayName = userInfo.display_name || userInfo.username;
+
+      if (displayName) {
+        if (data.tokens) {
+          localStorage.setItem('sf_access_token', data.tokens.access_token);
+          localStorage.setItem('sf_instance_url', data.tokens.instance_url);
+        }
+
+        // Persist connection (same format as ConnectionPersistenceManager)
+        localStorage.setItem('sf_connection_status', 'connected');
+        localStorage.setItem('sf_connected_at', Date.now().toString());
+        localStorage.setItem('sf_user_info', JSON.stringify({
+          status: 'connected',
+          userInfo: userInfo,
+          orgId: orgId,
+          connectedAt: Date.now(),
+          expiresAt: Date.now() + 24 * 60 * 60 * 1000
+        }));
+
+        updateSfConnectionUI('connected', displayName);
+        return;
+      }
+    }
+
+    updateSfConnectionUI('not-connected');
+  } catch (error) {
+    console.warn('SF connection check failed:', error);
+    updateSfConnectionUI('not-connected');
+  }
+}
+
+function handleSfConnectClick() {
+  const connectBtn = document.getElementById('sfConnectBtn');
+  if (!connectBtn) return;
+
+  if (connectBtn.classList.contains('connected')) {
+    localStorage.removeItem('sf_connection_status');
+    localStorage.removeItem('sf_user_info');
+    localStorage.removeItem('sf_connected_at');
+    localStorage.removeItem('sf_access_token');
+    localStorage.removeItem('sf_instance_url');
+    localStorage.removeItem('orgId');
+    updateSfConnectionUI('not-connected');
+    return;
+  }
+
+  const orgId = localStorage.getItem('orgId') || 'default';
+  const authUrl = `${appConfig.apiBaseUrl.replace('/api', '/auth/salesforce')}?orgId=${encodeURIComponent(orgId)}`;
+  const popup = window.open(authUrl, 'salesforce-auth', 'width=500,height=650,scrollbars=no,resizable=no');
+
+  if (!popup) {
+    if (window.batchTransferModals?.showAlertModal) {
+      window.batchTransferModals.showAlertModal('Popup blocked. Please allow popups for this site.', { title: 'Popup Blocked' });
+    }
+    return;
+  }
+
+  updateSfConnectionUI('connecting');
+
+  let authHandled = false;
+
+  const messageListener = (event) => {
+    if (event.data?.type === 'SALESFORCE_AUTH_SUCCESS' && !authHandled) {
+      authHandled = true;
+      console.log('SF OAuth success:', event.data);
+      if (event.data.orgId) localStorage.setItem('orgId', event.data.orgId);
+      popup.close();
+      clearInterval(checkClosed);
+      window.removeEventListener('message', messageListener);
+      checkSfConnection();
+    }
+  };
+
+  window.addEventListener('message', messageListener);
+
+  const checkClosed = setInterval(() => {
+    if (popup.closed) {
+      clearInterval(checkClosed);
+      window.removeEventListener('message', messageListener);
+      if (!authHandled) {
+        authHandled = true;
+        checkSfConnection();
+      }
+    }
+  }, 1000);
+}
+
+function initSfConnection() {
+  const connectBtn = document.getElementById('sfConnectBtn');
+  if (connectBtn) {
+    connectBtn.addEventListener('click', handleSfConnectClick);
+  }
+  checkSfConnection();
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   // Display userName in header
   displayUserName();
 
-  addTransferButton();
+  // Initialize SF connection UI
+  initSfConnection();
 
+  addTransferButton();
+  addBatchTransferButton();
 
   // Check field mapping and load data
   checkFieldMappingAndLoad();
@@ -1178,6 +1532,23 @@ function displayData(data, showAllFields = false) {
 
   const headerRow = document.createElement('tr');
 
+  // Checkbox column header (Select All)
+  const thCheckbox = document.createElement("th");
+  thCheckbox.className = "col-checkbox";
+  thCheckbox.style.position = "sticky";
+  thCheckbox.style.top = "0";
+  const selectAllCheckbox = document.createElement("input");
+  selectAllCheckbox.type = "checkbox";
+  selectAllCheckbox.id = "selectAllCheckbox";
+  selectAllCheckbox.title = "Select All";
+  selectAllCheckbox.addEventListener("change", (e) => {
+    const checkboxes = document.querySelectorAll("tbody .batch-checkbox");
+    checkboxes.forEach(cb => { cb.checked = e.target.checked; });
+    updateBatchSelectionCount();
+  });
+  thCheckbox.appendChild(selectAllCheckbox);
+  headerRow.appendChild(thCheckbox);
+
   headersWithCustom.forEach((header, index) => {
     const th = document.createElement('th');
 
@@ -1195,11 +1566,11 @@ function displayData(data, showAllFields = false) {
     } else {
       span.innerHTML = '&UpArrow;';
     }
-    
+
     th.appendChild(span);
     th.style.position = 'sticky';
     th.style.top = '0';
-    th.addEventListener('click', () => sortTable(index, th));
+    th.addEventListener('click', () => sortTable(index + 1, th));
     headerRow.appendChild(th);
   });
 
@@ -1213,6 +1584,19 @@ function displayData(data, showAllFields = false) {
     if (exportStatus === 'Success') row.classList.add('export-row-success');
     else if (exportStatus === 'Failed') row.classList.add('export-row-failed');
     else if (exportStatus === 'Duplicate') row.classList.add('export-row-duplicate');
+
+    // Checkbox cell
+    const tdCheckbox = document.createElement("td");
+    tdCheckbox.className = "col-checkbox";
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.className = "batch-checkbox";
+    checkbox.addEventListener("click", (e) => {
+      e.stopPropagation();
+      updateBatchSelectionCount();
+    });
+    tdCheckbox.appendChild(checkbox);
+    row.appendChild(tdCheckbox);
 
     let isFirstCell = true;
 
@@ -1701,7 +2085,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
     addTransferButton();
-
+    addBatchTransferButton();
 
   pagination.initPagination();
 

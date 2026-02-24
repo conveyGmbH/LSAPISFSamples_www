@@ -2023,9 +2023,6 @@ app.get('/api/health', (req, res) => {
 });
 
 
-
-
-
 app.get('/displayLeadTransfer', (req, res) => {
     res.sendFile(path.join(__dirname, '../pages/displayLeadTransfer.html'));
 });

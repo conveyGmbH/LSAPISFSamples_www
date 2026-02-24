@@ -89,6 +89,13 @@ class FieldMappingService {
 
        
     // Initialize fields and load from API     
+    // Default fields to activate when no config exists at all in the database
+    static DEFAULT_ACTIVE_FIELDS = [
+        'Salutation', 'FirstName', 'LastName', 'Company', 'Title',
+        'Phone', 'MobilePhone', 'Fax', 'Email', 'Website',
+        'Street', 'PostalCode', 'City', 'Country', 'State', 'Description'
+    ];
+
     async initializeFields(leadData, eventId) {
     try {
         this.currentEventId = eventId;
@@ -97,15 +104,20 @@ class FieldMappingService {
         if (eventId) {
             console.log(`Loading field mappings from API for event: ${eventId}`);
             await this.loadFieldMappingsFromAPI(eventId);
-            
+
         }
+
+        // Check if we have ANY configured fields after loading from API
+        const hasConfig = this.fieldConfig?.config?.fields?.length > 0;
 
         // Initialize any new fields from lead data (only if not already configured)
         if (leadData) {
             Object.keys(leadData).forEach(fieldName => {
                 const existingConfig = this.getFieldConfig(fieldName);
                 if (!existingConfig) {
-                    this.setFieldConfigLocal(fieldName, { active: true });
+                    // If no config exists at all, use defaults; otherwise inactive
+                    const useDefault = !hasConfig && FieldMappingService.DEFAULT_ACTIVE_FIELDS.includes(fieldName);
+                    this.setFieldConfigLocal(fieldName, { active: useDefault });
                 } else {
                 }
             });
@@ -120,7 +132,8 @@ class FieldMappingService {
             Object.keys(leadData).forEach(fieldName => {
                 const existingConfig = this.getFieldConfig(fieldName);
                 if (!existingConfig) {
-                    this.setFieldConfigLocal(fieldName, { active: true });
+                    const useDefault = FieldMappingService.DEFAULT_ACTIVE_FIELDS.includes(fieldName);
+                    this.setFieldConfigLocal(fieldName, { active: useDefault });
                 }
             });
         }
@@ -139,7 +152,7 @@ setFieldConfigLocal(fieldName, config) {
     
     const fieldConfig = {
         fieldName: fieldName,
-        active: config.active !== undefined ? config.active : true,
+        active: config.active !== undefined ? config.active : false,
         customLabel: this.customLabels[fieldName] || this.formatFieldLabel(fieldName),
         updatedAt: new Date().toISOString()
     };
@@ -563,7 +576,7 @@ async updateRecord(recordId, configData) {
 
         const fieldConfig = {
             fieldName: fieldName,
-            active: config.active !== undefined ? config.active : true,
+            active: config.active !== undefined ? config.active : false,
             customLabel: this.customLabels[fieldName] || this.formatFieldLabel(fieldName),
             updatedAt: new Date().toISOString()
         };
@@ -694,7 +707,7 @@ async bulkSaveToDatabase() {
         
         return fields.map(field => {
             const fieldConfig = this.getFieldConfig(field.apiName);
-            const isActive = fieldConfig ? fieldConfig.active : true;
+            const isActive = fieldConfig ? fieldConfig.active : false;
             
             if (filterType === 'active' && isActive) return field;
             if (filterType === 'inactive' && !isActive) return field;
@@ -713,7 +726,7 @@ async bulkSaveToDatabase() {
             result[key] = {
                 value: value,
                 label: finalLabel,
-                active: fieldConfig ? fieldConfig.active !== false : true
+                active: fieldConfig ? fieldConfig.active !== false : false
             };  
         }
 
@@ -728,7 +741,7 @@ async bulkSaveToDatabase() {
     // Check if a field is active
     isFieldActive(fieldName) {
         const config = this.getFieldConfig(fieldName);
-        return config ? config.active !== false : true;
+        return config ? config.active !== false : false;
     }
     // Set custom Salesforce field name for a field
     setCustomFieldName(originalFieldName, salesforceFieldName) {

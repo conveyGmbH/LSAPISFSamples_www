@@ -447,6 +447,7 @@ salesforce-backend/data/
 salesforce-backend/data.json
 salesforce-backend/data.md
 salesforce-backend/package-simple.json
+salesforce-backend/.sf_connections.json
 
 # Documentation & Development Notes
 *.dev.md

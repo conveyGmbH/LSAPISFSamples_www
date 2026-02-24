@@ -190,9 +190,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   const instantConnection = checkInstantConnection();
   if (instantConnection.isConnected) {
 
-    // Immediately show connected state
-    updateConnectionStatus("connected",
-      `Connected as ${instantConnection.userInfo.display_name || instantConnection.userInfo.username}`,
+    // Show user info immediately but keep buttons disabled until backend confirms
+    updateConnectionStatus("connecting",
+      `Verifying connection for ${instantConnection.userInfo.display_name || instantConnection.userInfo.username}...`,
       instantConnection.userInfo);
 
     displayUserInfo({
@@ -786,6 +786,38 @@ async function handleTransferButtonClick() {
   }
 
   try {
+    // Quick backend connection check before attempting transfer
+    const orgId = localStorage.getItem('orgId') || 'default';
+    try {
+      const checkResponse = await fetch(`${appConfig.apiBaseUrl}/salesforce/check`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', 'X-Org-Id': orgId }
+      });
+      if (!checkResponse.ok) {
+        console.error('Backend connection check failed before transfer:', checkResponse.status);
+        ConnectionPersistenceManager.clearConnection();
+        updateConnectionStatus("not-connected", "Not connected to Salesforce");
+        if (typeof window.showErrorModal === 'function') {
+          window.showErrorModal(
+            'Not Connected to Salesforce',
+            'Your Salesforce session has expired or the server was restarted.\n\nPlease reconnect to Salesforce and try again.'
+          );
+        }
+        return;
+      }
+    } catch (checkError) {
+      console.error('Backend unreachable before transfer:', checkError);
+      updateConnectionStatus("not-connected", "Backend server offline");
+      if (typeof window.showErrorModal === 'function') {
+        window.showErrorModal(
+          'Backend Server Offline',
+          'Cannot reach the backend server.\n\nPlease check if the server is running and try again.'
+        );
+      }
+      return;
+    }
+
     // Load edited values from LeadEditsManager
     const eventId = sessionStorage.getItem('selectedEventId');
     if (eventId && window.leadEditsManager) {
@@ -3092,6 +3124,39 @@ function updateConnectionStatus(status, message, userInfo = null) {
             dashboardButton.style.display = 'inline-flex';
             dashboardButton.disabled = false;
             dashboardButton.title = 'Open Lead Dashboard';
+        }
+
+        if (authNotice) authNotice.style.display = 'none';
+
+    } else if (status === 'connecting') {
+        // Verification in progress: show user profile but keep buttons disabled
+        if (userInfo) {
+            updateUserProfile(userInfo);
+        }
+
+        // Hide Connect button during verification
+        if (connectButton) {
+            connectButton.style.display = 'none';
+        }
+        const connectButtonMobile = document.getElementById('connectButton-mobile');
+        if (connectButtonMobile) {
+            connectButtonMobile.style.display = 'none';
+        }
+
+        // Keep transfer buttons disabled during verification
+        ['transferToSalesforceBtn', 'transferToSalesforceBtn-mobile'].forEach(id => {
+            const btn = document.getElementById(id);
+            if (btn) {
+                btn.disabled = true;
+                btn.style.display = 'flex';
+                btn.classList.add('disabled');
+                btn.title = 'Verifying connection with Salesforce...';
+            }
+        });
+
+        if (dashboardButton) {
+            dashboardButton.style.display = 'none';
+            dashboardButton.disabled = true;
         }
 
         if (authNotice) authNotice.style.display = 'none';
