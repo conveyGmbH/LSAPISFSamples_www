@@ -223,10 +223,10 @@ setFieldConfigLocal(fieldName, config) {
                         console.log(`Synced sfLabel → customLabels:`, this.customLabels);
                     }
 
-                    // Load custom fields if available
+                    // Load custom fields from DB (single source of truth)
                     if (parsedConfig.customFields && Array.isArray(parsedConfig.customFields)) {
                         this.customFields = parsedConfig.customFields;
-                        console.log(`Loaded ${this.customFields.length} custom fields from API`);
+                        console.log(`Loaded ${this.customFields.length} custom fields from DB`);
                     }
 
                 } catch (parseError) {
@@ -812,7 +812,7 @@ async bulkSaveToDatabase() {
 
         // Excluding system field from SF transfer
         const systemFieldsToExclude = [
-            '__metadata', 'KontaktViewId', 'Id', 'CreatedDate', 'LastModifiedDate',
+            '__metadata', 'Id', 'CreatedDate', 'LastModifiedDate',
             'CreatedById', 'LastModifiedById', 'DeviceId', 'DeviceRecordId',
             'RequestBarcode', 'EventId', 'SystemModstamp','AttachmentIdList',
             'IsReviewed', 'StatusMessage',

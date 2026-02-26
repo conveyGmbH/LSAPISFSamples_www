@@ -3,7 +3,7 @@ import { formatDate } from '../utils/helper.js';
 const REQUIRED_FIELDS = ['LastName', 'Company'];
 
 // Fields to exclude from display
-const EXCLUDED_FIELDS = ['KontaktViewId', '__metadata', 'LastExportStatus', 'LastExportTimestamp', 'LastExportMilliseconds', 'LastExportMessage', 'ExportAttempts'];
+const EXCLUDED_FIELDS = ['__metadata', 'LastExportStatus', 'LastExportTimestamp', 'LastExportMilliseconds', 'LastExportMessage', 'ExportAttempts'];
 
 // Default active fields
 const DEFAULT_ACTIVE_FIELDS = [ 'FirstName', 'LastName', 'Email', 'Company', 'Phone', 'MobilePhone', 'Street', 'City', 'PostalCode', 'State', 'Country', 'Title', 'Industry', 'Description'
@@ -134,7 +134,7 @@ function configureUIForMode(mode, eventId) {
             eventInfo.textContent = `Configure which fields will be transferred to Salesforce for Event ${eventId}. Required fields (LastName, Company) are always included.`;
         }
         if (virtualModeInfo) virtualModeInfo.style.display = 'none';
-        if (normalModeButtons) normalModeButtons.style.display = 'flex';
+        if (normalModeButtons) normalModeButtons.style.display = 'none';
         if (virtualModeButtons) virtualModeButtons.style.display = 'none';
     }
 }
@@ -158,13 +158,18 @@ async function initVirtualMode(eventId, entityType) {
 // Initialize normal mode
 async function initNormalMode(eventId) {
 
-    // Load fields from API
+    // Load field config from DB FIRST so getFieldConfig() returns correct values below
+    if (eventId) {
+        await fieldMappingService.loadFieldMappingsFromAPI(eventId);
+    }
+
+    // Load fields from API (uses the config loaded above)
     await loadFieldsFromAPI(eventId);
 
     // Load a sample contact to display real values
     await loadSampleContact(eventId);
 
-    // Load custom fields from FieldMappingService
+    // Load custom fields from FieldMappingService (already populated from DB above)
     await loadCustomFields();
 
 }
@@ -434,6 +439,9 @@ async function loadFieldsFromAPI(eventId) {
         console.log('📊 Available fields from API (after exclusions):', availableFields);
 
 
+        // Determine if we have an existing DB config (loaded before this function)
+        const hasDbConfig = (fieldMappingService.fieldConfig?.config?.fields?.length || 0) > 0;
+
         // Create field objects (all fields from API, no categorization)
         for (const fieldName of availableFields) {
             const fieldConfig = fieldMappingService.getFieldConfig(fieldName);
@@ -443,9 +451,13 @@ async function loadFieldsFromAPI(eventId) {
             let isActive = isRequired; // Required fields always active
             if (!isRequired) {
                 if (fieldConfig && fieldConfig.hasOwnProperty('active')) {
+                    // Use the saved value from DB
                     isActive = fieldConfig.active;
+                } else if (hasDbConfig) {
+                    // DB config exists but this field isn't in it → user never activated it
+                    isActive = false;
                 } else {
-                    // Use default active fields on first load
+                    // No DB config at all → first time, use defaults
                     isActive = DEFAULT_ACTIVE_FIELDS.includes(fieldName);
                 }
             }
@@ -483,8 +495,8 @@ async function loadCustomFields() {
             return;
         }
 
-        // Force reload from localStorage to ensure sync
-        const loadedCustomFields = fieldMappingService.getAllCustomFields(true);
+        // Don't force-reload from localStorage — loadFieldMappingsFromAPI already merged DB + localStorage
+        const loadedCustomFields = fieldMappingService.getAllCustomFields(false);
         console.log('📋 Raw custom fields from service (reloaded):', loadedCustomFields);
 
         customFields = loadedCustomFields.map(field => {
@@ -629,22 +641,19 @@ function createFieldItem(field) {
                class="field-checkbox"
                ${field.active ? 'checked' : ''}
                ${field.required ? 'disabled' : ''} />
-        <div class="field-info" style="flex: 1;">
-            <div class="field-label-with-flags" style="display: flex; align-items: center; gap: 6px;">
-                <span class="ls-flag" style="color: ${field.isCustomField ? '#2563eb' : '#718096'}; font-size: 0.75rem;">
-                    ${field.isCustomField ? 'Custom:' : 'LS:'}
-                </span>
-                <span style="color: ${field.isCustomField ? '#2563eb' : '#718096'};">${fieldLabel}</span>
+        <div class="field-info" style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px;">
+            <div style="display: flex; align-items: center; gap: 5px;">
+                ${field.isCustomField ? '' : `<span style="color: #718096; font-size: 0.75rem; flex-shrink: 0;">LS:</span>`}
+                <span style="color: ${field.isCustomField ? '#1d4ed8' : '#718096'}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: ${field.isCustomField ? '600' : 'normal'};">${fieldLabel}</span>
+                ${field.isCustomField ? `<span style="display:inline-block; background:#2563eb; color:white; font-size:9px; padding:1px 5px; border-radius:3px; font-weight:600; flex-shrink:0;">CUSTOM</span>` : ''}
                 ${hasCustomMapping ? `
-                    <span class="arrow" style="color: #999;">→</span>
-                    <span class="sf-flag" style="color: #009EDB; font-weight: 600; font-size: 0.75rem;">SF:</span>
+                    <span style="color: #999; flex-shrink: 0;">→</span>
+                    <span style="color: #009EDB; font-weight: 600; font-size: 0.75rem; flex-shrink: 0;">SF:</span>
                     <span style="color: #009EDB; font-weight: 600;">${sfLabel}</span>
                 ` : ''}
-                ${field.required ? '<span class="required-badge">REQUIRED</span>' : ''}
+                ${field.required ? '<span class="required-badge" style="flex-shrink:0;">REQUIRED</span>' : ''}
                 ${(!field.isCustomField && STANDARD_SF_FIELDS.includes(field.name)) ? '' : `
-                <button class="edit-label-btn" title="Edit label mapping" style="margin-left: auto; background: none; border: none; color: #718096; cursor: pointer; padding: 4px; font-size: 14px;">
-                    ✏️
-                </button>
+                <button class="edit-label-btn" title="Edit label mapping" style="margin-left: auto; background: none; border: none; color: #718096; cursor: pointer; padding: 2px; font-size: 13px; flex-shrink: 0;">✏️</button>
                 `}
             </div>
             ${field.isCustomField ? `
@@ -655,16 +664,14 @@ function createFieldItem(field) {
                     data-custom-field-id="${field.id || ''}"
                     data-sf-field="${field.name}"
                     value="${fieldValue}"
-                    placeholder="${fieldLabel}"
-                    style="width: 100%; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 14px; margin-top: 6px;"
+                    placeholder="default value..."
+                    style="width: 100%; padding: 2px 6px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 12px; color: #374151; box-sizing: border-box;"
                     onclick="event.stopPropagation()"
                 />
             ` : ''}
         </div>
         ${field.isCustomField ? `
-            <button class="delete-custom-field" title="Delete custom field" style="font-size: 14px;">
-                🗑️
-            </button>
+            <button class="delete-custom-field" title="Delete custom field" style="font-size: 12px; flex-shrink: 0; align-self: flex-start; background: none; border: none; cursor: pointer; padding: 2px; color: #9ca3af;">🗑️</button>
         ` : ''}
     `;
 
@@ -1324,7 +1331,7 @@ function detectModifications() {
 
 // Update Save & Continue button state based on modifications
 function updateSaveButtonState() {
-    const saveButton = document.querySelector('#normal-mode-buttons button[onclick="saveAndContinue()"]');
+    const saveButton = document.getElementById('transferToSalesforceBtn');
     if (!saveButton) return;
 
     hasModifications = detectModifications();

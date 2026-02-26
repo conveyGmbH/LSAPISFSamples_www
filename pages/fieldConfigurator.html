@@ -12,7 +12,43 @@
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
+    <link href="../css/displayLsLeadReport.css" rel="stylesheet">
+
     <style>
+        /* ===== Override displayLsLeadReport.css body/layout for Field Configurator ===== */
+        body {
+            align-items: stretch !important;
+            overflow: hidden !important;
+            height: 100vh !important;
+        }
+
+        /* Wrapper + main take full width */
+        body > div[style*="flex: 1"] {
+            width: 100%;
+        }
+
+        main {
+            width: 100% !important;
+            max-width: 100% !important;
+            max-height: calc(100vh - 72px) !important;
+            overflow-y: auto !important;
+            box-sizing: border-box;
+        }
+
+        /* ===== Responsive header overrides for Field Configurator ===== */
+        @media (max-width: 768px) {
+            .header-divider { display: none; }
+            .header-context { display: none; }
+            .header-btn span { display: none; }
+            .header-btn { padding: 0 10px; }
+            .header-btn svg, .header-btn img { margin: 0; }
+        }
+        @media (max-width: 480px) {
+            .app-header { padding: 0 12px; height: 60px; }
+            .header-actions { gap: 6px; }
+            main { max-height: calc(100vh - 60px) !important; }
+        }
+
         /* Smooth transitions */
         * {
             transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
@@ -27,8 +63,8 @@
         /* Fields Grid Layout */
         .fields-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 12px;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 6px;
             margin-top: 4px;
         }
 
@@ -36,13 +72,14 @@
         .field-item {
             background: white;
             border: 1px solid #e2e8f0;
-            border-radius: 6px;
-            padding: 12px;
+            border-radius: 5px;
+            padding: 6px 10px;
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 8px;
             transition: all 0.3s ease-in-out;
             cursor: pointer;
+            font-size: 13px;
         }
 
         .field-item:hover {
@@ -72,8 +109,8 @@
         }
 
         .field-checkbox {
-            width: 18px;
-            height: 18px;
+            width: 15px;
+            height: 15px;
             cursor: pointer;
             accent-color: #667eea;
             flex-shrink: 0;
@@ -251,26 +288,46 @@
         }
     </style>
 </head>
-<body class="text-gray-800" style="background-color: rgb(249, 250, 251); overflow: hidden; height: 100vh;">
-    <div class="flex h-screen flex-col">
-        <!-- Main Content -->
-        <div class="flex-1 flex flex-col overflow-hidden">
-            <!-- Header -->
-            <header class="bg-white border-b border-gray-200 py-4 px-6">
-                <div class="flex flex-wrap justify-between items-start gap-3">
-                    <div class="flex-1 min-w-0">
-                        <h1 class="text-xl font-bold text-gray-800">Field Configurator</h1>
-                        <p id="event-info" class="text-sm text-gray-600 mt-2 break-words">Configure which fields will be transferred to Salesforce for this event. Required fields (LastName, Company) are always included.</p>
-                    </div>
-                    <button id="transferToSalesforceBtn" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium text-sm flex items-center flex-shrink-0" onclick="saveAndContinue()">
-                        <i class="fas fa-cloud-upload-alt mr-2"></i>
-                        Transfer to Salesforce
-                    </button>
-                </div>
-            </header>
+<body class="text-gray-800" style="background-color: rgb(249, 250, 251); overflow: hidden; height: 100vh; display: flex; flex-direction: column;">
 
-            <!-- Content -->
-            <main class="flex-1 overflow-y-auto p-4">
+    <!-- App Header -->
+    <header class="app-header">
+        <div class="header-left">
+            <a class="brand" href="display.html">
+                <img src="../images/leadsuccess_white.svg" alt="LeadSuccess" style="height: 28px; width: auto;">
+            </a>
+            <div class="header-divider"></div>
+            <div class="header-context">
+                <div class="header-title">Field Configurator</div>
+                <div class="header-subtitle">
+                    <span class="header-pill">Settings</span>
+                    <span class="header-dot">&bull;</span>
+                    <span id="event-info" class="header-muted">Configure fields for this event</span>
+                </div>
+            </div>
+        </div>
+        <nav class="header-actions">
+            <button class="header-btn header-btn-ghost" onclick="cancelConfiguration()" title="Back to list">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+                <span>Back</span>
+            </button>
+            <button id="transferToSalesforceBtn" class="header-btn header-btn-sf" onclick="saveAndContinue()" title="Save and return to list">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                    <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                    <polyline points="7 3 7 8 15 8"></polyline>
+                </svg>
+                <span>Save</span>
+            </button>
+        </nav>
+    </header>
+
+    <!-- Main Content -->
+    <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+        <!-- Content -->
+        <main class="flex-1 overflow-y-auto p-4" style="overflow-y: auto; flex: 1; padding: 16px;">
                 <!-- Info message for virtual mode (hidden by default) -->
                 <div id="virtual-mode-info" class="card rounded-xl p-4 mb-4" style="display: none;">
                     <div class="flex items-start space-x-3">
@@ -366,7 +423,6 @@
                     </div>
                 </div>
             </main>
-        </div>
     </div>
 
     <!-- Custom Field Modal -->

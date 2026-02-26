@@ -11,7 +11,7 @@
     // System/metadata fields to exclude from Salesforce transfer
     const BATCH_EXCLUDED_FIELDS = new Set([
         'Id', 'CreatedDate', 'LastModifiedDate', 'CreatedById', 'LastModifiedById', 'SystemModstamp', 'IsDeleted', 'MasterRecordId', 'LastActivityDate',  'LastViewedDate', 'LastReferencedDate', 'Jigsaw', 'JigsawContactId',
-        'CleanStatus', 'CompanyDunsNumber', 'DandbCompanyId', 'EmailBouncedReason', 'EmailBouncedDate', 'IndividualId', 'apiEndpoint', 'credentials',  'serverName', 'apiName', 'AttachmentIdList', 'EventID', '__metadata', 'KontaktViewId',  'LastExportStatus', 'LastExportTimestamp', 'LastExportMilliseconds',     'LastExportMessage', 'ExportAttempts'
+        'CleanStatus', 'CompanyDunsNumber', 'DandbCompanyId', 'EmailBouncedReason', 'EmailBouncedDate', 'IndividualId', 'apiEndpoint', 'credentials',  'serverName', 'apiName', 'AttachmentIdList', 'EventID', '__metadata', 'LastExportStatus', 'LastExportTimestamp', 'LastExportMilliseconds', 'LastExportMessage', 'ExportAttempts'
     ]);
 
     // Standard Salesforce Lead fields (no __c suffix needed)

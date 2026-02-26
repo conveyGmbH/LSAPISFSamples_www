@@ -350,7 +350,7 @@ function updateTransferButtonState() {
 
     // System/metadata fields to exclude
     const excludedFields = new Set([
-        '__metadata', 'KontaktViewId',
+        '__metadata',
         'LastExportStatus', 'LastExportTimestamp', 'LastExportMilliseconds',
         'LastExportMessage', 'ExportAttempts'
     ]);
@@ -462,7 +462,7 @@ function collectActiveFieldsOnly() {
         'LastViewedDate', 'LastReferencedDate', 'Jigsaw', 'JigsawContactId',
         'CleanStatus', 'CompanyDunsNumber', 'DandbCompanyId', 'EmailBouncedReason',
         'EmailBouncedDate', 'IndividualId', 'apiEndpoint', 'credentials',
-        'serverName', 'apiName', 'AttachmentIdList', 'EventID', '__metadata', 'KontaktViewId',
+        'serverName', 'apiName', 'AttachmentIdList', 'EventID', '__metadata',
         'LastExportStatus', 'LastExportTimestamp', 'LastExportMilliseconds',
         'LastExportMessage', 'ExportAttempts'
     ]);
