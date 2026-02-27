@@ -195,8 +195,8 @@ function validateStateCode(codes) {
 }
 
 function getCurrentOrgId(req) {
-    // Use sessionID as the connection key — isolates each user session on the server
-    return req.sessionID || req.headers['x-org-id'] || req.session.currentOrgId || 'default';
+    // X-Session-Token is sent by frontend after OAuth (works cross-domain, no cookie needed)
+    return req.headers['x-session-token'] || req.sessionID || req.headers['x-org-id'] || req.session.currentOrgId || 'default';
 }
 
 function validateAndFixLeadData(leadData) {
@@ -638,6 +638,7 @@ app.get('/oauth/callback', async (req, res) => {
                         window.opener.postMessage({
                             type: 'SALESFORCE_AUTH_SUCCESS',
                             orgId: '${userInfo.organizationId}',
+                            sessionToken: '${req.sessionID}',
                             userInfo: ${JSON.stringify(fullUserInfo)}
                         }, '*');
                     }

@@ -743,11 +743,13 @@ async function saveTransferStatus(leadId, salesforceId, status = 'Success') {
     // Also save to backend
     const orgId = localStorage.getItem('orgId') || 'default';
 
+    const statusSessionToken = localStorage.getItem('sf_session_token');
     const response = await fetch(`${BACKEND_API_URL}/api/leads/transfer-status`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Org-Id': orgId
+        'X-Org-Id': orgId,
+        ...(statusSessionToken && { 'X-Session-Token': statusSessionToken })
       },
       credentials: 'include',
       body: JSON.stringify({
@@ -789,10 +791,11 @@ async function handleTransferButtonClick() {
     // Quick backend connection check before attempting transfer
     const orgId = localStorage.getItem('orgId') || 'default';
     try {
+      const checkSessionToken = localStorage.getItem('sf_session_token');
       const checkResponse = await fetch(`${appConfig.apiBaseUrl}/salesforce/check`, {
         method: 'GET',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json', 'X-Org-Id': orgId }
+        headers: { 'Content-Type': 'application/json', 'X-Org-Id': orgId, ...(checkSessionToken && { 'X-Session-Token': checkSessionToken }) }
       });
       if (!checkResponse.ok) {
         console.error('Backend connection check failed before transfer:', checkResponse.status);
@@ -1379,12 +1382,14 @@ async function checkSalesforceConnection() {
 
     const orgId = localStorage.getItem('orgId') || 'default';
     console.log(`${wasInstantlyRestored ? 'Background' : 'Initial'} server verification with orgId: ${orgId}`);
+    const transferCheckToken = localStorage.getItem('sf_session_token');
     const response = await fetch(`${appConfig.apiBaseUrl}/salesforce/check`, {
       method: 'GET',
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
-        'X-Org-Id': orgId
+        'X-Org-Id': orgId,
+        ...(transferCheckToken && { 'X-Session-Token': transferCheckToken })
       }
     });
 
@@ -1882,12 +1887,14 @@ async function transferLeadDirectlyToSalesforce(leadData, attachments) {
       leadId: leadIdForStatus  // Add leadId for status tracking
     };
 
+    const sfSessionToken = localStorage.getItem('sf_session_token');
     const salesforceResponse = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        'X-Org-Id': orgId
+        'X-Org-Id': orgId,
+        ...(sfSessionToken && { 'X-Session-Token': sfSessionToken })
       },
       credentials: 'include',
       body: JSON.stringify(payload)

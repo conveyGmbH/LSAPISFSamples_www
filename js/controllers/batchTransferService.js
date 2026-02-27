@@ -186,12 +186,14 @@
                 attachments: attachments || []
             };
 
+            const sessionToken = localStorage.getItem('sf_session_token');
             const response = await fetch(apiUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Accept': 'application/json',
-                    'X-Org-Id': orgId
+                    'X-Org-Id': orgId,
+                    ...(sessionToken && { 'X-Session-Token': sessionToken })
                 },
                 credentials: 'include',
                 body: JSON.stringify(payload)

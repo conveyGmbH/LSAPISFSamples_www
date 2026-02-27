@@ -1216,9 +1216,10 @@ async function checkSfConnection() {
 
     // Always verify with backend (handles both persisted and fresh OAuth)
     const orgId = localStorage.getItem('orgId') || 'default';
+    const sessionToken = localStorage.getItem('sf_session_token');
     const response = await fetch(`${appConfig.apiBaseUrl}/salesforce/check`, {
       method: 'GET', credentials: 'include',
-      headers: { 'Content-Type': 'application/json', 'X-Org-Id': orgId }
+      headers: { 'Content-Type': 'application/json', 'X-Org-Id': orgId, ...(sessionToken && { 'X-Session-Token': sessionToken }) }
     });
 
     if (response.ok) {
@@ -1290,6 +1291,7 @@ function handleSfConnectClick() {
       authHandled = true;
       console.log('SF OAuth success:', event.data);
       if (event.data.orgId) localStorage.setItem('orgId', event.data.orgId);
+      if (event.data.sessionToken) localStorage.setItem('sf_session_token', event.data.sessionToken);
       popup.close();
       clearInterval(checkClosed);
       window.removeEventListener('message', messageListener);
