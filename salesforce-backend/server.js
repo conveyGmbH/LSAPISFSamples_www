@@ -1631,6 +1631,7 @@ app.post('/api/salesforce/leads', async (req, res) => {
         if (validationResults.errors.length > 0) {
             return res.status(400).json({
                 message: 'Lead data validation failed',
+                error: validationResults.errors.join('; '),
                 errors: validationResults.errors,
                 warnings: validationResults.warnings
             });
