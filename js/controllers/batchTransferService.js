@@ -202,7 +202,7 @@
                 return {
                     success: false,
                     status: 'failed',
-                    message: errorData.message || errorData.error || `HTTP ${response.status}`,
+                    message: errorData.error || errorData.message || `HTTP ${response.status}`,
                     salesforceId: null,
                     duplicateWarning: null
                 };

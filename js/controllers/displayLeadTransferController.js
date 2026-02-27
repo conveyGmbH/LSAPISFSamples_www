@@ -929,7 +929,7 @@ async function handleTransferButtonClick() {
     // Log export status to DB (fire-and-forget, don't block error display)
     const transferDuration = Math.round(performance.now() - transferStartTime);
     const statusLabel = response.status === 409 ? 'Duplicate' : 'Failed';
-    const statusMsg = errorData.message || `HTTP ${response.status}`;
+    const statusMsg = errorData.error || errorData.message || `HTTP ${response.status}`;
     callSetLeadExportStatus(kontaktViewId, statusLabel, statusMsg, transferDuration);
 
     // Handle 409 Conflict - Duplicate lead
@@ -985,7 +985,7 @@ async function handleTransferButtonClick() {
     // Handle 500 Server errors
     if (response.status === 500) {
       console.error('🔍 Server error (500) detected');
-      const errorMessage = errorData.message || 'A server error occurred.';
+      const errorMessage = errorData.error || errorData.message || 'A server error occurred.';
 
       if (typeof window.showErrorModal === 'function') {
         window.showErrorModal('Server Error', errorMessage);
@@ -997,7 +997,7 @@ async function handleTransferButtonClick() {
     }
 
     // Other errors - display generic message with backend error if available
-    const errorMessage = errorData.message || `Transfer failed with status ${response.status}`;
+    const errorMessage = errorData.error || errorData.message || `Transfer failed with status ${response.status}`;
 
     if (typeof window.showErrorModal === 'function') {
       window.showErrorModal('Transfer Error', errorMessage);
