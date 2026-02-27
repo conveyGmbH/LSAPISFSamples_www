@@ -509,8 +509,9 @@ function collectActiveFieldsOnly() {
 
         const fieldInfo = processedData[apiFieldName];
 
-        // Check if field is active
-        const isActive = typeof fieldInfo === 'object' ? (fieldInfo.active !== false) : true;
+        // LastName and Company are always required by Salesforce — include even if deactivated in field config
+        const isRequired = (apiFieldName === 'LastName' || apiFieldName === 'Company');
+        const isActive = isRequired || (typeof fieldInfo === 'object' ? (fieldInfo.active !== false) : true);
 
         if (!isActive) {
             console.log(` Skipping inactive field: ${apiFieldName}`);

@@ -112,7 +112,9 @@
             if (/\s/.test(apiFieldName)) return;
 
             const fieldInfo = processedData[apiFieldName];
-            const isActive = typeof fieldInfo === 'object' ? (fieldInfo.active !== false) : true;
+            // LastName and Company are always required by Salesforce — include even if deactivated in field config
+            const isRequired = (apiFieldName === 'LastName' || apiFieldName === 'Company');
+            const isActive = isRequired || (typeof fieldInfo === 'object' ? (fieldInfo.active !== false) : true);
             if (!isActive) return;
 
             const value = typeof fieldInfo === 'object' ? fieldInfo.value : fieldInfo;
