@@ -212,56 +212,8 @@ function validateAndFixLeadData(leadData) {
         errors.push('Company is required and cannot be empty');
     }
 
-    // Email validation is intentionally left to Salesforce — SF returns INVALID_EMAIL_ADDRESS with the exact field and value
-
-    ['Phone', 'MobilePhone', 'Fax'].forEach(phoneField => {
-        if (fixedData[phoneField]) {
-            const originalPhone = fixedData[phoneField];
-            const cleanPhone = originalPhone.replace(/[^\d\+\-\(\)\s]/g, '');
-            if (cleanPhone !== originalPhone) {
-                warnings.push(`Cleaned phone number ${phoneField}: ${originalPhone} → ${cleanPhone}`);
-                fixedData[phoneField] = cleanPhone;
-            }
-        }
-    });
-
-    if (fixedData.Website) {
-        let website = fixedData.Website.trim();
-        if (website && !website.match(/^https?:\/\//)) {
-            website = 'https://' + website;
-            warnings.push(`Added https:// to website: ${fixedData.Website} → ${website}`);
-            fixedData.Website = website;
-        }
-    }
-
-    const salesforceFieldLimits = {
-        FirstName: 40,
-        LastName: 80,
-        Company: 255,
-        Title: 128,
-        Email: 80,
-        Phone: 40,
-        MobilePhone: 40,
-        Fax: 40,
-        Website: 255,
-        Street: 255,
-        City: 40,
-        PostalCode: 20,
-        Country: 80,
-        State: 80,
-        Description: 32000
-    };
-
-    Object.keys(salesforceFieldLimits).forEach(fieldName => {
-        if (fixedData[fieldName] && typeof fixedData[fieldName] === 'string') {
-            const maxLength = salesforceFieldLimits[fieldName];
-            if (fixedData[fieldName].length > maxLength) {
-                const truncated = fixedData[fieldName].substring(0, maxLength);
-                warnings.push(`Truncated ${fieldName} (${fixedData[fieldName].length} → ${maxLength} chars)`);
-                fixedData[fieldName] = truncated;
-            }
-        }
-    });
+    // Phone, email, website, field length — all intentionally left to Salesforce validation
+    // SF returns explicit error codes (INVALID_EMAIL_ADDRESS, STRING_TOO_LONG, etc.) that are surfaced to the user
 
     const invalidLeadFields = ['Suffix', 'MiddleName', 'SalesArea', 'Department'];
     invalidLeadFields.forEach(fieldName => {
@@ -1224,19 +1176,6 @@ app.post('/api/leads', async (req, res) => {
             });
         }
 
-        // Validate state if provided
-        if (leadData.State) {
-            const validStates = validateStateCode([leadData.State]);
-            if (validStates.length === 0) {
-                leadData.Street = leadData.Street ?
-                    `${leadData.Street}, ${leadData.State}` :
-                    leadData.State;
-                delete leadData.State;
-            } else {
-                leadData.State = validStates[0].toUpperCase();
-            }
-        }
-
         // Create lead
         const result = await conn.sobject('Lead').create(leadData);
 
@@ -1277,19 +1216,6 @@ app.put('/api/leads/:id', async (req, res) => {
             return res.status(400).json({
                 message: 'Last Name and Company are required fields'
             });
-        }
-
-        // Validate state if provided
-        if (leadData.State) {
-            const validStates = validateStateCode([leadData.State]);
-            if (validStates.length === 0) {
-                leadData.Street = leadData.Street ?
-                    `${leadData.Street}, ${leadData.State}` :
-                    leadData.State;
-                delete leadData.State;
-            } else {
-                leadData.State = validStates[0].toUpperCase();
-            }
         }
 
         // Update lead
@@ -1703,19 +1629,6 @@ app.post('/api/salesforce/leads', async (req, res) => {
             });
         }
 
-        // Validate and fix state
-        if (validatedLeadData.State) {
-            const validStates = validateStateCode([validatedLeadData.State]);
-            if (validStates.length === 0) {
-                validatedLeadData.Street = validatedLeadData.Street ?
-                    `${validatedLeadData.Street}, ${validatedLeadData.State}` :
-                    validatedLeadData.State;
-                delete validatedLeadData.State;
-                console.log(`Invalid state moved to Street field: ${validatedLeadData.Street}`);
-            } else {
-                validatedLeadData.State = validStates[0].toUpperCase();
-            }
-        }
 
         // Create the lead
         const leadResult = await conn.sobject('Lead').create(validatedLeadData);
