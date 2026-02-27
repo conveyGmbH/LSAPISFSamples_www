@@ -188,6 +188,8 @@
                 attachments: attachments || []
             };
 
+            console.log('[Batch] Payload sent to SF:', JSON.stringify(payload.leadData, null, 2));
+
             const sessionToken = localStorage.getItem('sf_session_token');
             const response = await fetch(apiUrl, {
                 method: 'POST',
@@ -203,6 +205,7 @@
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({ message: `HTTP ${response.status}` }));
+                console.log('[Batch] SF error response:', JSON.stringify(errorData, null, 2));
                 return {
                     success: false,
                     status: 'failed',
