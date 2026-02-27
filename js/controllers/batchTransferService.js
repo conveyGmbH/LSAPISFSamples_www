@@ -206,6 +206,18 @@
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({ message: `HTTP ${response.status}` }));
                 console.log('[Batch] SF error response:', JSON.stringify(errorData, null, 2));
+
+                // 409 = duplicate detected by Salesforce
+                if (response.status === 409) {
+                    return {
+                        success: false,
+                        status: 'duplicate',
+                        message: errorData.message || 'Duplicate lead found',
+                        salesforceId: errorData.salesforceId || null,
+                        duplicateWarning: true
+                    };
+                }
+
                 return {
                     success: false,
                     status: 'failed',
