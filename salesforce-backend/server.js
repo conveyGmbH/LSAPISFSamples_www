@@ -212,13 +212,7 @@ function validateAndFixLeadData(leadData) {
         errors.push('Company is required and cannot be empty');
     }
 
-    if (fixedData.Email) {
-        const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailPattern.test(fixedData.Email)) {
-            warnings.push(`Invalid email format: ${fixedData.Email}`);
-            delete fixedData.Email;
-        }
-    }
+    // Email validation is intentionally left to Salesforce — SF returns INVALID_EMAIL_ADDRESS with the exact field and value
 
     ['Phone', 'MobilePhone', 'Fax'].forEach(phoneField => {
         if (fixedData[phoneField]) {
