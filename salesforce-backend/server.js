@@ -851,6 +851,34 @@ app.post('/api/salesforce/auth', (req, res) => {
     }
 });
 
+// Login with username/password credentials (for Postman / API clients that can't do OAuth popup)
+app.post('/api/salesforce/login', async (req, res) => {
+    const { accessToken, instanceUrl, organizationId, userId } = req.body;
+
+    if (!accessToken || !instanceUrl) {
+        return res.status(400).json({ message: 'accessToken and instanceUrl are required' });
+    }
+
+    try {
+        const sessionData = {
+            accessToken,
+            instanceUrl,
+            organizationId: organizationId || 'unknown',
+            userInfo: { id: userId, organizationId: organizationId || 'unknown' }
+        };
+
+        storeConnection(sessionData, req.sessionID);
+        req.session.authenticated = true;
+        req.session.currentOrgId = organizationId || 'unknown';
+
+        console.log(`✅ Manual login via /api/salesforce/login — session: ${req.sessionID}`);
+        res.json({ success: true, message: 'Connected', sessionId: req.sessionID });
+    } catch (error) {
+        console.error('Login failed:', error);
+        res.status(500).json({ message: 'Login failed', error: error.message });
+    }
+});
+
 app.get('/api/salesforce/check', async (req, res) => {
     console.log('\n========================================');
     console.log('🔍 GET /api/salesforce/check - Checking connection');
