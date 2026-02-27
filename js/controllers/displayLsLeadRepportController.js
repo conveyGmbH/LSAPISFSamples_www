@@ -1022,8 +1022,23 @@ function displayLeadReportFilters() {
   filterInputs.innerHTML = "";
   filterInputs.className = "filter-container";
 
-  const textFields = ["Id", "FirstName", "LastName", "Company", "Email"];
-  const dateFields = ["CreatedDate", "LastModifiedDate", "SystemModstamp"];
+  // Build filter fields dynamically from active field config
+  const DATE_FIELD_PATTERNS = ["Date", "Timestamp", "Modstamp"];
+  const ALWAYS_EXCLUDE_FROM_FILTER = new Set([
+    '__metadata', 'LastExportStatus', 'LastExportTimestamp', 'LastExportMilliseconds',
+    'LastExportMessage', 'ExportAttempts'
+  ]);
+  let allActiveFields = [];
+  if (window.fieldMappingService) {
+    allActiveFields = window.fieldMappingService.getActiveFieldNames()
+      .filter(f => !ALWAYS_EXCLUDE_FROM_FILTER.has(f));
+  }
+  // Fallback if no config loaded yet
+  if (allActiveFields.length === 0) {
+    allActiveFields = ["FirstName", "LastName", "Company", "Email"];
+  }
+  const textFields = allActiveFields.filter(f => !DATE_FIELD_PATTERNS.some(p => f.includes(p)));
+  const dateFields = allActiveFields.filter(f => DATE_FIELD_PATTERNS.some(p => f.includes(p)));
 
   const storedFilters =
     JSON.parse(localStorage.getItem("LS_LeadReport_Filters")) || {};

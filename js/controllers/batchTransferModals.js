@@ -113,9 +113,13 @@
                     display: flex; align-items: center; gap: 10px; padding: 8px 12px;
                     border-bottom: 1px solid #f3f4f6; font-size: 13px;
                 `;
+                const errorMsg = (result.status === 'failed' && result.message) ? `<div style="font-size: 11px; color: #ef4444; margin-top: 2px; white-space: normal;">${escapeHtml(result.message)}</div>` : '';
                 entry.innerHTML = `
                     <span style="width: 22px; height: 22px; border-radius: 50%; background: ${color}; color: white; display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0;">${icon}</span>
-                    <span style="flex: 1; color: #111827; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${result.displayName}</span>
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="color: #111827; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(result.displayName)}</div>
+                        ${errorMsg}
+                    </div>
                     <span style="color: ${color}; font-weight: 500; font-size: 12px; flex-shrink: 0;">${result.status}</span>
                     <span style="color: #9ca3af; font-size: 11px; flex-shrink: 0;">${result.milliseconds ? (result.milliseconds / 1000).toFixed(1) + 's' : ''}</span>
                 `;
@@ -197,6 +201,7 @@
         const closeBtn = modal.querySelector('#batch-summary-close');
         closeBtn.addEventListener('click', () => {
             if (modal.parentNode) modal.parentNode.removeChild(modal);
+            window.location.reload();
         });
         closeBtn.addEventListener('mouseenter', () => { closeBtn.style.background = '#1d4ed8'; });
         closeBtn.addEventListener('mouseleave', () => { closeBtn.style.background = '#2563eb'; });
@@ -205,6 +210,7 @@
         modal.addEventListener('click', (e) => {
             if (e.target === modal) {
                 if (modal.parentNode) modal.parentNode.removeChild(modal);
+                window.location.reload();
             }
         });
 

@@ -136,9 +136,10 @@ function createConnection(sessionData) {
     });
 
     conn.on('refresh', (accessToken, res) => {
-        console.log('Token refreshed for org:', sessionData.organizationId);
+        console.log('Token refreshed for session:', sessionData._sessionId || sessionData.organizationId);
         sessionData.accessToken = accessToken;
-        connections.set(sessionData.organizationId, {
+        const key = sessionData._sessionId || sessionData.organizationId;
+        connections.set(key, {
             ...sessionData,
             connection: conn,
             lastRefresh: new Date()
@@ -148,30 +149,32 @@ function createConnection(sessionData) {
     return conn;
 }
 
-function storeConnection(sessionData) {
+function storeConnection(sessionData, sessionId) {
+    const key = sessionId || sessionData.organizationId;
+    sessionData._sessionId = key; // Used by the token refresh handler
     const conn = createConnection(sessionData);
-    connections.set(sessionData.organizationId, {
+    connections.set(key, {
         ...sessionData,
         connection: conn,
         connectedAt: new Date(),
         lastRefresh: new Date()
     });
-    console.log(`Stored connection for org: ${sessionData.organizationId}`);
+    console.log(`Stored connection for session: ${key} (org: ${sessionData.organizationId})`);
     return conn;
 }
 
-function getConnection(orgId) {
-    const connData = connections.get(orgId);
+function getConnection(sessionId) {
+    const connData = connections.get(sessionId);
     return connData ? connData.connection : null;
 }
 
-function getUserInfo(orgId) {
-    const connData = connections.get(orgId);
+function getUserInfo(sessionId) {
+    const connData = connections.get(sessionId);
     return connData ? connData.userInfo : null;
 }
 
-function removeConnection(orgId) {
-    connections.delete(orgId);
+function removeConnection(sessionId) {
+    connections.delete(sessionId);
 }
 
 // --- UTILITY FUNCTIONS ---
@@ -192,7 +195,8 @@ function validateStateCode(codes) {
 }
 
 function getCurrentOrgId(req) {
-    return req.headers['x-org-id'] || req.session.currentOrgId || 'default';
+    // Use sessionID as the connection key — isolates each user session on the server
+    return req.sessionID || req.headers['x-org-id'] || req.session.currentOrgId || 'default';
 }
 
 function validateAndFixLeadData(leadData) {
@@ -615,17 +619,8 @@ app.get('/oauth/callback', async (req, res) => {
         req.session.currentOrgId = orgId;
         req.session.authenticated = true;
 
-        storeConnection(sessionData);
-
-        if (orgId !== userInfo.organizationId) {
-            const conn = createConnection(sessionData);
-            connections.set(orgId, {
-                ...sessionData,
-                connection: conn,
-                connectedAt: new Date(),
-                lastRefresh: new Date()
-            });
-        }
+        // Index by sessionID — each user session gets its own isolated SF connection
+        storeConnection(sessionData, req.sessionID);
 
         res.send(`
             <!DOCTYPE html>
@@ -916,13 +911,13 @@ app.get('/api/salesforce/check', async (req, res) => {
     console.log('========================================');
 
     try {
-        // Get orgId from header (sent by frontend after OAuth success)
-        const orgId = req.headers['x-org-id'] || 'default';
+        // Use sessionID to look up this user's connection
+        const orgId = getCurrentOrgId(req);
 
         console.log('📋 Request info:');
-        console.log('   - OrgId from header:', orgId);
+        console.log('   - Session key:', orgId);
 
-        // Check if connection exists in local connections Map (supports both default and Salesforce orgId)
+        // Check if connection exists in local connections Map
         try {
             console.log('🔎 Looking for connection in local Map...');
             const conn = getConnection(orgId);
