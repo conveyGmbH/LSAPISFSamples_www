@@ -234,6 +234,10 @@
             </div>
         </div>
         <nav class="header-actions">
+            <!-- Back button -->
+            <button id="headerBackButton" class="header-btn header-btn-ghost" title="Return to contact list">
+                <i class="fas fa-arrow-left"></i> Back
+            </button>
             <!-- SF connection status -->
             <div class="sf-connection-group">
                 <span id="api-status-user-card" class="sf-status sf-status-disconnected">
@@ -689,6 +693,12 @@
             const cancelButton = document.getElementById('cancelButton');
             if (cancelButton) {
                 cancelButton.addEventListener('click', returnToContactList);
+            }
+
+            // Header Back Button
+            const headerBackButton = document.getElementById('headerBackButton');
+            if (headerBackButton) {
+                headerBackButton.addEventListener('click', returnToContactList);
             }
 
             // Synchronize mobile and desktop buttons

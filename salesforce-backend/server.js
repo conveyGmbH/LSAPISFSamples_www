@@ -963,7 +963,6 @@ app.get('/api/salesforce/check', async (req, res) => {
         } catch (connError) {
             console.log('Connection not found or invalid:', connError.message);
             console.log('========================================\n');
-
             // Connection doesn't exist or is invalid
             return res.status(401).json({
                 connected: false,
@@ -1555,9 +1554,10 @@ app.post('/api/salesforce/leads', async (req, res) => {
             return res.status(401).json({ message: 'Not connected to Salesforce' });
         }
 
-        const { leadData, attachments = [] } = req.body;
+        const { leadData, attachments = [], externalIdField } = req.body;
 
-        console.log('📝 Creating lead with data:', leadData);
+        console.log('📝 Lead transfer - externalIdField:', externalIdField || 'none (create mode)');
+        console.log('📝 Lead data:', leadData);
 
         const processedLeadData = {};
 
@@ -1634,71 +1634,99 @@ app.post('/api/salesforce/leads', async (req, res) => {
             console.warn('Skipping Lead field filtering due to metadata fetch failure');
         }
 
-        // Check for duplicates
-        const duplicateQuery = `
-            SELECT Id, FirstName, LastName, Company, Email
-            FROM Lead
-            WHERE LastName = '${validatedLeadData.LastName.replace(/'/g, "\\'")}'
-            AND Company = '${validatedLeadData.Company.replace(/'/g, "\\'")}'
-            LIMIT 1
-        `;
+        // --- UPSERT MODE: if externalIdField is provided and has a value in leadData ---
+        // This supports UPDATE of existing SF leads via a custom External ID field (e.g. LS_LeadId__c)
+        const externalIdValue = externalIdField ? validatedLeadData[externalIdField] : null;
+        const isUpsertMode = !!(externalIdField && externalIdValue);
 
-        const duplicateResult = await conn.query(duplicateQuery);
+        let leadId;
+        let isUpdate = false;
 
-        if (duplicateResult.records.length > 0) {
-            const existing = duplicateResult.records[0];
-            return res.status(409).json({
-                message: 'Duplicate lead found',
-                salesforceId: existing.Id,
-                existingLead: {
-                    name: `${existing.FirstName || ''} ${existing.LastName}`.trim(),
-                    company: existing.Company,
-                    email: existing.Email
+        if (isUpsertMode) {
+            // UPSERT: Create or update based on External ID field
+            console.log(`🔄 UPSERT mode: using ${externalIdField} = ${externalIdValue}`);
+
+            // Remove the external ID field from the data to avoid SF duplicate field error
+            const upsertData = { ...validatedLeadData };
+            // SF upsert requires the external ID field value in the upsert call, not in the record body
+            delete upsertData[externalIdField];
+
+            const upsertResult = await conn.sobject('Lead').upsert(
+                { ...upsertData, [externalIdField]: externalIdValue },
+                externalIdField
+            );
+
+            const result = Array.isArray(upsertResult) ? upsertResult[0] : upsertResult;
+
+            if (!result.success) {
+                let detailedError = 'Failed to upsert lead in Salesforce';
+                if (result.errors && result.errors.length > 0) {
+                    detailedError += ': ' + result.errors.map(e => e.message || JSON.stringify(e)).join('; ');
                 }
-            });
-        }
-
-
-        // Create the lead
-        const leadResult = await conn.sobject('Lead').create(validatedLeadData);
-
-        if (!leadResult.success) {
-            // Include detailed Salesforce errors if available
-            let detailedError = 'Failed to create lead in Salesforce';
-            let missingFields = [];
-
-            if (leadResult.errors && Array.isArray(leadResult.errors) && leadResult.errors.length > 0) {
-                // Check for missing field errors
-                leadResult.errors.forEach(err => {
-                    const errorMsg = err.message || JSON.stringify(err);
-
-                    // Detect missing field errors
-                    if (errorMsg.includes('No such column') || errorMsg.includes('Invalid field') ||
-                        errorMsg.includes('does not exist') || errorMsg.includes('INVALID_FIELD')) {
-
-                        // Extract field name from error message
-                        const fieldMatch = errorMsg.match(/['"]?(\w+__c)['"]?/) || errorMsg.match(/column ['"](\w+)['"]/);
-                        if (fieldMatch && fieldMatch[1]) {
-                            missingFields.push(fieldMatch[1]);
-                        }
-                    }
-                });
-
-                if (missingFields.length > 0) {
-                    detailedError = `Custom field(s) not found in Salesforce: ${missingFields.join(', ')}.\n\n` +
-                                   `Please create these custom fields in your Salesforce org before transferring leads, or deactivate them in the field configuration.`;
-                } else {
-                    detailedError += ':\n' + leadResult.errors.map(e => e.message || JSON.stringify(e)).join('\n');
-                }
-            } else {
-                detailedError += ': ' + JSON.stringify(leadResult.errors);
+                throw new Error(detailedError);
             }
 
-            throw new Error(detailedError);
-        }
+            leadId = result.id;
+            isUpdate = !result.created;
+            console.log(`✅ Lead ${isUpdate ? 'updated' : 'created'} via upsert: ${leadId}`);
 
-        const leadId = leadResult.id;
-        console.log(` Lead created with ID: ${leadId}`);
+        } else {
+            // CREATE MODE: Check for duplicates first, then create
+            const duplicateQuery = `
+                SELECT Id, FirstName, LastName, Company, Email
+                FROM Lead
+                WHERE LastName = '${validatedLeadData.LastName.replace(/'/g, "\\'")}'
+                AND Company = '${validatedLeadData.Company.replace(/'/g, "\\'")}'
+                LIMIT 1
+            `;
+
+            const duplicateResult = await conn.query(duplicateQuery);
+
+            if (duplicateResult.records.length > 0) {
+                const existing = duplicateResult.records[0];
+                return res.status(409).json({
+                    message: 'Duplicate lead found',
+                    salesforceId: existing.Id,
+                    existingLead: {
+                        name: `${existing.FirstName || ''} ${existing.LastName}`.trim(),
+                        company: existing.Company,
+                        email: existing.Email
+                    }
+                });
+            }
+
+            // Create the lead
+            const leadResult = await conn.sobject('Lead').create(validatedLeadData);
+
+            if (!leadResult.success) {
+                let detailedError = 'Failed to create lead in Salesforce';
+                let missingFields = [];
+
+                if (leadResult.errors && Array.isArray(leadResult.errors) && leadResult.errors.length > 0) {
+                    leadResult.errors.forEach(err => {
+                        const errorMsg = err.message || JSON.stringify(err);
+                        if (errorMsg.includes('No such column') || errorMsg.includes('Invalid field') ||
+                            errorMsg.includes('does not exist') || errorMsg.includes('INVALID_FIELD')) {
+                            const fieldMatch = errorMsg.match(/['"]?(\w+__c)['"]?/) || errorMsg.match(/column ['"](\w+)['"]/);
+                            if (fieldMatch && fieldMatch[1]) missingFields.push(fieldMatch[1]);
+                        }
+                    });
+
+                    if (missingFields.length > 0) {
+                        detailedError = `Custom field(s) not found in Salesforce: ${missingFields.join(', ')}.\n\nPlease create these custom fields in your Salesforce org before transferring leads, or deactivate them in the field configuration.`;
+                    } else {
+                        detailedError += ':\n' + leadResult.errors.map(e => e.message || JSON.stringify(e)).join('\n');
+                    }
+                } else {
+                    detailedError += ': ' + JSON.stringify(leadResult.errors);
+                }
+
+                throw new Error(detailedError);
+            }
+
+            leadId = leadResult.id;
+            console.log(`✅ Lead created with ID: ${leadId}`);
+        }
 
         // Handle attachments
         let attachmentResults = [];
@@ -1749,7 +1777,8 @@ app.post('/api/salesforce/leads', async (req, res) => {
         const response = {
             success: true,
             salesforceId: leadId,
-            message: 'Lead successfully transferred to Salesforce',
+            isUpdate: isUpdate || false,
+            message: isUpdate ? 'Lead successfully updated in Salesforce' : 'Lead successfully created in Salesforce',
             leadData: validatedLeadData,
             validationWarnings: validationResults.warnings,
             attachments: attachmentResults
@@ -1760,7 +1789,7 @@ app.post('/api/salesforce/leads', async (req, res) => {
             response.attachmentSummary = `${successCount}/${attachmentResults.length} attachments transferred`;
         }
 
-        console.log(`🎉 Transfer complete for lead: ${leadId}`);
+        console.log(`🎉 Transfer complete for lead: ${leadId} (${isUpdate ? 'updated' : 'created'})`);
         res.json(response);
 
     } catch (error) {

@@ -11,59 +11,51 @@
     <link rel="icon" type="image/x-icon" href="../images/api-sf.ico">
 </head>
 <body>
-    <header class="main-header">
-        <div class="logo">
-            <img src="../images/leadsuccess_white.svg" alt="Lead Success Logo" />
+    <header class="app-header">
+        <div class="header-left">
+            <a class="brand" href="display.html">
+                <span class="brand-mark">LS</span>
+                <span class="brand-name">LeadSuccess</span>
+            </a>
+            <div class="header-divider"></div>
+            <div class="header-context">
+                <div class="header-title">Salesforce API Manager</div>
+                <div class="header-subtitle">
+                    <span class="header-pill">Attachments</span>
+                    <span style="opacity:0.7;">&bull;</span>
+                    <span id="userNameDisplay" style="opacity:0.88;"></span>
+                </div>
+            </div>
         </div>
-        <div class="header-center">
-            <span class="header-title">Salesforce API Manager</span>
-            <span class="header-divider">•</span>
-            <span class="report-name">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px; vertical-align: middle;">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                    <polyline points="14 2 14 8 20 8"></polyline>
-                    <line x1="16" y1="13" x2="8" y2="13"></line>
-                    <line x1="16" y1="17" x2="8" y2="17"></line>
+        <nav class="header-actions">
+            <button id="backButton" class="header-btn header-btn-ghost">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="19" y1="12" x2="5" y2="12"></line>
+                    <polyline points="12 19 5 12 12 5"></polyline>
                 </svg>
-                Attachments
-            </span>
-        </div>
-        <div class="header-right">
-            <button id="postmanButton" class="postman-button">
+                Back
+            </button>
+            <button id="postmanButton" class="header-btn header-btn-ghost">
                 <img src="/images/postman-icon.svg" alt="Postman" width="14" height="14">
                 Postman
             </button>
-            <a href="/docs/LeadSuccess_API_for SalesForce.pdf" download class="doc-link">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px; vertical-align: middle;">
+            <a href="/docs/LeadSuccess_API_for SalesForce.pdf" download class="header-btn header-btn-ghost">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                     <polyline points="14 2 14 8 20 8"></polyline>
                 </svg>
                 API Docs
             </a>
-            <button id="logoutButton" class="logout-button">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <button id="logoutButton" class="header-btn header-btn-danger">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
                     <polyline points="16 17 21 12 16 7"></polyline>
                     <line x1="21" y1="12" x2="9" y2="12"></line>
                 </svg>
                 Logout
             </button>
-        </div>
+        </nav>
     </header>
-
-    <div class="page-title">
-        <div class="button-group">
-            <button id="backButton" class="action-button">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="19" y1="12" x2="5" y2="12"></line>
-                    <polyline points="12 19 5 12 12 5"></polyline>
-                </svg>
-                <span>Back</span>
-            </button>
-        </div>
-        <h2>Attachments</h2>
-        <div class="layout-spacer"></div>
-    </div>
 
     <div class="container">
         <div class="tab-container" id="tabContainer">

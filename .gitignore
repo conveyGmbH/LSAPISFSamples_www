@@ -401,11 +401,7 @@ MigrationBackup/
 FodyWeavers.xsd
 
 # VS Code files for those working on multiple tools
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
+.vscode/
 *.code-workspace
 
 # Local History for Visual Studio Code
@@ -466,3 +462,10 @@ mock-data/
 *.ai-log
 ai-session-*
 claude-session-*
+
+# Postman export files
+postman_*.json
+
+# Misc
+nul
+Prc_GetSFCRMData.txt

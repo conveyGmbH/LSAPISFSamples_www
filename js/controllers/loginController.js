@@ -53,7 +53,8 @@ function clearInputs(ids) {
 function displayError(message) {
   const errorElement = document.getElementById("errorMessage");
   if (errorElement) {
-    errorElement.textContent = message;
-    errorElement.style.display = "block";
+    const textEl = errorElement.querySelector("#errorMessageText");
+    if (textEl) textEl.textContent = message;
+    errorElement.style.display = "flex";
   }
 }

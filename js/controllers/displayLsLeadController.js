@@ -1050,7 +1050,7 @@ async function handleBatchTransferClick() {
 
   const connectionStatus = localStorage.getItem('sf_connection_status');
   if (connectionStatus !== 'connected') {
-    await modals.showAlertModal("Please connect to Salesforce first using the Transfer button.", { title: 'Not Connected', color: '#f59e0b' });
+    await modals.showAlertModal("Please connect to Salesforce first using the 'Connect SF' button in the top right.", { title: 'Not Connected', color: '#f59e0b' });
     return;
   }
 
@@ -1509,28 +1509,8 @@ function displayData(data, showAllFields = false) {
     header !== '__metadata' && header !== 'KontaktViewId'
   );
 
-  // Get active fields from FieldMappingService
-  const activeFieldNames = window.fieldMappingService?.getActiveFieldNames() || [];
-  const activeCustomFields = window.fieldMappingService?.getAllCustomFields().filter(f => f.active !== false) || [];
-
-  // Export status columns - always visible when present in data
-  const EXPORT_STATUS_FIELDS = ['LastExportStatus', 'LastExportTimestamp', 'ExportAttempts', 'LastExportMessage'];
-
-  // Filter to show only active fields (unless showAllFields is true)
-  const headers = showAllFields ? allHeaders : allHeaders.filter(header => {
-    // Always show required fields
-    if (header === 'LastName' || header === 'Company') return true;
-    // Always show export status fields
-    if (EXPORT_STATUS_FIELDS.includes(header)) return true;
-    // Check if field is in active configuration
-    return activeFieldNames.includes(header);
-  });
-
-  // Add custom fields at the end
-  const headersWithCustom = [...headers];
-  activeCustomFields.forEach(customField => {
-    headersWithCustom.push(customField.sfFieldName);
-  });
+  // Show all columns from OData (active/inactive config is for SF transfer only, not for list display)
+  const headersWithCustom = [...allHeaders];
 
   const headerRow = document.createElement('tr');
 
@@ -1655,15 +1635,7 @@ function displayData(data, showAllFields = false) {
       } else if (header.includes('Date') || header === 'SystemModstamp') {
         td.textContent = formatDate(item[header]);
       } else {
-        // Check if this is a custom field
-        const customField = activeCustomFields.find(f => f.sfFieldName === header);
-        if (customField) {
-          td.textContent = item[header] || customField.value || '';
-          td.style.fontStyle = 'italic';
-          td.style.color = '#8b5cf6';
-        } else {
-          td.textContent = item[header] != null ? item[header] : '';
-        }
+        td.textContent = item[header] != null ? item[header] : '';
       }
       row.appendChild(td);
     });
@@ -2100,6 +2072,23 @@ const backButton = document.getElementById('backButton');
 backButton.addEventListener('click', () => {
   window.location.href = 'display.html';
 });
+
+// Setup refresh button
+const refreshButton = document.getElementById('refreshButton');
+if (refreshButton) {
+  refreshButton.addEventListener('click', async () => {
+    refreshButton.disabled = true;
+    refreshButton.querySelector('span').textContent = 'Refreshing...';
+    try {
+      document.getElementById('tableHead').innerHTML = '';
+      document.getElementById('tableBody').innerHTML = '';
+      await fetchLsLeadData();
+    } finally {
+      refreshButton.disabled = false;
+      refreshButton.querySelector('span').textContent = 'Refresh';
+    }
+  });
+}
 
 // Toggle filters button handler
 const toggleFiltersButton = document.getElementById('toggleFiltersButton');

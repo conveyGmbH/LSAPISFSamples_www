@@ -107,6 +107,13 @@
             }
         }
 
+        // Check if the OData 'Id' field is mapped to a SF External ID field (for upsert support)
+        const externalIdSfField = detectExternalIdField(fieldMappingService);
+        if (externalIdSfField && itemData.Id) {
+            // Include the OData Id value under the SF External ID field name
+            salesforceData[externalIdSfField] = itemData.Id;
+        }
+
         Object.keys(processedData).forEach(apiFieldName => {
             if (BATCH_EXCLUDED_FIELDS.has(apiFieldName)) return;
             if (/\s/.test(apiFieldName)) return;
@@ -166,10 +173,26 @@
     }
 
     /**
+     * Detect if an External ID field is configured in FieldMappingService
+     * Returns the SF field name (e.g. 'LS_LeadId__c') if the OData 'Id' field is mapped to a custom SF field
+     * Returns null if no External ID mapping is found
+     */
+    function detectExternalIdField(fieldMappingService) {
+        if (!fieldMappingService) return null;
+        const customLabels = fieldMappingService.customLabels || {};
+        // Check if OData 'Id' field is mapped to a SF custom field (ends with __c)
+        const idMapping = customLabels['Id'];
+        if (idMapping && idMapping.trim() && idMapping.endsWith('__c')) {
+            return idMapping.trim();
+        }
+        return null;
+    }
+
+    /**
      * Transfer a single lead to Salesforce via backend API
      * Adapted from transferLeadDirectlyToSalesforce()
      */
-    async function transferSingleLead(leadData, attachments, apiBaseUrl) {
+    async function transferSingleLead(leadData, attachments, apiBaseUrl, externalIdField) {
         try {
             let salesforceLeadData = { ...leadData };
 
@@ -185,7 +208,8 @@
 
             const payload = {
                 leadData: salesforceLeadData,
-                attachments: attachments || []
+                attachments: attachments || [],
+                ...(externalIdField && { externalIdField })
             };
 
             console.log('[Batch] Payload sent to SF:', JSON.stringify(payload.leadData, null, 2));
@@ -403,6 +427,12 @@
     async function executeBatchTransfer(items, options) {
         const { fieldMappingService, apiBaseUrl, onProgress, onLeadComplete } = options;
 
+        // Detect External ID field once for the whole batch (same config applies to all leads)
+        const externalIdField = detectExternalIdField(fieldMappingService);
+        if (externalIdField) {
+            console.log('[Batch] UPDATE mode enabled — External ID field:', externalIdField);
+        }
+
         _batchCancelled = false;
         const results = [];
         const batchStartTime = Date.now();
@@ -457,8 +487,8 @@
                 // 2. Fetch attachments
                 const attachments = await fetchAttachmentsForBatch(item.AttachmentIdList);
 
-                // 3. Transfer to Salesforce
-                const transferResult = await transferSingleLead(leadData, attachments, apiBaseUrl);
+                // 3. Transfer to Salesforce (upsert if externalIdField configured)
+                const transferResult = await transferSingleLead(leadData, attachments, apiBaseUrl, externalIdField);
 
                 const milliseconds = Date.now() - leadStartTime;
 

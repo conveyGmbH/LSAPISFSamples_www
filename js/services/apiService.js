@@ -146,12 +146,9 @@ export default class ApiService {
     const errorElement = document.getElementById("errorMessage");
     if (!errorElement) return;
 
-    errorElement.innerHTML = `
-      <div class="error-content" style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
-        <span>⚠️ ${message}</span>
-        <button onclick="this.closest('#errorMessage').style.display='none'" style="background:none; border:none; cursor:pointer; font-size:16px; color:inherit; flex-shrink:0; line-height:1;">&times;</button>
-      </div>`;
-    errorElement.style.display = "block";
+    const textEl = errorElement.querySelector("#errorMessageText");
+    if (textEl) textEl.textContent = message;
+    errorElement.style.display = "flex";
 
     if (shake) {
       errorElement.classList.add("error-shake");

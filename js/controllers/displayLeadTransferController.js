@@ -472,6 +472,13 @@ function collectActiveFieldsOnly() {
         return { leadData: {}, fieldsList: [], labels: {} };
     }
 
+    // External ID support: if OData 'Id' is mapped to a SF custom field (e.g. LS_LeadId__c), include it
+    const externalIdSfField = window.fieldMappingService?.customLabels?.['Id'];
+    if (externalIdSfField && externalIdSfField.trim() && externalIdSfField.endsWith('__c') && window.selectedLeadData.Id) {
+        salesforceData[externalIdSfField.trim()] = window.selectedLeadData.Id;
+        console.log(`External ID: ${externalIdSfField.trim()} = ${window.selectedLeadData.Id}`);
+    }
+
     // Process data with labels
     const processedData = window.fieldMappingService?.applyCustomLabels(window.selectedLeadData) ||
         Object.fromEntries(Object.entries(window.selectedLeadData).map(([key, value]) => [key, {
@@ -596,7 +603,10 @@ function collectActiveFieldsOnly() {
         console.warn('No required fields found (LastName or Company)');
     }
 
-    return { leadData: salesforceData, fieldsList, labels };
+    // Determine externalIdField for upsert mode
+    const externalIdField = (externalIdSfField && externalIdSfField.trim() && externalIdSfField.endsWith('__c')) ? externalIdSfField.trim() : null;
+
+    return { leadData: salesforceData, fieldsList, labels, externalIdField };
 }
 
 /**
@@ -853,7 +863,7 @@ async function handleTransferButtonClick() {
 
     // PHASE 1: Collect ONLY Active Fields
     console.log('📋 Phase 1: Collecting active fields only...');
-    const { leadData, fieldsList, labels } = collectActiveFieldsOnly();
+    const { leadData, fieldsList, labels, externalIdField } = collectActiveFieldsOnly();
 
     if (!leadData || Object.keys(leadData).length === 0) {
       showModernToast("No active fields with values to transfer", 'warning');
@@ -919,8 +929,8 @@ async function handleTransferButtonClick() {
     const kontaktViewId = window.selectedLeadData?.Id
         || extractGuidFromMetadata(window.selectedLeadData);
 
-    // Transfer ONLY active fields
-    const response = await transferLeadDirectlyToSalesforce(leadData, attachments);
+    // Transfer ONLY active fields (pass externalIdField for upsert mode if configured)
+    const response = await transferLeadDirectlyToSalesforce(leadData, attachments, externalIdField);
 
   if (!response.ok) {
     console.error(`Transfer failed with status: ${response.status}`);
@@ -1024,8 +1034,9 @@ async function handleTransferButtonClick() {
     callSetLeadExportStatus(kontaktViewId, 'Success', `SF Lead ID: ${sfId}`, transferDuration);
 
     // Success!
-    // Build success message with details
-    let successMessage = `Lead successfully transferred to Salesforce!\n\n`;
+    // Build success message with details (distinguish create vs update)
+    const action = result.isUpdate ? 'updated' : 'created';
+    let successMessage = `Lead successfully ${action} in Salesforce!\n\n`;
     successMessage += `Salesforce ID: ${result.salesforceId || 'N/A'}\n`;
     successMessage += `Fields transferred: ${fieldsList.length}\n`;
 
@@ -1857,7 +1868,7 @@ function getSalesforceFieldConfig(fieldName) {
 }
 
 
-async function transferLeadDirectlyToSalesforce(leadData, attachments) {
+async function transferLeadDirectlyToSalesforce(leadData, attachments, externalIdField) {
   try {
 
     // leadData is already mapped by collectActiveFieldsOnly() with correct SF field names
@@ -1885,7 +1896,8 @@ async function transferLeadDirectlyToSalesforce(leadData, attachments) {
     const payload = {
       leadData: salesforceLeadData,
       attachments: attachments,
-      leadId: leadIdForStatus  // Add leadId for status tracking
+      leadId: leadIdForStatus,  // Add leadId for status tracking
+      ...(externalIdField && { externalIdField })  // Enable upsert mode if External ID configured
     };
 
     const sfSessionToken = localStorage.getItem('sf_session_token');
@@ -5247,8 +5259,8 @@ async function saveFieldEdit(fieldName, newValue, isActive) {
             window.selectedLeadData[fieldName].value = newValue;
             window.selectedLeadData[fieldName].active = isActive;
         }
-        // If field exists as primitive value
-        else if (window.selectedLeadData[fieldName] !== undefined) {
+        // If field exists as primitive (or doesn't exist yet) — always set it so the new value is picked up
+        else {
             window.selectedLeadData[fieldName] = newValue;
         }
         console.log(`Memory updated: ${fieldName} = "${newValue}", active: ${isActive}`);

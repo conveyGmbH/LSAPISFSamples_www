@@ -270,4 +270,7 @@ document.addEventListener('DOMContentLoaded', () => {
     navigateBack();
   });
 
+  const userName = sessionStorage.getItem('userName');
+  const userNameDisplay = document.getElementById('userNameDisplay');
+  if (userNameDisplay && userName) userNameDisplay.textContent = userName;
 });
