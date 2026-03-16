@@ -469,3 +469,16 @@ postman_*.json
 # Misc
 nul
 Prc_GetSFCRMData.txt
+
+# Salesforce DX / Einstein project
+Einstein-SF/
+
+# Documentation PDFs and Markdown docs
+docs/
+*.pdf
+**/*.md
+*.md
+
+# Dashboard files (work in progress, not yet integrated)
+css/displayDashboard.css
+js/controllers/displayDashboardController.js

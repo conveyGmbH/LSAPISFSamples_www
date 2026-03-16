@@ -1990,6 +1990,20 @@ function updateSfConnectionUI(status, userName) {
   // Reset classes
   statusEl.className = 'sf-status';
 
+  // Dashboard button — enabled only when SF is connected
+  const dashboardBtn = document.getElementById('dashboardButton');
+  if (dashboardBtn) {
+    if (status === 'connected') {
+      dashboardBtn.disabled = false;
+      dashboardBtn.title = 'Open SF Dashboard';
+      dashboardBtn.onclick = () => { window.location.href = 'displayDashboard.html'; };
+    } else {
+      dashboardBtn.disabled = true;
+      dashboardBtn.title = 'Connect to Salesforce first';
+      dashboardBtn.onclick = null;
+    }
+  }
+
   if (status === 'connected') {
     statusEl.classList.add('sf-status-connected');
     text.textContent = userName || 'Connected';

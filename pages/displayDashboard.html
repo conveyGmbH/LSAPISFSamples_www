@@ -1,451 +1,374 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Salesforce Lead Manager Pro</title>
+    <title>LeadSuccess — SF Dashboard</title>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self' data: gap: https://ssl.gstatic.com 'unsafe-eval' 'unsafe-inline' https://cdn.tailwindcss.com https://cdn.jsdelivr.net https://delightful-desert-016e2a610.4.azurestaticapps.net/ https://lsapisamplesbackend-bhesadgtbja4dmgq.germanywestcentral-01.azurewebsites.net/; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; img-src 'self' data: blob:; connect-src 'self' blob: http://*.convey.de https://*.convey.de ws://127.0.0.1:5504 http://localhost:3000 http://localhost:5504 ws://localhost:5504 https://delightful-desert-016e2a610.4.azurestaticapps.net/ https://lsapisamplesbackend-bhesadgtbja4dmgq.germanywestcentral-01.azurewebsites.net/ https://lsapisfbackend.convey.de; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdn.jsdelivr.net;" />
+    <meta name="viewport" content="user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, width=device-width" />
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link href="../css/displayDashboard.css" rel="stylesheet">
+    <link rel="icon" type="image/x-icon" href="../images/api-sf.ico">
     <script>
         tailwind.config = {
-            darkMode: 'class',
             theme: {
                 extend: {
                     colors: {
-                        'salesforce': '#0176D3',
-                        'salesforce-dark': '#014486',
-                        'success': '#04844B',
-                        'warning': '#FFB75D',
-                        'danger': '#EA001E',
-                        'dark-bg': '#1F2937',
-                        'dark-card': '#374151',
-                        'dark-border': '#4B5563'
-                    },
-                    animation: {
-                        'fade-in': 'fadeIn 0.5s ease-in-out',
-                        'slide-up': 'slideUp 0.3s ease-out',
-                        'pulse-slow': 'pulse 2s infinite',
+                        'ls-primary': '#d9613f',
+                        'ls-dark': '#c5502f',
+                        'sf-blue': '#0176D3',
+                        'sf-blue-dark': '#014486',
                     }
                 }
             }
         }
     </script>
-    <style>
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-        @keyframes slideUp {
-            from { transform: translateY(10px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-        .loader {
-            border-top-color: #0176D3;
-            animation: spin 1s ease-in-out infinite;
-        }
-        
-        /* Modal positioning fix */
-        .modal-overlay {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 1rem;
-        }
-        
-        .modal-content {
-            max-height: calc(100vh - 2rem);
-            overflow-y: auto;
-        }
-    </style>
 </head>
-<body class="bg-gray-50 dark:bg-dark-bg font-sans transition-colors duration-300 min-h-screen">
-    <!-- Header -->
-    <header class="bg-white dark:bg-dark-card shadow-sm border-b dark:border-dark-border transition-colors duration-300 sticky top-0 z-40">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center h-16">
-                <div class="flex items-center space-x-4">
-                    <!-- Back Button -->
-                    <button id="backToLeadTransferBtn" class="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-dark-card border border-gray-300 dark:border-dark-border rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
-                        <i class="fas fa-arrow-left mr-2"></i>
-                        <span>Back</span>
-                    </button>
+<body class="bg-gray-100 min-h-screen flex flex-col" style="font-family: 'Open Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">
 
-                    <div class="flex-shrink-0">
-                        <i class="fas fa-cloud text-salesforce text-2xl mr-2"></i>
-                        <span class="text-xl font-bold text-gray-900 dark:text-white">Salesforce Lead Manager Pro</span>
-                    </div>
-
-                    <!-- Org Selector -->
-                    <div id="orgSelector" class="hidden">
-                        <select id="orgSelect" class="ml-4 text-sm border border-gray-300 dark:border-dark-border rounded-md px-3 py-1 bg-white dark:bg-dark-card dark:text-white focus:ring-2 focus:ring-salesforce focus:border-salesforce">
-                            <option value="default">Current Org</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="flex items-center space-x-4">
-                    <!-- User Info -->
-                    <div id="userInfo" class="hidden flex items-center space-x-3">
-                        <div class="flex-shrink-0">
-                            <img id="userAvatar" src="" alt="Profile" class="h-8 w-8 rounded-full border-2 border-gray-300 dark:border-gray-600">
-                        </div>
-                        <div class="text-right">
-                            <div class="text-sm font-medium text-gray-900 dark:text-white">Welcome, <span id="userName"></span></div>
-                            <div class="text-xs text-gray-500 dark:text-gray-400"><span id="userEmail"></span></div>
-                            <div class="text-xs text-gray-500 dark:text-gray-400"><span id="orgName"></span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Controls -->
-                    <div class="flex items-center space-x-2">
-                        <!-- Dark Mode Toggle -->
-                        <button id="darkModeToggle" class="p-2 rounded-md text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200" title="Toggle dark mode">
-                            <i class="fas fa-moon dark:hidden text-lg"></i>
-                            <i class="fas fa-sun hidden dark:block text-lg"></i>
-                        </button>
-                        
-                        <!-- Auth Buttons -->
-                        <button id="connectBtn" class="bg-salesforce hover:bg-salesforce-dark text-white px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center">
-                            <i class="fas fa-plug mr-2"></i>
-                            <span>Connect to Salesforce</span>
-                        </button>
-                        
-                        <button id="logoutBtn" class="hidden bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center">
-                            <i class="fas fa-sign-out-alt mr-2"></i>
-                            <span>Logout</span>
-                        </button>
-                        
-                        <button id="completeLogoutBtn" class="hidden bg-danger hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center">
-                            <i class="fas fa-door-open mr-2"></i>
-                            <span>Complete Logout</span>
-                        </button>
-                    </div>
+    <!-- App Header (same as other pages) -->
+    <header class="app-header">
+        <div class="header-left">
+            <a class="brand" href="../index.html">
+                <span class="brand-mark">LS</span>
+                <span class="brand-name">LeadSuccess</span>
+            </a>
+            <div class="header-divider"></div>
+            <div class="header-context">
+                <div class="header-title">Salesforce API Manager</div>
+                <div class="header-subtitle">
+                    <span class="header-pill">Dashboard</span>
+                    <span style="opacity:0.7;">&bull;</span>
+                    <span id="userNameDisplay" style="opacity:0.88;"></span>
                 </div>
             </div>
         </div>
-    </header>
-
-    <!-- Main Content -->
-    <main class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-        <!-- Connection Status Card -->
-        <div id="connectionStatus" class="mb-6">
-            <div id="notConnected" class="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-400 p-4 rounded-r-lg">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <i class="fas fa-exclamation-triangle text-yellow-400 text-xl"></i>
-                    </div>
-                    <div class="ml-3 flex-1">
-                        <p class="text-sm font-medium text-yellow-700 dark:text-yellow-300">Not connected to Salesforce</p>
-                        <p class="text-xs text-yellow-600 dark:text-yellow-400 mt-1">Please connect to access your leads and manage your data.</p>
-                    </div>
-                </div>
-            </div>
-            
-        </div>
-
-        <!-- Dashboard Content -->
-        <div id="dashboard" class="hidden animate-fade-in">
-            <!-- Stats Cards -->
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                <div class="bg-white dark:bg-dark-card rounded-lg shadow-sm border dark:border-dark-border p-6 transition-all duration-200 hover:shadow-md">
-                    <div class="flex items-center">
-                        <div class="flex-shrink-0">
-                            <div class="w-12 h-12 bg-salesforce/10 rounded-lg flex items-center justify-center">
-                                <i class="fas fa-users text-salesforce text-xl"></i>
-                            </div>
-                        </div>
-                        <div class="ml-4 flex-1">
-                            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Leads</dt>
-                            <dd id="totalLeads" class="text-2xl font-bold text-gray-900 dark:text-white">-</dd>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="bg-white dark:bg-dark-card rounded-lg shadow-sm border dark:border-dark-border p-6 transition-all duration-200 hover:shadow-md">
-                    <div class="flex items-center">
-                        <div class="flex-shrink-0">
-                            <div class="w-12 h-12 bg-success/10 rounded-lg flex items-center justify-center">
-                                <i class="fas fa-user-check text-success text-xl"></i>
-                            </div>
-                        </div>
-                        <div class="ml-4 flex-1">
-                            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Qualified</dt>
-                            <dd id="qualifiedLeads" class="text-2xl font-bold text-gray-900 dark:text-white">-</dd>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="bg-white dark:bg-dark-card rounded-lg shadow-sm border dark:border-dark-border p-6 transition-all duration-200 hover:shadow-md">
-                    <div class="flex items-center">
-                        <div class="flex-shrink-0">
-                            <div class="w-12 h-12 bg-warning/10 rounded-lg flex items-center justify-center">
-                                <i class="fas fa-user-clock text-warning text-xl"></i>
-                            </div>
-                        </div>
-                        <div class="ml-4 flex-1">
-                            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Working</dt>
-                            <dd id="workingLeads" class="text-2xl font-bold text-gray-900 dark:text-white">-</dd>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="bg-white dark:bg-dark-card rounded-lg shadow-sm border dark:border-dark-border p-6 transition-all duration-200 hover:shadow-md">
-                    <div class="flex items-center">
-                        <div class="flex-shrink-0">
-                            <div class="w-12 h-12 bg-blue-500/10 rounded-lg flex items-center justify-center">
-                                <i class="fas fa-user-plus text-blue-500 text-xl"></i>
-                            </div>
-                        </div>
-                        <div class="ml-4 flex-1">
-                            <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">New</dt>
-                            <dd id="newLeads" class="text-2xl font-bold text-gray-900 dark:text-white">-</dd>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Actions Bar -->
-            <div class="bg-white dark:bg-dark-card rounded-lg shadow-sm border dark:border-dark-border mb-6 p-6 transition-colors duration-200">
-                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div class="flex items-center space-x-3">
-                        <button id="newLeadBtn" class="inline-flex items-center px-4 py-2 bg-salesforce hover:bg-salesforce-dark text-white text-sm font-medium rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-salesforce focus:ring-offset-2">
-                            <i class="fas fa-plus mr-2"></i>New Lead
-                        </button>
-                        <button id="refreshBtn" class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-dark-border text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-dark-card hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-salesforce focus:ring-offset-2">
-                            <i class="fas fa-refresh mr-2"></i>
-                            <span id="refreshText">Refresh</span>
-                        </button>
-                        <button id="exportBtn" class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-dark-border text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-dark-card hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-salesforce focus:ring-offset-2">
-                            <i class="fas fa-download mr-2"></i>Export CSV
-                        </button>
-                    </div>
-                    
-                    <div class="flex items-center space-x-3">
-                        <!-- Search -->
-                        <div class="relative">
-                            <input type="text" id="searchInput" placeholder="Search leads..." class="block w-64 pl-10 pr-3 py-2 border border-gray-300 dark:border-dark-border rounded-md leading-5 bg-white dark:bg-dark-card dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-salesforce focus:border-salesforce sm:text-sm transition-colors duration-200">
-                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <i class="fas fa-search text-gray-400 dark:text-gray-500"></i>
-                            </div>
-                        </div>
-                        
-                        <!-- Status Filter -->
-                        <select id="statusFilter" class="block w-48 pl-3 pr-10 py-2 text-base border border-gray-300 dark:border-dark-border bg-white dark:bg-dark-card dark:text-white focus:outline-none focus:ring-2 focus:ring-salesforce focus:border-salesforce sm:text-sm rounded-md transition-colors duration-200">
-                            <option value="">All Status</option>
-                            <option value="Open - Not Contacted">Open - Not Contacted</option>
-                            <option value="Working - Contacted">Working - Contacted</option>
-                            <option value="Closed - Converted">Closed - Converted</option>
-                            <option value="Closed - Not Converted">Closed - Not Converted</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Leads Table -->
-            <div class="bg-white dark:bg-dark-card rounded-lg shadow-sm border dark:border-dark-border transition-colors duration-200">
-                <div class="p-6">
-                    <!-- Loading State -->
-                    <div id="tableLoading" class="hidden text-center py-12">
-                        <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-salesforce"></div>
-                        <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Loading leads...</p>
-                    </div>
-
-                    <!-- Empty State -->
-                    <div id="emptyState" class="hidden text-center py-12">
-                        <div class="w-16 h-16 mx-auto mb-4 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
-                            <i class="fas fa-users text-gray-400 text-2xl"></i>
-                        </div>
-                        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">No leads found</h3>
-                        <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">Get started by creating your first lead.</p>
-                        <button class="inline-flex items-center px-4 py-2 bg-salesforce hover:bg-salesforce-dark text-white text-sm font-medium rounded-md transition-colors duration-200">
-                            <i class="fas fa-plus mr-2"></i>Create Lead
-                        </button>
-                    </div>
-
-                    <!-- Leads Table -->
-                    <div id="leadsTableContainer" class="hidden">
-                        <div class="overflow-x-auto max-h-96 overflow-y-auto shadow ring-1 ring-black ring-opacity-5 dark:ring-gray-600 md:rounded-lg">
-                            <table class="min-w-full divide-y divide-gray-300 dark:divide-gray-600">
-                                <thead class="bg-gray-50 dark:bg-gray-700 sticky top-0 z-20">
-                                    <tr>
-                                        <th scope="col" class="sticky left-0 z-30 bg-gray-50 dark:bg-gray-700 px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200 border-r border-gray-200 dark:border-gray-600" onclick="window.salesforceApp.sortTable('name')">
-                                            <div class="flex items-center space-x-1">
-                                                <span>Name</span>
-                                                <i class="fas fa-sort text-gray-400"></i>
-                                            </div>
-                                        </th>
-                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200" onclick="window.salesforceApp.sortTable('company')">
-                                            <div class="flex items-center space-x-1">
-                                                <span>Company</span>
-                                                <i class="fas fa-sort text-gray-400"></i>
-                                            </div>
-                                        </th>
-                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Email</th>
-                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Phone</th>
-                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">State</th>
-                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200" onclick="window.salesforceApp.sortTable('status')">
-                                            <div class="flex items-center space-x-1">
-                                                <span>Status</span>
-                                                <i class="fas fa-sort text-gray-400"></i>
-                                            </div>
-                                        </th>
-                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Owner</th>
-                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Unread</th>
-                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200" onclick="window.salesforceApp.sortTable('created')">
-                                            <div class="flex items-center space-x-1">
-                                                <span>Created</span>
-                                                <i class="fas fa-sort text-gray-400"></i>
-                                            </div>
-                                        </th>
-                                        <th scope="col" class="relative px-4 py-3"><span class="sr-only">Actions</span></th>
-                                    </tr>
-                                </thead>
-                                <tbody id="leadsTableBody" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                                    <!-- Leads will be populated here -->
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <!-- Pagination -->
-                        <div id="pagination" class="bg-white dark:bg-gray-800 px-4 py-3 flex items-center justify-between border-t border-gray-200 dark:border-gray-700 sm:px-6 transition-colors duration-200">
-                            <div class="flex-1 flex justify-between sm:hidden">
-                                <button id="prevPageMobile" class="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">Previous</button>
-                                <button id="nextPageMobile" class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">Next</button>
-                            </div>
-                            <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                                <div>
-                                    <p class="text-sm text-gray-700 dark:text-gray-300">
-                                        Showing <span id="showingFrom" class="font-medium">1</span> to <span id="showingTo" class="font-medium">10</span> of <span id="totalRecords" class="font-medium">0</span> results
-                                    </p>
-                                </div>
-                                <div>
-                                    <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" id="paginationNav">
-                                        <!-- Pagination buttons will be generated here -->
-                                    </nav>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </main>
-
-    <!-- Delete Confirmation Modal -->
-    <div id="deleteModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden modal-overlay">
-        <div class="bg-white dark:bg-dark-card rounded-lg shadow-xl max-w-md w-full mx-4 modal-content">
-            <div class="p-6">
-                <div class="flex items-center justify-center w-12 h-12 mx-auto bg-red-100 dark:bg-red-900/20 rounded-full mb-4">
-                    <i class="fas fa-exclamation-triangle text-red-600 dark:text-red-400 text-xl"></i>
-                </div>
-                <div class="text-center">
-                    <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">Delete Lead</h3>
-                    <p class="text-sm text-gray-500 dark:text-gray-400 mb-2">Are you sure you want to delete this lead? This action cannot be undone.</p>
-                    <p id="deleteLeadName" class="text-sm font-medium text-gray-900 dark:text-white mb-6"></p>
-                </div>
-                <div class="flex items-center justify-center space-x-3">
-                    <button id="cancelDeleteBtn" class="px-4 py-2 border border-gray-300 dark:border-dark-border text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-dark-card hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
-                        Cancel
-                    </button>
-                    <button id="confirmDeleteBtn" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-md transition-colors duration-200">
-                        <span id="deleteBtnText">Delete</span>
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Create/Edit Lead Modal -->
-    <div id="leadModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden modal-overlay">
-        <div class="bg-white dark:bg-dark-card rounded-lg shadow-xl max-w-2xl w-full mx-4 modal-content">
-            <div class="flex items-center justify-between p-6 border-b dark:border-dark-border">
-                <h3 id="modalTitle" class="text-lg font-medium text-gray-900 dark:text-white">Create New Lead</h3>
-                <button id="closeModal" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-200">
-                    <i class="fas fa-times text-xl"></i>
+        <nav class="header-actions" style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+            <!-- SF Connection -->
+            <div id="sfConnectionArea" style="display:flex;align-items:center;gap:6px;">
+                <span id="sfStatusDot" class="sf-status-dot sf-status-disconnected"></span>
+                <span id="sfStatusLabel" class="text-white text-sm opacity-80">Not connected</span>
+                <button id="sfConnectBtn" class="header-btn header-btn-ghost">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                    Connect SF
+                </button>
+                <button id="sfDisconnectBtn" class="header-btn header-btn-ghost" style="display:none;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+                    Disconnect
                 </button>
             </div>
-            <form id="leadForm" class="p-6">
-                <input type="hidden" id="leadId" name="Id">
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label for="firstName" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">First Name</label>
-                        <input type="text" id="firstName" name="FirstName" class="w-full border border-gray-300 dark:border-dark-border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-salesforce focus:border-salesforce bg-white dark:bg-dark-card dark:text-white transition-colors duration-200">
-                    </div>
-                    <div>
-                        <label for="lastName" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Last Name <span class="text-red-500">*</span></label>
-                        <input type="text" id="lastName" name="LastName" required class="w-full border border-gray-300 dark:border-dark-border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-salesforce focus:border-salesforce bg-white dark:bg-dark-card dark:text-white transition-colors duration-200">
+            <button id="backButton" class="header-btn header-btn-ghost">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                Back
+            </button>
+            <button id="refreshAllBtn" class="header-btn header-btn-ghost">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                Refresh
+            </button>
+            <button id="logoutButton" class="header-btn header-btn-danger">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                Logout
+            </button>
+        </nav>
+    </header>
+
+    <!-- Not Connected Banner -->
+    <div id="notConnectedBanner" class="mx-6 mt-4 p-4 bg-amber-50 border-l-4 border-amber-400 rounded-r-lg flex items-center gap-3">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <div>
+            <p class="text-sm font-semibold text-amber-700">Not connected to Salesforce</p>
+            <p class="text-xs text-amber-600 mt-0.5">Connect to Salesforce to view your dashboard data.</p>
+        </div>
+        <button id="bannerConnectBtn" class="ml-auto px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold rounded-md transition-colors">Connect</button>
+    </div>
+
+    <!-- Main Dashboard Content -->
+    <main id="dashboardMain" class="flex-1 p-6 space-y-6" style="display:none;">
+
+        <!-- KPI Cards Row -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+            <!-- Total Leads -->
+            <div class="kpi-card bg-white rounded-xl shadow-sm border border-gray-200 p-5 flex items-center gap-4">
+                <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style="background: rgba(1,118,211,0.1);">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0176D3" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                </div>
+                <div>
+                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Total Leads</p>
+                    <p id="kpiTotal" class="text-2xl font-bold text-gray-900 mt-0.5">—</p>
+                    <p class="text-xs text-gray-400 mt-0.5">In Salesforce</p>
+                </div>
+            </div>
+
+            <!-- New this week -->
+            <div class="kpi-card bg-white rounded-xl shadow-sm border border-gray-200 p-5 flex items-center gap-4">
+                <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style="background: rgba(34,197,94,0.1);">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+                </div>
+                <div>
+                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">New (7 days)</p>
+                    <p id="kpiNew" class="text-2xl font-bold text-gray-900 mt-0.5">—</p>
+                    <p class="text-xs text-gray-400 mt-0.5">Last 7 days</p>
+                </div>
+            </div>
+
+            <!-- Conversion Rate -->
+            <div class="kpi-card bg-white rounded-xl shadow-sm border border-gray-200 p-5 flex items-center gap-4">
+                <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style="background: rgba(217,97,63,0.1);">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#d9613f" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                </div>
+                <div>
+                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Conversion Rate</p>
+                    <p id="kpiConversion" class="text-2xl font-bold text-gray-900 mt-0.5">—</p>
+                    <p class="text-xs text-gray-400 mt-0.5">Closed - Converted</p>
+                </div>
+            </div>
+
+            <!-- Unread -->
+            <div class="kpi-card bg-white rounded-xl shadow-sm border border-gray-200 p-5 flex items-center gap-4">
+                <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style="background: rgba(245,158,11,0.1);">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                </div>
+                <div>
+                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Unread</p>
+                    <p id="kpiUnread" class="text-2xl font-bold text-gray-900 mt-0.5">—</p>
+                    <p class="text-xs text-gray-400 mt-0.5">Need attention</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <!-- Status Donut -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide">Leads by Status</h3>
+                    <span id="statusChartTotal" class="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full"></span>
+                </div>
+                <div class="relative" style="height:240px;">
+                    <canvas id="statusChart"></canvas>
+                    <div id="statusChartEmpty" class="chart-empty hidden">No data</div>
+                </div>
+            </div>
+
+            <!-- Source Bar -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide">Leads by Source</h3>
+                    <div class="flex gap-1">
+                        <button class="period-btn active" data-period="7">7d</button>
+                        <button class="period-btn" data-period="30">30d</button>
+                        <button class="period-btn" data-period="90">90d</button>
                     </div>
                 </div>
-
-                <div class="mt-6">
-                    <label for="company" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Company <span class="text-red-500">*</span></label>
-                    <input type="text" id="company" name="Company" required class="w-full border border-gray-300 dark:border-dark-border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-salesforce focus:border-salesforce bg-white dark:bg-dark-card dark:text-white transition-colors duration-200">
+                <div class="relative" style="height:240px;">
+                    <canvas id="sourceChart"></canvas>
+                    <div id="sourceChartEmpty" class="chart-empty hidden">No data</div>
                 </div>
+            </div>
+        </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-                    <div>
-                        <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Email</label>
-                        <input type="email" id="email" name="Email" class="w-full border border-gray-300 dark:border-dark-border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-salesforce focus:border-salesforce bg-white dark:bg-dark-card dark:text-white transition-colors duration-200">
-                    </div>
-                    <div>
-                        <label for="phone" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Phone</label>
-                        <input type="tel" id="phone" name="Phone" class="w-full border border-gray-300 dark:border-dark-border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-salesforce focus:border-salesforce bg-white dark:bg-dark-card dark:text-white transition-colors duration-200">
-                    </div>
+        <!-- Timeline Chart -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+            <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+                <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide">Lead Activity Timeline</h3>
+                <div class="flex items-center gap-3">
+                    <label class="text-xs text-gray-500 font-medium">From</label>
+                    <input type="date" id="timelineFrom" class="text-xs border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-ls-primary">
+                    <label class="text-xs text-gray-500 font-medium">To</label>
+                    <input type="date" id="timelineTo" class="text-xs border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-ls-primary">
+                    <button id="applyTimelineFilter" class="text-xs px-3 py-1.5 rounded-md text-white font-semibold transition-colors" style="background:#d9613f;">Apply</button>
                 </div>
+            </div>
+            <div class="relative" style="height:200px;">
+                <canvas id="timelineChart"></canvas>
+                <div id="timelineChartEmpty" class="chart-empty hidden">No data for this period</div>
+            </div>
+        </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-                    <div>
-                        <label for="title" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Title</label>
-                        <input type="text" id="title" name="Title" class="w-full border border-gray-300 dark:border-dark-border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-salesforce focus:border-salesforce bg-white dark:bg-dark-card dark:text-white transition-colors duration-200">
-                    </div>
-                    <div>
-                        <label for="state" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">State/Province</label>
-                        <input type="text" id="state" name="State" class="w-full border border-gray-300 dark:border-dark-border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-salesforce focus:border-salesforce bg-white dark:bg-dark-card dark:text-white transition-colors duration-200">
-                    </div>
+        <!-- Leads Table -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+            <div class="p-4 border-b border-gray-200 flex items-center justify-between flex-wrap gap-2">
+                <div>
+                    <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide">SF Leads — Batch Field View</h3>
+                    <p class="text-xs text-gray-400 mt-0.5">Columns match your active batch transfer field configuration</p>
                 </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-                    <div>
-                        <label for="leadStatus" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Status</label>
-                        <select id="leadStatus" name="Status" class="w-full border border-gray-300 dark:border-dark-border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-salesforce focus:border-salesforce bg-white dark:bg-dark-card dark:text-white transition-colors duration-200">
-                            <option value="Open - Not Contacted">Open - Not Contacted</option>
-                            <option value="Working - Contacted">Working - Contacted</option>
-                            <option value="Closed - Converted">Closed - Converted</option>
-                            <option value="Closed - Not Converted">Closed - Not Converted</option>
-                        </select>
+                <div class="flex items-center gap-2 flex-wrap">
+                    <div class="relative">
+                        <input type="text" id="leadsSearch" placeholder="Search..." class="text-sm border border-gray-300 rounded-lg pl-7 pr-3 py-1.5 w-40 focus:outline-none focus:border-ls-primary">
+                        <svg class="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                     </div>
-                    <div>
-                        <label for="leadSource" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Lead Source</label>
-                        <select id="leadSource" name="LeadSource" class="w-full border border-gray-300 dark:border-dark-border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-salesforce focus:border-salesforce bg-white dark:bg-dark-card dark:text-white transition-colors duration-200">
-                            <option value="">--None--</option>
-                            <option value="Web">Web</option>
-                            <option value="Phone Inquiry">Phone Inquiry</option>
-                            <option value="Partner Referral">Partner Referral</option>
-                            <option value="Purchased List">Purchased List</option>
-                            <option value="Other">Other</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="flex items-center justify-end space-x-3 mt-8 pt-6 border-t dark:border-dark-border">
-                    <button type="button" id="cancelBtn" class="px-4 py-2 border border-gray-300 dark:border-dark-border text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-dark-card hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200">
-                        Cancel
+                    <select id="statusFilter" class="text-sm border border-gray-300 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:border-ls-primary">
+                        <option value="">All Statuses</option>
+                        <option value="Open - Not Contacted">Open</option>
+                        <option value="Working - Contacted">Working</option>
+                        <option value="Closed - Converted">Converted</option>
+                        <option value="Closed - Not Converted">Not Converted</option>
+                    </select>
+                    <button id="exportCsvBtn" class="text-sm px-3 py-1.5 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors flex items-center gap-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        CSV
                     </button>
-                    <button type="submit" id="saveBtn" class="px-4 py-2 bg-salesforce hover:bg-salesforce-dark text-white text-sm font-medium rounded-md transition-colors duration-200">
-                        <span id="saveBtnText">Save Lead</span>
+                </div>
+            </div>
+
+            <div id="tableLoading" class="py-16 flex flex-col items-center gap-3 text-gray-400">
+                <div class="loading-spinner"></div>
+                <p class="text-sm">Loading leads from Salesforce...</p>
+            </div>
+
+            <div id="tableEmpty" class="py-16 flex flex-col items-center gap-3 text-gray-400" style="display:none;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                <p class="text-sm font-medium">No leads found</p>
+            </div>
+
+            <!-- Dynamic table with sticky Name column + horizontal scroll -->
+            <div id="tableContainer" style="display:none; overflow-x:auto; position:relative;">
+                <table id="leadsTable" style="border-collapse:collapse; font-size:13px; min-width:100%; white-space:nowrap;">
+                    <thead id="leadsTableHead"></thead>
+                    <tbody id="leadsTableBody"></tbody>
+                </table>
+                <div class="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
+                    <p id="paginationInfo" class="text-xs text-gray-500"></p>
+                    <div class="flex items-center gap-3">
+                        <label class="text-xs text-gray-500 flex items-center gap-1">
+                            Rows:
+                            <select id="pageSizeSelect" class="text-xs border border-gray-200 rounded px-1 py-0.5">
+                                <option value="20">20</option>
+                                <option value="50" selected>50</option>
+                                <option value="100">100</option>
+                                <option value="200">200</option>
+                                <option value="9999">All</option>
+                            </select>
+                        </label>
+                        <div class="flex items-center gap-1" id="paginationBtns"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Row: Sync Panel + Einstein placeholder -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+            <!-- Sync Panel (2/3 width) -->
+            <div class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200">
+                <div class="p-5 border-b border-gray-200 flex items-center justify-between">
+                    <div>
+                        <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide">Quick Sync</h3>
+                        <p class="text-xs text-gray-400 mt-0.5">OData leads not yet transferred to Salesforce</p>
+                    </div>
+                    <button id="syncAllBtn" class="px-4 py-2 text-white text-sm font-semibold rounded-lg transition-colors flex items-center gap-2" style="background:#d9613f;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                        Sync All
                     </button>
                 </div>
-            </form>
+                <div id="syncPanel" class="p-5">
+                    <div id="syncLoading" class="text-center py-8 text-gray-400 text-sm">
+                        <div class="loading-spinner mx-auto mb-2"></div>
+                        Loading pending leads...
+                    </div>
+                    <div id="syncEmpty" class="text-center py-8 text-gray-400" style="display:none;">
+                        <svg class="mx-auto mb-2" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                        <p class="text-sm font-medium text-gray-500">All leads are synced!</p>
+                    </div>
+                    <div id="syncList" class="space-y-2 max-h-64 overflow-y-auto" style="display:none;"></div>
+                    <!-- Sync progress bar -->
+                    <div id="syncProgress" class="mt-4" style="display:none;">
+                        <div class="flex items-center justify-between mb-1">
+                            <span id="syncProgressLabel" class="text-xs text-gray-600 font-medium">Syncing...</span>
+                            <span id="syncProgressCount" class="text-xs text-gray-400"></span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div id="syncProgressBar" class="h-2 rounded-full transition-all duration-300" style="background:#d9613f; width:0%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Einstein Placeholder (1/3 width) -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col">
+                <div class="p-5 border-b border-gray-200">
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background: linear-gradient(135deg, #0176D3, #032D60);">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-bold text-gray-700">Einstein Analytics</h3>
+                            <span class="text-xs px-2 py-0.5 rounded-full text-white font-semibold" style="background:#0176D3;">Coming Soon</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-5 flex-1 flex flex-col gap-3">
+                    <p class="text-xs text-gray-500 leading-relaxed">AI-powered insights for your Salesforce leads, powered by Einstein.</p>
+                    <div class="space-y-2">
+                        <div class="flex items-center gap-2 text-xs text-gray-500">
+                            <div class="w-1.5 h-1.5 rounded-full bg-gray-300"></div>
+                            Industry & sector deduction
+                        </div>
+                        <div class="flex items-center gap-2 text-xs text-gray-500">
+                            <div class="w-1.5 h-1.5 rounded-full bg-gray-300"></div>
+                            Automatic contact enrichment
+                        </div>
+                        <div class="flex items-center gap-2 text-xs text-gray-500">
+                            <div class="w-1.5 h-1.5 rounded-full bg-gray-300"></div>
+                            Lead scoring & prioritization
+                        </div>
+                        <div class="flex items-center gap-2 text-xs text-gray-500">
+                            <div class="w-1.5 h-1.5 rounded-full bg-gray-300"></div>
+                            Event reports & analytics
+                        </div>
+                        <div class="flex items-center gap-2 text-xs text-gray-500">
+                            <div class="w-1.5 h-1.5 rounded-full bg-gray-300"></div>
+                            Predictive conversion insights
+                        </div>
+                    </div>
+                    <div class="mt-auto pt-3 border-t border-gray-100">
+                        <p class="text-xs text-gray-400">Requires Salesforce Einstein license</p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- Delete Lead Modal -->
+    <div id="deleteModal" class="modal-overlay hidden">
+        <div class="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 p-6">
+            <div class="flex items-center justify-center w-12 h-12 mx-auto bg-red-100 rounded-full mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+            </div>
+            <h3 class="text-lg font-bold text-gray-900 text-center">Delete Lead</h3>
+            <p class="text-sm text-gray-500 text-center mt-2">Are you sure you want to delete <strong id="deleteLeadName"></strong> from Salesforce? This action cannot be undone.</p>
+            <div class="flex gap-3 mt-6">
+                <button id="cancelDeleteBtn" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
+                <button id="confirmDeleteBtn" class="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-semibold transition-colors">Delete</button>
+            </div>
         </div>
     </div>
 
-    <!-- Toast Notifications - Centered -->
-    <div id="toastContainer" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 space-y-2 flex flex-col items-center">
-        <!-- Toasts will be inserted here -->
+    <!-- Files Viewer Modal -->
+    <div id="filesModal" class="modal-overlay hidden" style="z-index:60;">
+        <div style="background:#fff;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.25);width:90%;max-width:900px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;">
+            <!-- Modal Header -->
+            <div style="display:flex;align-items:center;padding:14px 18px;border-bottom:1px solid #e5e7eb;flex-shrink:0;gap:10px">
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#0176D3" style="flex-shrink:0">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
+                </svg>
+                <span id="filesModalTitle" style="font-weight:600;font-size:14px;flex:1;color:#111827;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Files</span>
+                <button id="filesDeleteAllBtn" style="display:none;font-size:11px;padding:4px 10px;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:6px;cursor:pointer;white-space:nowrap">🗑 Delete All</button>
+                <button id="closeFilesModal" style="padding:4px 8px;font-size:18px;color:#9ca3af;background:none;border:none;cursor:pointer;line-height:1;flex-shrink:0">&times;</button>
+            </div>
+            <!-- Tabs Bar -->
+            <div id="filesTabsBar" style="display:flex;gap:4px;padding:8px 12px;border-bottom:1px solid #e5e7eb;overflow-x:auto;flex-shrink:0;flex-wrap:nowrap;"></div>
+            <!-- Viewer -->
+            <div id="filesViewerContent" style="flex:1;overflow:hidden;display:flex;flex-direction:column;min-height:300px;"></div>
+        </div>
     </div>
 
-    <script src="../js/controllers/displayDashboardController.js"></script>
+    <!-- Toast Container -->
+    <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 items-end pointer-events-none"></div>
+
+    <script src="../js/controllers/displayDashboardController.js" type="module" defer></script>
 </body>
 </html>

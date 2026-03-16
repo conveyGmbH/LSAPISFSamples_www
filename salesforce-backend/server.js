@@ -81,6 +81,7 @@ const allowedOrigins = [
     'http://127.0.0.1:5504',
     'http://localhost:5504',
     'http://localhost:3000',
+    'http://localhost:3001',
     'https://leadsuccess.convey.de/apisflsm/',
     'https://leadsuccess.convey.de',
     'https://lsapisfsamples.convey.de',
@@ -1306,6 +1307,160 @@ app.delete('/api/leads/:id', async (req, res) => {
     }
 });
 
+// --- GET files linked to a lead ---
+app.get('/api/leads/:id/files', async (req, res) => {
+    try {
+        const orgId = getCurrentOrgId(req);
+        const conn  = getConnection(orgId);
+        if (!conn) return res.status(401).json({ message: 'Not connected to Salesforce' });
+
+        const { id } = req.params;
+
+        // Query ContentDocumentLinks for this lead, then join ContentVersion metadata
+        const soql = `SELECT ContentDocumentId, ContentDocument.LatestPublishedVersionId,
+                             ContentDocument.Title, ContentDocument.FileType,
+                             ContentDocument.ContentSize, ContentDocument.CreatedDate
+                      FROM ContentDocumentLink
+                      WHERE LinkedEntityId = '${id}'
+                      ORDER BY ContentDocument.CreatedDate DESC`;
+
+        const result = await conn.query(soql);
+        const files  = (result.records || []).map(r => ({
+            contentDocumentId:        r.ContentDocumentId,
+            contentVersionId:         r.ContentDocument?.LatestPublishedVersionId,
+            title:                    r.ContentDocument?.Title       || 'Untitled',
+            fileType:                 r.ContentDocument?.FileType    || '',
+            size:                     r.ContentDocument?.ContentSize || 0,
+            createdDate:              r.ContentDocument?.CreatedDate || null
+        }));
+
+        res.json({ files });
+    } catch (error) {
+        console.error('Failed to fetch lead files:', error);
+        res.status(500).json({ message: 'Failed to fetch lead files', error: error.message });
+    }
+});
+
+// --- GET file counts for multiple leads (batch) ---
+app.post('/api/leads/files/counts', async (req, res) => {
+    try {
+        const orgId = getCurrentOrgId(req);
+        const conn  = getConnection(orgId);
+        if (!conn) return res.status(401).json({ message: 'Not connected to Salesforce' });
+
+        const { leadIds } = req.body;
+        if (!Array.isArray(leadIds) || leadIds.length === 0) return res.json({ counts: {} });
+
+        // SF SOQL: count ContentDocumentLinks grouped by LinkedEntityId
+        const idList = leadIds.map(id => `'${id}'`).join(',');
+        const soql = `SELECT LinkedEntityId, COUNT(ContentDocumentId) cnt
+                      FROM ContentDocumentLink
+                      WHERE LinkedEntityId IN (${idList})
+                      GROUP BY LinkedEntityId`;
+
+        const result = await conn.query(soql);
+        const counts = {};
+        (result.records || []).forEach(r => { counts[r.LinkedEntityId] = r.cnt; });
+
+        res.json({ counts });
+    } catch (error) {
+        console.error('Failed to fetch file counts:', error);
+        res.status(500).json({ message: 'Failed to fetch file counts', error: error.message });
+    }
+});
+
+// --- Download a ContentVersion (base64) ---
+app.get('/api/files/:contentVersionId/download', async (req, res) => {
+    try {
+        const orgId = getCurrentOrgId(req);
+        const conn  = getConnection(orgId);
+        if (!conn) return res.status(401).json({ message: 'Not connected to Salesforce' });
+
+        const { contentVersionId } = req.params;
+
+        // Fetch metadata + VersionData (base64)
+        const cv = await conn.sobject('ContentVersion').retrieve(contentVersionId, ['Title', 'FileType', 'ContentSize', 'VersionData']);
+
+        // VersionData is a URL to the file body in jsforce — fetch it
+        const fileUrl = `${conn.instanceUrl}${cv.VersionData}`;
+        const fileRes = await fetch(fileUrl, {
+            headers: { 'Authorization': `Bearer ${conn.accessToken}` }
+        });
+        if (!fileRes.ok) throw new Error(`SF file fetch failed: HTTP ${fileRes.status}`);
+
+        const buffer = await fileRes.arrayBuffer();
+        const base64 = Buffer.from(buffer).toString('base64');
+        const mimeMap = {
+            PDF: 'application/pdf', PNG: 'image/png', JPG: 'image/jpeg',
+            JPEG: 'image/jpeg', GIF: 'image/gif', SVG: 'image/svg+xml',
+            TXT: 'text/plain', CSV: 'text/csv', DOCX: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            XLSX: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            MP4: 'video/mp4', MP3: 'audio/mpeg'
+        };
+        const mimeType = mimeMap[(cv.FileType || '').toUpperCase()] || 'application/octet-stream';
+
+        res.json({
+            title:    cv.Title,
+            fileType: cv.FileType,
+            mimeType,
+            size:     cv.ContentSize,
+            base64
+        });
+    } catch (error) {
+        console.error('Failed to download file:', error);
+        res.status(500).json({ message: 'Failed to download file', error: error.message });
+    }
+});
+
+// --- DELETE all files linked to a lead ---
+app.delete('/api/leads/:id/files', async (req, res) => {
+    try {
+        const orgId = getCurrentOrgId(req);
+        const conn  = getConnection(orgId);
+        if (!conn) return res.status(401).json({ message: 'Not connected to Salesforce' });
+
+        const { id } = req.params;
+
+        // Get all ContentDocument IDs linked to this lead
+        const soql = `SELECT ContentDocumentId FROM ContentDocumentLink WHERE LinkedEntityId = '${id}'`;
+        const result = await conn.query(soql);
+        const ids = (result.records || []).map(r => r.ContentDocumentId);
+
+        if (ids.length === 0) return res.json({ success: true, deleted: 0 });
+
+        // Batch delete via composite (max 200 per SF limit)
+        const deleteResults = await conn.sobject('ContentDocument').delete(ids);
+        const deleted = Array.isArray(deleteResults)
+            ? deleteResults.filter(r => r.success).length
+            : (deleteResults.success ? 1 : 0);
+
+        res.json({ success: true, deleted, total: ids.length });
+    } catch (error) {
+        console.error('Failed to delete lead files:', error);
+        res.status(500).json({ message: 'Failed to delete lead files', error: error.message });
+    }
+});
+
+// --- DELETE a single ContentDocument (file) ---
+app.delete('/api/files/:contentDocumentId', async (req, res) => {
+    try {
+        const orgId = getCurrentOrgId(req);
+        const conn  = getConnection(orgId);
+        if (!conn) return res.status(401).json({ message: 'Not connected to Salesforce' });
+
+        const { contentDocumentId } = req.params;
+        const result = await conn.sobject('ContentDocument').delete(contentDocumentId);
+        if (result.success) {
+            res.json({ success: true, id: contentDocumentId });
+        } else {
+            throw new Error('Delete failed: ' + JSON.stringify(result.errors));
+        }
+    } catch (error) {
+        console.error('Failed to delete file:', error);
+        res.status(500).json({ message: 'Failed to delete file', error: error.message });
+    }
+});
+
 app.post('/api/salesforce/fields/check', async (req, res) => {
     try {
         const orgId = getCurrentOrgId(req);
@@ -2130,6 +2285,129 @@ app.delete('/api/lead-field-updates/:eventId', async (req, res) => {
             message: 'Error deleting field updates',
             error: error.message
         });
+    }
+});
+
+// --- ANALYTICS ROUTES ---
+
+app.get('/api/salesforce/analytics/overview', async (req, res) => {
+    try {
+        const orgId = getCurrentOrgId(req);
+        const conn = getConnection(orgId);
+        if (!conn) return res.status(401).json({ message: 'Not connected to Salesforce' });
+
+        const [totalRes, newRes, convertedRes, unreadRes] = await Promise.all([
+            conn.query('SELECT COUNT(Id) cnt FROM Lead'),
+            conn.query('SELECT COUNT(Id) cnt FROM Lead WHERE CreatedDate = LAST_N_DAYS:7'),
+            conn.query("SELECT COUNT(Id) cnt FROM Lead WHERE Status = 'Closed - Converted'"),
+            conn.query('SELECT COUNT(Id) cnt FROM Lead WHERE IsUnreadByOwner = true')
+        ]);
+
+        const total = totalRes.records[0].cnt;
+        const newLast7Days = newRes.records[0].cnt;
+        const converted = convertedRes.records[0].cnt;
+        const unread = unreadRes.records[0].cnt;
+
+        res.json({
+            total,
+            newLast7Days,
+            converted,
+            unread,
+            conversionRate: total > 0 ? Math.round((converted / total) * 100) : 0
+        });
+    } catch (error) {
+        console.error('Analytics overview failed:', error);
+        res.status(500).json({ message: 'Analytics failed', error: error.message });
+    }
+});
+
+app.get('/api/salesforce/analytics/by-status', async (req, res) => {
+    try {
+        const orgId = getCurrentOrgId(req);
+        const conn = getConnection(orgId);
+        if (!conn) return res.status(401).json({ message: 'Not connected to Salesforce' });
+
+        const result = await conn.query('SELECT Status, COUNT(Id) cnt FROM Lead GROUP BY Status ORDER BY COUNT(Id) DESC');
+        res.json(result.records.map(r => ({ status: r.Status || 'Unknown', count: r.cnt })));
+    } catch (error) {
+        console.error('Analytics by-status failed:', error);
+        res.status(500).json({ message: 'Analytics failed', error: error.message });
+    }
+});
+
+app.get('/api/salesforce/analytics/by-source', async (req, res) => {
+    try {
+        const orgId = getCurrentOrgId(req);
+        const conn = getConnection(orgId);
+        if (!conn) return res.status(401).json({ message: 'Not connected to Salesforce' });
+
+        const result = await conn.query('SELECT LeadSource, COUNT(Id) cnt FROM Lead GROUP BY LeadSource ORDER BY COUNT(Id) DESC');
+        res.json(result.records.map(r => ({ source: r.LeadSource || 'Unknown', count: r.cnt })));
+    } catch (error) {
+        console.error('Analytics by-source failed:', error);
+        res.status(500).json({ message: 'Analytics failed', error: error.message });
+    }
+});
+
+app.get('/api/salesforce/analytics/timeline', async (req, res) => {
+    try {
+        const orgId = getCurrentOrgId(req);
+        const conn = getConnection(orgId);
+        if (!conn) return res.status(401).json({ message: 'Not connected to Salesforce' });
+
+        const days = parseInt(req.query.days) || 30;
+        const result = await conn.query(
+            `SELECT DAY_ONLY(CreatedDate) day, COUNT(Id) cnt FROM Lead WHERE CreatedDate = LAST_N_DAYS:${days} GROUP BY DAY_ONLY(CreatedDate) ORDER BY DAY_ONLY(CreatedDate) ASC`
+        );
+        res.json(result.records.map(r => ({ date: r.day, count: r.cnt })));
+    } catch (error) {
+        console.error('Analytics timeline failed:', error);
+        res.status(500).json({ message: 'Analytics failed', error: error.message });
+    }
+});
+
+app.get('/api/salesforce/leads/recent', async (req, res) => {
+    try {
+        const orgId = getCurrentOrgId(req);
+        const conn = getConnection(orgId);
+        if (!conn) return res.status(401).json({ message: 'Not connected to Salesforce' });
+
+        const limit = parseInt(req.query.limit) || 50;
+
+        // Non-queryable field types that SOQL cannot select
+        const NON_QUERYABLE_TYPES = new Set(['address', 'location', 'base64']);
+        // Fields that cause query issues even if "queryable"
+        const FIELD_BLACKLIST = new Set(['attributes', 'CleanStatus']);
+
+        // Describe Lead to get all available fields dynamically
+        const meta = await conn.sobject('Lead').describe();
+        const allFields = meta.fields
+            .filter(f => f.name !== 'attributes'
+                && !NON_QUERYABLE_TYPES.has(f.type)
+                && !FIELD_BLACKLIST.has(f.name)
+            )
+            .map(f => f.name);
+
+        // Always ensure Name + identification fields are present
+        const priorityFields = ['Id', 'FirstName', 'LastName', 'Company', 'Email', 'Status', 'LeadSource', 'CreatedDate', 'LS_LeadId__c'];
+        const orderedFields = [
+            ...priorityFields.filter(f => allFields.includes(f)),
+            ...allFields.filter(f => !priorityFields.includes(f))
+        ];
+
+        const soql = `SELECT ${orderedFields.join(', ')} FROM Lead ORDER BY CreatedDate DESC LIMIT ${limit}`;
+        const result = await conn.query(soql);
+
+        // Return records + field metadata so the client knows what columns to render
+        const fieldMeta = orderedFields.map(name => {
+            const f = meta.fields.find(x => x.name === name);
+            return { name, label: f?.label || name, type: f?.type || 'string' };
+        });
+
+        res.json({ records: result.records, fields: orderedFields, fieldMeta });
+    } catch (error) {
+        console.error('Recent leads failed:', error);
+        res.status(500).json({ message: 'Failed to fetch recent leads', error: error.message });
     }
 });
 

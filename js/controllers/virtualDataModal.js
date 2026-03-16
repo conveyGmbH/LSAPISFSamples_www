@@ -502,7 +502,7 @@ class VirtualDataModal {
     // Remove any existing virtual data modal first
     const existingModal = document.getElementById('virtualDataModal');
     if (existingModal) {
-      console.log('⚠️ Removing existing modal before creating new one');
+      console.log('Removing existing modal before creating new one');
       existingModal.remove();
     }
 
@@ -654,14 +654,14 @@ class VirtualDataModal {
       console.error('❌ Save button not found!');
     }
 
-    console.log('✅ Event listeners attached');
+    console.log(' Event listeners attached');
   }
 
   // Save and test transfer
   async saveAndTest() {
     // Prevent double execution
     if (this.isSaving) {
-      console.log('⚠️ Save already in progress, ignoring...');
+      console.log('Save already in progress, ignoring...');
       return;
     }
 
@@ -704,7 +704,7 @@ class VirtualDataModal {
       if (window.displayVirtualDataInTable) {
         await window.displayVirtualDataInTable(this.virtualData);
       } else {
-        console.warn('⚠️ displayVirtualDataInTable function not found');
+        console.warn('displayVirtualDataInTable function not found');
       }
 
     } catch (error) {
@@ -724,23 +724,23 @@ class VirtualDataModal {
   close() {
     // Prevent double execution
     if (this.isClosing) {
-      console.log('⚠️ Close already in progress, ignoring...');
+      console.log('Close already in progress, ignoring...');
       return;
     }
 
     this.isClosing = true;
-    console.log('🔒 Closing Virtual Data Modal...');
+    console.log('Closing Virtual Data Modal...');
 
     const modal = document.getElementById('virtualDataModal');
     if (modal) {
       modal.remove();
-      console.log('✅ Virtual Data Modal closed and removed from DOM');
+      console.log(' Virtual Data Modal closed and removed from DOM');
     } else {
-      console.log('⚠️ Modal already removed or not found');
+      console.log('Modal already removed or not found');
     }
 
     // Redirect back to events page
-    console.log('🔙 Redirecting to events page...');
+    console.log(' Redirecting to events page...');
     window.location.href = 'display.html';
 
     // Reset closing flag after a short delay
