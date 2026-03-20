@@ -1678,27 +1678,6 @@ app.post('/api/leads/check-duplicate', async (req, res) => {
     }
 });
 
-let leadObjectFieldsCache = null;
-let leadObjectFieldsCacheTimestamp = 0;
-const LEAD_FIELDS_CACHE_TTL = 60 * 60 * 1000;
-
-async function fetchLeadObjectFields(conn) {
-    const now = Date.now();
-    if (leadObjectFieldsCache && (now - leadObjectFieldsCacheTimestamp) < LEAD_FIELDS_CACHE_TTL) {
-        return leadObjectFieldsCache;
-    }
-    try {
-        const metadata = await conn.describe('Lead');
-        const fields = metadata.fields.map(f => f.name);
-        leadObjectFieldsCache = new Set(fields);
-        leadObjectFieldsCacheTimestamp = now;
-        console.log(`Fetched ${fields.length} Lead object fields from Salesforce metadata`);
-        return leadObjectFieldsCache;
-    } catch (error) {
-        console.error('Failed to fetch Lead object fields metadata:', error);
-        return null;
-    }
-}
 
 app.post('/api/salesforce/leads', async (req, res) => {
     try {
@@ -1741,53 +1720,7 @@ app.post('/api/salesforce/leads', async (req, res) => {
             });
         }
 
-        let validLeadFields = await fetchLeadObjectFields(conn);
-
-        let unknownFields = [];
-        if (validLeadFields) {
-            unknownFields = Object.keys(validatedLeadData).filter(field => !validLeadFields.has(field));
-
-            // Invalidate cache and retry if unknown fields found (may have been created recently)
-            if (unknownFields.length > 0) {
-                console.log(`Found ${unknownFields.length} unknown field(s), refreshing SF metadata cache...`);
-                leadObjectFieldsCache = null;
-                leadObjectFieldsCacheTimestamp = 0;
-                validLeadFields = await fetchLeadObjectFields(conn);
-
-                if (validLeadFields) {
-                    unknownFields = Object.keys(validatedLeadData).filter(field => !validLeadFields.has(field));
-                }
-            }
-
-            if (unknownFields.length > 0) {
-                console.error(`Field(s) not found in Salesforce: ${unknownFields.join(', ')}`);
-
-                const boldFields = unknownFields.map(f => `<strong>${f}</strong>`).join(', ');
-
-                const errorMessage = [
-                    `The following fields do not exist in Salesforce: ${boldFields}`,
-                    '',
-                    'Please ensure field names match exactly as they appear in Salesforce.',
-                    '',
-                    'Important notes:',
-                    '• Field names are case-sensitive',
-                    '• Custom fields must end with __c (e.g., MyField__c)',
-                    '• Spaces in field names are not allowed (use underscores instead)',
-                    '• Standard field names must match exactly (e.g., "Department" not "Department New")',
-                    '',
-                    'Documentation: https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/custom_fields.htm'
-                ].join('\n');
-
-                return res.status(400).json({
-                    success: false,
-                    message: errorMessage,
-                    missingFields: unknownFields,
-                    error: 'MISSING_FIELDS'
-                });
-            }
-        } else {
-            console.warn('Skipping Lead field filtering due to metadata fetch failure');
-        }
+        // Field validation removed — let Salesforce return native errors (INVALID_FIELD etc.)
 
         // --- UPSERT MODE: if externalIdField is provided and has a value in leadData ---
         // This supports UPDATE of existing SF leads via a custom External ID field (e.g. LS_LeadId__c)

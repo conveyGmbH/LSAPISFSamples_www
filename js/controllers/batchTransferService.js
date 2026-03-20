@@ -169,6 +169,29 @@
             }
         });
 
+        // Force required SF fields (LastName, Company) — SF rejects leads without these
+        // They may be missing if the OData field names differ (e.g. Nachname → LastName via customLabels)
+        const SF_REQUIRED_FIELDS = ['LastName', 'Company'];
+        for (const reqField of SF_REQUIRED_FIELDS) {
+            if (!salesforceData[reqField]) {
+                // Try reverse lookup: find which OData field maps to this SF field via customLabels
+                if (fieldMappingService?.customLabels) {
+                    for (const [odataField, sfField] of Object.entries(fieldMappingService.customLabels)) {
+                        if (sfField === reqField && itemData[odataField]) {
+                            salesforceData[reqField] = typeof itemData[odataField] === 'string'
+                                ? itemData[odataField].trim() : itemData[odataField];
+                            break;
+                        }
+                    }
+                }
+                // Fallback: try direct field name from itemData
+                if (!salesforceData[reqField] && itemData[reqField]) {
+                    salesforceData[reqField] = typeof itemData[reqField] === 'string'
+                        ? itemData[reqField].trim() : itemData[reqField];
+                }
+            }
+        }
+
         return salesforceData;
     }
 
@@ -196,8 +219,10 @@
         try {
             let salesforceLeadData = { ...leadData };
 
-            // Remove null/empty values
+            // Remove null/empty values (but keep required SF fields)
+            const keepFields = new Set(['LastName', 'Company']);
             Object.keys(salesforceLeadData).forEach(key => {
+                if (keepFields.has(key)) return; // Never remove required fields
                 if (salesforceLeadData[key] === null || salesforceLeadData[key] === '' || salesforceLeadData[key] === 'N/A') {
                     delete salesforceLeadData[key];
                 }

@@ -2105,7 +2105,10 @@ function handleSfConnectClick() {
   // Connect → open OAuth popup
   const orgId = localStorage.getItem('orgId') || 'default';
   const authUrl = `${appConfig.apiBaseUrl.replace('/api', '/auth/salesforce')}?orgId=${encodeURIComponent(orgId)}`;
-  const popup = window.open(authUrl, 'salesforce-auth', 'width=500,height=650,scrollbars=no,resizable=no');
+  const _pw = 500, _ph = 650;
+  const _pl = Math.round((screen.width - _pw) / 2);
+  const _pt = Math.round((screen.height - _ph) / 2);
+  const popup = window.open(authUrl, 'salesforce-auth', `width=${_pw},height=${_ph},left=${_pl},top=${_pt},toolbar=no,menubar=no,scrollbars=yes,resizable=yes,status=yes`);
 
   if (!popup) {
     if (window.batchTransferModals?.showAlertModal) {
