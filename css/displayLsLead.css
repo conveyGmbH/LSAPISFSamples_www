@@ -389,10 +389,21 @@ tbody tr.hide {
 }
 
 tbody tr:hover {
-    background-color: var(--light-gray) !important;
+    background-color: var(--hover-color) !important;
     color: var(--text-color);
     transition: none;
     cursor: pointer;
+}
+
+/* Hover on export rows: tint darker to show interactivity without losing status color */
+tbody tr.export-row-success:hover {
+    background-color: rgba(187, 247, 208, 0.75) !important;
+}
+tbody tr.export-row-failed:hover {
+    background-color: rgba(254, 202, 202, 0.75) !important;
+}
+tbody tr.export-row-duplicate:hover {
+    background-color: rgba(253, 230, 138, 0.75) !important;
 }
 
 tr.selected {

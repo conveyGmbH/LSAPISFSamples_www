@@ -1724,6 +1724,9 @@ function initializeRowToggle() {
 
 // Wrapper function to handle row clicks
 function handleRowClickWrapper(event) {
+  // Don't toggle row selection when clicking a checkbox (let the checkbox handle its own state)
+  if (event.target.type === 'checkbox') return;
+
   const row = event.currentTarget;
   // Use stored OData data (includes Id, __metadata, KontaktViewId, etc.)
   const item = row._itemData || getItemFromRow(row);
