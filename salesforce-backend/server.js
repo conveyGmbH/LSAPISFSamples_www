@@ -485,6 +485,14 @@ app.get('/auth/salesforce/redirect', (req, res) => {
     }
 });
 
+// Dedup cache for OAuth codes — prevents double-exchange on browser prefetch / double redirect
+const _usedOAuthCodes = new Map(); // code → timestamp
+const _OAUTH_CODE_TTL = 30_000; // 30s
+setInterval(() => {
+    const cutoff = Date.now() - _OAUTH_CODE_TTL;
+    for (const [k, v] of _usedOAuthCodes) if (v < cutoff) _usedOAuthCodes.delete(k);
+}, 60_000);
+
 // OAuth callback
 app.get('/oauth/callback', async (req, res) => {
 
@@ -500,6 +508,12 @@ app.get('/oauth/callback', async (req, res) => {
             console.log('No authorization code received');
             throw new Error('No authorization code received');
         }
+
+        if (_usedOAuthCodes.has(code)) {
+            console.log('OAuth code already used — ignoring duplicate callback');
+            return res.send('<script>window.close();</script>');
+        }
+        _usedOAuthCodes.set(code, Date.now());
 
         if (!state) {
             console.log('State parameter is missing');

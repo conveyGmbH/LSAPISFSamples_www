@@ -1426,14 +1426,22 @@ window.saveCustomField = async function() {
     const modal = document.getElementById('customFieldModal');
     const editingFieldId = modal?.dataset.editingFieldId;
 
+    const fieldNameInput = document.getElementById('customFieldName');
+    const fieldNameError = document.getElementById('customFieldNameError');
+
+    const showFieldError = (msg) => {
+        if (fieldNameError) { fieldNameError.textContent = msg; fieldNameError.style.display = 'block'; }
+        if (fieldNameInput) fieldNameInput.style.borderColor = '#dc2626';
+    };
+
     if (!fieldName) {
-        showNotification('Field name is required', 'error');
+        showFieldError('Field name is required.');
         return;
     }
 
     // Validate field name (no spaces, no special characters except underscore) - only for new fields
     if (!editingFieldId && !/^[a-zA-Z][a-zA-Z0-9_]*$/.test(fieldName)) {
-        showNotification('Invalid field name. Use only letters, numbers, and underscores. Must start with a letter.', 'error');
+        showFieldError('Invalid field name: no spaces allowed. Use only letters, numbers and underscores (e.g. MyField__c).');
         return;
     }
 
@@ -1441,7 +1449,7 @@ window.saveCustomField = async function() {
     if (!editingFieldId) {
         const allFieldsCombined = getAllFieldsForRendering();
         if (allFieldsCombined.some(f => f.name === fieldName)) {
-            showNotification('A field with this name already exists', 'error');
+            showFieldError('A field with this name already exists.');
             return;
         }
     }
