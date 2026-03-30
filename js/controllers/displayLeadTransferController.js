@@ -1194,6 +1194,9 @@ async function handleConnectClick() {
 
         const realOrgId = event.data.orgId;
         localStorage.setItem('orgId', realOrgId);
+        if (event.data.sessionToken) {
+          localStorage.setItem('sf_session_token', event.data.sessionToken);
+        }
 
         popup.close();
         clearInterval(checkClosed);
