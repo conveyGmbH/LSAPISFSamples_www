@@ -393,7 +393,8 @@ app.get('/auth/salesforce/redirect', (req, res) => {
 
         const authUrl = oauth2.getAuthorizationUrl({
             scope: 'api refresh_token',
-            state: state
+            state: state,
+            prompt: 'login'
         });
         res.redirect(authUrl);
 
@@ -782,7 +783,8 @@ app.get('/api/salesforce/auth', (req, res) => {
 
         const authUrl = oauth2.getAuthorizationUrl({
             scope: 'api refresh_token',
-            state: state
+            state: state,
+            prompt: 'login'
         });
 
         console.log(`🔗 Generated auth URL (GET) - orgId: ${orgId || 'default'}`);
@@ -849,7 +851,8 @@ app.post('/api/salesforce/auth', (req, res) => {
 
         const authUrl = oauth2.getAuthorizationUrl({
             scope: 'api refresh_token',
-            state: state
+            state: state,
+            prompt: 'login'
         });
 
         console.log('✅ Auth URL generated successfully');
@@ -1703,9 +1706,6 @@ app.post('/api/salesforce/leads', async (req, res) => {
         }
 
         const { leadData, attachments = [], externalIdField } = req.body;
-
-        console.log('📝 Lead transfer - externalIdField:', externalIdField || 'none (create mode)');
-        console.log('📝 Lead data:', leadData);
 
         const processedLeadData = {};
 
