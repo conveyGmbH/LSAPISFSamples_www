@@ -124,17 +124,23 @@ function createConnection(sessionData) {
     const clientSecret = sessionData.clientSecret || config.salesforce.clientSecret;
     const loginUrl = sessionData.loginUrl || config.salesforce.loginUrl;
 
-    const conn = new jsforce.Connection({
-        oauth2: {
+    // Only provide oauth2 config when we have a refreshToken — otherwise jsforce
+    // will attempt an automatic token refresh and fail with "No refresh token found"
+    const connOptions = {
+        accessToken: sessionData.accessToken,
+        refreshToken: sessionData.refreshToken,
+        instanceUrl: sessionData.instanceUrl
+    };
+    if (sessionData.refreshToken) {
+        connOptions.oauth2 = {
             clientId: clientId,
             clientSecret: clientSecret,
             redirectUri: config.salesforce.redirectUri,
             loginUrl: loginUrl
-        },
-        accessToken: sessionData.accessToken,
-        refreshToken: sessionData.refreshToken,
-        instanceUrl: sessionData.instanceUrl
-    });
+        };
+    }
+
+    const conn = new jsforce.Connection(connOptions);
 
     conn.on('refresh', (accessToken, res) => {
         console.log('Token refreshed for session:', sessionData._sessionId || sessionData.organizationId);
