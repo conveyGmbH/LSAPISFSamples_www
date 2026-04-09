@@ -1836,9 +1836,9 @@ app.post('/api/salesforce/leads', async (req, res) => {
             console.log(`📎 Processing ${attachments.length} attachment(s)`);
 
             for (const attachment of attachments) {
+                const fileName = attachment.filename || attachment.Name || 'Untitled';
                 try {
                     // Support both old format (filename/content) and new format (Name/Body)
-                    const fileName = attachment.filename || attachment.Name || 'Untitled';
                     const fileContent = attachment.content || attachment.Body;
 
                     const contentVersion = {
