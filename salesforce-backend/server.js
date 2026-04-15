@@ -1728,23 +1728,11 @@ app.post('/api/salesforce/leads', async (req, res) => {
             }
         });
 
-        const validationResults = validateAndFixLeadData(processedLeadData);
-        let validatedLeadData = validationResults.data;
-
-        if (validationResults.errors.length > 0) {
-            return res.status(400).json({
-                message: 'Lead data validation failed',
-                error: validationResults.errors.join('; '),
-                errors: validationResults.errors,
-                warnings: validationResults.warnings
-            });
-        }
-
-        // Field validation removed — let Salesforce return native errors (INVALID_FIELD etc.)
+        // Validation removed — let Salesforce return native errors (REQUIRED_FIELD_MISSING, etc.)
 
         // --- UPSERT MODE: if externalIdField is provided and has a value in leadData ---
         // This supports UPDATE of existing SF leads via a custom External ID field (e.g. LS_LeadId__c)
-        const externalIdValue = externalIdField ? validatedLeadData[externalIdField] : null;
+        const externalIdValue = externalIdField ? processedLeadData[externalIdField] : null;
         const isUpsertMode = !!(externalIdField && externalIdValue);
 
         let leadId;
@@ -1755,7 +1743,7 @@ app.post('/api/salesforce/leads', async (req, res) => {
             console.log(`🔄 UPSERT mode: using ${externalIdField} = ${externalIdValue}`);
 
             // Remove the external ID field from the data to avoid SF duplicate field error
-            const upsertData = { ...validatedLeadData };
+            const upsertData = { ...processedLeadData };
             // SF upsert requires the external ID field value in the upsert call, not in the record body
             delete upsertData[externalIdField];
 
@@ -1783,8 +1771,8 @@ app.post('/api/salesforce/leads', async (req, res) => {
             const duplicateQuery = `
                 SELECT Id, FirstName, LastName, Company, Email
                 FROM Lead
-                WHERE LastName = '${validatedLeadData.LastName.replace(/'/g, "\\'")}'
-                AND Company = '${validatedLeadData.Company.replace(/'/g, "\\'")}'
+                WHERE LastName = '${processedLeadData.LastName.replace(/'/g, "\\'")}'
+                AND Company = '${processedLeadData.Company.replace(/'/g, "\\'")}'
                 LIMIT 1
             `;
 
@@ -1804,7 +1792,7 @@ app.post('/api/salesforce/leads', async (req, res) => {
             }
 
             // Create the lead
-            const leadResult = await conn.sobject('Lead').create(validatedLeadData);
+            const leadResult = await conn.sobject('Lead').create(processedLeadData);
 
             if (!leadResult.success) {
                 let detailedError = 'Failed to create lead in Salesforce';
@@ -1887,8 +1875,7 @@ app.post('/api/salesforce/leads', async (req, res) => {
             salesforceId: leadId,
             isUpdate: isUpdate || false,
             message: isUpdate ? 'Lead successfully updated in Salesforce' : 'Lead successfully created in Salesforce',
-            leadData: validatedLeadData,
-            validationWarnings: validationResults.warnings,
+            leadData: processedLeadData,
             attachments: attachmentResults
         };
 
