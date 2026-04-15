@@ -1768,11 +1768,13 @@ app.post('/api/salesforce/leads', async (req, res) => {
 
         } else {
             // CREATE MODE: Check for duplicates first, then create
+            const lastName = (processedLeadData.LastName || '').replace(/'/g, "\\'");
+            const company = (processedLeadData.Company || '').replace(/'/g, "\\'");
             const duplicateQuery = `
                 SELECT Id, FirstName, LastName, Company, Email
                 FROM Lead
-                WHERE LastName = '${processedLeadData.LastName.replace(/'/g, "\\'")}'
-                AND Company = '${processedLeadData.Company.replace(/'/g, "\\'")}'
+                WHERE LastName = '${lastName}'
+                AND Company = '${company}'
                 LIMIT 1
             `;
 
