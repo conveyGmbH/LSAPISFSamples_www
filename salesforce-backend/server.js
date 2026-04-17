@@ -1797,6 +1797,16 @@ app.post('/api/salesforce/leads', async (req, res) => {
             const leadResult = await conn.sobject('Lead').create(processedLeadData);
 
             if (!leadResult.success) {
+                // Check for SF duplicate rule (DUPLICATES_DETECTED)
+                const isDuplicate = leadResult.errors && leadResult.errors.some(
+                    e => e.statusCode === 'DUPLICATES_DETECTED' || e.errorCode === 'DUPLICATES_DETECTED'
+                );
+                if (isDuplicate) {
+                    return res.status(409).json({
+                        message: 'Duplicate lead detected by Salesforce'
+                    });
+                }
+
                 let detailedError = 'Failed to create lead in Salesforce';
                 let missingFields = [];
 
