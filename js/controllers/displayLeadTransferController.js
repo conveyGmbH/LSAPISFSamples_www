@@ -946,6 +946,20 @@ async function handleTransferButtonClick() {
     const statusMsg = errorData.error || errorData.message || `HTTP ${response.status}`;
     callSetLeadExportStatus(kontaktViewId, statusLabel, statusMsg, transferDuration);
 
+    // Handle 401 - Session expired
+    if (response.status === 401) {
+      if (typeof window.showErrorModal === 'function') {
+        window.showErrorModal(
+          'Salesforce Session Expired',
+          'Your Salesforce session has expired.\n\nPlease reconnect to Salesforce using the "Connect SF" button and try again.'
+        );
+      } else {
+        alert('Salesforce session expired. Please reconnect and try again.');
+      }
+      isTransferInProgress = false;
+      return;
+    }
+
     // Handle 409 Conflict - Duplicate lead
     if (response.status === 409) {
 

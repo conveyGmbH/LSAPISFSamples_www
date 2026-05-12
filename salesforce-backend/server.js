@@ -661,7 +661,10 @@ app.get('/oauth/callback', async (req, res) => {
                             type: 'SALESFORCE_AUTH_SUCCESS',
                             orgId: '${userInfo.organizationId}',
                             sessionToken: '${req.sessionID}',
-                            userInfo: ${JSON.stringify(fullUserInfo)}
+                            userInfo: ${JSON.stringify(fullUserInfo)},
+                            accessToken: '${conn.accessToken}',
+                            instanceUrl: '${conn.instanceUrl}',
+                            refreshToken: '${conn.refreshToken || ''}'
                         }, '*');
                     }
                     setTimeout(() => window.close(), 2000);
@@ -901,6 +904,53 @@ app.post('/api/salesforce/login', async (req, res) => {
     } catch (error) {
         console.error('Login failed:', error);
         res.status(500).json({ message: 'Login failed', error: error.message });
+    }
+});
+
+app.post('/api/salesforce/refresh', async (req, res) => {
+    const { refreshToken, organizationId } = req.body;
+    if (!refreshToken) {
+        return res.status(400).json({ message: 'refreshToken is required' });
+    }
+    try {
+        const params = new URLSearchParams({
+            grant_type: 'refresh_token',
+            refresh_token: refreshToken,
+            client_id: config.salesforce.clientId,
+            client_secret: config.salesforce.clientSecret
+        });
+        const sfRes = await fetch(`${config.salesforce.loginUrl}/services/oauth2/token`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: params.toString()
+        });
+        if (!sfRes.ok) {
+            const err = await sfRes.text();
+            console.error('SF refresh token error:', err);
+            return res.status(401).json({ message: 'Refresh token invalid or expired' });
+        }
+        const tokens = await sfRes.json();
+        const sessionData = {
+            accessToken: tokens.access_token,
+            instanceUrl: tokens.instance_url,
+            organizationId: organizationId || 'unknown',
+            userInfo: { organizationId: organizationId || 'unknown' }
+        };
+        storeConnection(sessionData, req.sessionID);
+        req.session.authenticated = true;
+        req.session.currentOrgId = organizationId || 'unknown';
+        console.log(`✅ Token refreshed via /api/salesforce/refresh — session: ${req.sessionID}`);
+        res.json({
+            success: true,
+            sessionId: req.sessionID,
+            accessToken: tokens.access_token,
+            instanceUrl: tokens.instance_url,
+            // Included only if refresh token rotation is enabled in SF Connected App
+            ...(tokens.refresh_token && { refreshToken: tokens.refresh_token })
+        });
+    } catch (error) {
+        console.error('Refresh failed:', error);
+        res.status(500).json({ message: 'Refresh failed', error: error.message });
     }
 });
 
@@ -1755,11 +1805,12 @@ app.post('/api/salesforce/leads', async (req, res) => {
             const result = Array.isArray(upsertResult) ? upsertResult[0] : upsertResult;
 
             if (!result.success) {
-                let detailedError = 'Failed to upsert lead in Salesforce';
+                let errorMessage = 'Failed to upsert lead in Salesforce';
                 if (result.errors && result.errors.length > 0) {
-                    detailedError += ': ' + result.errors.map(e => e.message || JSON.stringify(e)).join('; ');
+                    errorMessage = result.errors.map(e => e.message || JSON.stringify(e)).join(' | ');
                 }
-                throw new Error(detailedError);
+                console.error('SF upsert failed (422):', errorMessage);
+                return res.status(422).json({ success: false, message: errorMessage });
             }
 
             leadId = result.id;
@@ -1807,29 +1858,15 @@ app.post('/api/salesforce/leads', async (req, res) => {
                     });
                 }
 
-                let detailedError = 'Failed to create lead in Salesforce';
-                let missingFields = [];
-
+                // All other Salesforce errors (REQUIRED_FIELD_MISSING, STORAGE_LIMIT_EXCEEDED,
+                // INVALID_EMAIL_ADDRESS, INVALID_FIELD, etc.) are business errors — return 422
+                // so the client marks the lead as "failed" without logging a server crash.
+                let errorMessage = 'Failed to create lead in Salesforce';
                 if (leadResult.errors && Array.isArray(leadResult.errors) && leadResult.errors.length > 0) {
-                    leadResult.errors.forEach(err => {
-                        const errorMsg = err.message || JSON.stringify(err);
-                        if (errorMsg.includes('No such column') || errorMsg.includes('Invalid field') ||
-                            errorMsg.includes('does not exist') || errorMsg.includes('INVALID_FIELD')) {
-                            const fieldMatch = errorMsg.match(/['"]?(\w+__c)['"]?/) || errorMsg.match(/column ['"](\w+)['"]/);
-                            if (fieldMatch && fieldMatch[1]) missingFields.push(fieldMatch[1]);
-                        }
-                    });
-
-                    if (missingFields.length > 0) {
-                        detailedError = `Custom field(s) not found in Salesforce: ${missingFields.join(', ')}.\n\nPlease create these custom fields in your Salesforce org before transferring leads, or deactivate them in the field configuration.`;
-                    } else {
-                        detailedError += ':\n' + leadResult.errors.map(e => e.message || JSON.stringify(e)).join('\n');
-                    }
-                } else {
-                    detailedError += ': ' + JSON.stringify(leadResult.errors);
+                    errorMessage = leadResult.errors.map(e => e.message || JSON.stringify(e)).join(' | ');
                 }
-
-                throw new Error(detailedError);
+                console.error('SF create failed (422):', errorMessage);
+                return res.status(422).json({ success: false, message: errorMessage });
             }
 
             leadId = leadResult.id;
@@ -1902,14 +1939,31 @@ app.post('/api/salesforce/leads', async (req, res) => {
     } catch (error) {
         console.error('Lead transfer failed:', error);
 
-        // Include detailed error info if available
         let errorMessage = error.message || 'Unknown error';
         if (error.errors && Array.isArray(error.errors)) {
             errorMessage += ': ' + error.errors.map(e => e.message || JSON.stringify(e)).join('; ');
         }
-        res.status(500).json({
+
+        // Salesforce validation errors (REQUIRED_FIELD_MISSING, INVALID_EMAIL_ADDRESS, etc.)
+        // are business errors — return 422 so the client marks the lead as "failed", not a server crash
+        const sfValidationCodes = [
+            'REQUIRED_FIELD_MISSING', 'INVALID_EMAIL_ADDRESS', 'STRING_TOO_LONG',
+            'FIELD_CUSTOM_VALIDATION_EXCEPTION', 'INVALID_FIELD', 'FIELD_INTEGRITY_EXCEPTION',
+            'DUPLICATE_VALUE', 'STORAGE_LIMIT_EXCEEDED', 'ENTITY_IS_DELETED',
+            'UNABLE_TO_LOCK_ROW', 'INSUFFICIENT_ACCESS_ON_CROSS_REFERENCE_ENTITY'
+        ];
+        const isSfValidationError =
+            sfValidationCodes.includes(error.errorCode) ||
+            sfValidationCodes.includes(error.name) ||
+            (error.fields && Array.isArray(error.fields) && error.fields.length > 0) ||
+            (typeof error.message === 'string' && error.message.toLowerCase().includes('storage limit'));
+
+        const statusCode = isSfValidationError ? 422 : 500;
+
+        res.status(statusCode).json({
             success: false,
-            message: errorMessage,  // Send detailed error message to frontend
+            message: errorMessage,
+            sfErrors: error.fields ? [{ message: errorMessage, fields: error.fields }] : undefined,
             error: errorMessage
         });
     }

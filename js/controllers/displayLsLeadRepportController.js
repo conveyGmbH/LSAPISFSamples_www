@@ -20,6 +20,7 @@ if (!serverName || !apiName || !credentials) {
 const apiService = new ApiService(serverName, apiName);
 console.log("API Service initialized with server:", serverName, "and API:", apiName, "apiService:", apiService);
 let nextUrl = "";
+let activeCompleteFilter = ''; // '' = Alle, 'vollstaendig', 'unvollstaendig'
 
 // Column size classes: col-xs (tiny), col-sm (small), col-md (medium), col-lg (large), col-xl (extra large)
 // Sizes are applied via CSS classes instead of fixed px widths
@@ -954,24 +955,6 @@ async function fetchLsLeadReportData() {
   displayLeadReportFilters();
 }
 
-async function refreshTransferStatuses() {
-  try {
-    const BACKEND_API_URL = window.location.hostname === 'localhost'
-      ? 'http://localhost:3000'
-      : 'https://lsapisfbackend.convey.de';
-
-    const orgId = localStorage.getItem('orgId') || 'default';
-    await fetch(`${BACKEND_API_URL}/api/leads/transfer-status/sync`, {
-      method: 'GET',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json', 'X-Org-Id': orgId }
-    });
-
-
-  } catch (e) {
-    console.warn('Status sync failed:', e);
-  }
-}
 
 
 
@@ -1115,6 +1098,43 @@ function displayLeadReportFilters() {
     filterInputs.appendChild(inputGroup);
   });
 
+  // Completeness dropdown
+  const completenessGroup = document.createElement('div');
+  completenessGroup.className = 'input-group-float';
+  completenessGroup.innerHTML = `
+    <select id="filter-completeness" class="filter-input">
+      <option value="">All Leads</option>
+      <option value="vollstaendig">Complete Leads</option>
+      <option value="unvollstaendig">Incomplete Leads</option>
+    </select>
+    <label for="filter-completeness">Completeness</label>
+  `;
+  completenessGroup.querySelector('select').addEventListener('change', (e) => {
+    activeCompleteFilter = e.target.value;
+    updateResetButtonState();
+    applyLeadReportFilters([...textFields, ...dateFields]);
+  });
+  filterInputs.appendChild(completenessGroup);
+
+  // SystemModstamp Von/Bis — always shown
+  const dateVonGroup = document.createElement('div');
+  dateVonGroup.className = 'input-group-float';
+  dateVonGroup.innerHTML = `<input type="date" id="filter-SystemModstamp-von" class="filter-input"><label for="filter-SystemModstamp-von">Erfassungsdatum Von</label>`;
+  dateVonGroup.querySelector('input').addEventListener('change', () => {
+    updateResetButtonState();
+    applyLeadReportFilters([...textFields, ...dateFields]);
+  });
+  filterInputs.appendChild(dateVonGroup);
+
+  const dateBisGroup = document.createElement('div');
+  dateBisGroup.className = 'input-group-float';
+  dateBisGroup.innerHTML = `<input type="date" id="filter-SystemModstamp-bis" class="filter-input"><label for="filter-SystemModstamp-bis">Bis</label>`;
+  dateBisGroup.querySelector('input').addEventListener('change', () => {
+    updateResetButtonState();
+    applyLeadReportFilters([...textFields, ...dateFields]);
+  });
+  filterInputs.appendChild(dateBisGroup);
+
   // Add button group
   const buttonGroup = document.createElement("div");
   buttonGroup.classList.add("filter-buttons");
@@ -1189,7 +1209,11 @@ async function applyLeadReportFilters(fields) {
 
   localStorage.setItem("LS_LeadReport_Filters", JSON.stringify(filters));
 
-  if (!hasFilters) {
+  const vonVal = document.getElementById('filter-SystemModstamp-von')?.value;
+  const bisVal = document.getElementById('filter-SystemModstamp-bis')?.value;
+  const hasLocalFilters = !!activeCompleteFilter || !!vonVal || !!bisVal;
+
+  if (!hasFilters && !hasLocalFilters) {
     return fetchLsLeadReportData();
   }
 
@@ -1237,10 +1261,33 @@ async function applyLeadReportFilters(fields) {
     endpoint = `LS_LeadReport?$orderby=${sortOrder}&$format=json&$filter=${encodeURIComponent(filterQuery)}`;
   }
 
+  showPageLoading('Applying filters...');
   try {
     const data = await apiService.request("GET", endpoint);
     if (data && data.d && data.d.results) {
-      displayData(data.d.results);
+      let results = data.d.results;
+
+      // Local completeness filter
+      if (activeCompleteFilter === 'vollstaendig') {
+        results = results.filter(item => !item.IsIncomplete && !item.QuestionnaireEmpty && !item.QuestionnaireIncomplete);
+      } else if (activeCompleteFilter === 'unvollstaendig') {
+        results = results.filter(item => item.IsIncomplete == 1 || item.QuestionnaireEmpty == 1 || item.QuestionnaireIncomplete == 1);
+      }
+
+      // SystemModstamp Von/Bis filter (OData /Date(ts)/ format)
+      const vonVal = document.getElementById('filter-SystemModstamp-von')?.value;
+      const bisVal = document.getElementById('filter-SystemModstamp-bis')?.value;
+      if (vonVal || bisVal) {
+        results = results.filter(item => {
+          const m = String(item.SystemModstamp || '').match(/\/Date\((\d+)\)\//);
+          const ts = m ? parseInt(m[1]) : null;
+          if (vonVal && (!ts || ts < new Date(vonVal).getTime())) return false;
+          if (bisVal && (!ts || ts >= new Date(bisVal).getTime() + 86400000)) return false;
+          return true;
+        });
+      }
+
+      displayData(results);
       pagination.updateNextUrl(data);
     } else {
       displayData([]);
@@ -1250,6 +1297,8 @@ async function applyLeadReportFilters(fields) {
     console.error("Error applying filters:", error);
     console.error("Error details:", error.message);
     alert("An error occurred while fetching filtered data.");
+  } finally {
+    hidePageLoading();
   }
 }
 
@@ -1262,6 +1311,17 @@ function resetLeadReportFilters(fields) {
       input.value = "";
     }
   });
+
+  // Reset completeness dropdown
+  activeCompleteFilter = '';
+  const completenessSelect = document.getElementById('filter-completeness');
+  if (completenessSelect) completenessSelect.value = '';
+
+  // Reset Von/Bis inputs
+  const vonInput = document.getElementById('filter-SystemModstamp-von');
+  const bisInput = document.getElementById('filter-SystemModstamp-bis');
+  if (vonInput) vonInput.value = '';
+  if (bisInput) bisInput.value = '';
 
   const resetButton = document.getElementById("resetFiltersButton");
   if (resetButton) {
@@ -1608,8 +1668,6 @@ function displayData(data, append = false) {
 
   // Initialize row toggle functionality
   initializeRowToggle();
-
-  refreshTransferStatuses();
 }
 
 // Function to get item data from row

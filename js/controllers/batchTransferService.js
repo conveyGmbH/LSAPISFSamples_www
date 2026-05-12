@@ -256,6 +256,17 @@
                 const errorData = await response.json().catch(() => ({ message: `HTTP ${response.status}` }));
                 console.log('[Batch] SF error response:', JSON.stringify(errorData, null, 2));
 
+                // 401 = session expired
+                if (response.status === 401) {
+                    return {
+                        success: false,
+                        status: 'failed',
+                        message: 'Salesforce session expired. Please reconnect to Salesforce and try again.',
+                        salesforceId: null,
+                        sessionExpired: true
+                    };
+                }
+
                 // 409 = duplicate detected by Salesforce
                 if (response.status === 409) {
                     return {
@@ -465,6 +476,11 @@
         for (let i = 0; i < items.length; i++) {
             // Check cancellation
             if (_batchCancelled) {
+                // Check if stopped due to session expiry
+                const sessionExpiredStop = results.some(r => r.sessionExpired);
+                const skipMessage = sessionExpiredStop
+                    ? 'Skipped — Salesforce session expired. Please reconnect and retry.'
+                    : 'Cancelled by user';
                 // Mark remaining items as skipped
                 for (let j = i; j < items.length; j++) {
                     const skippedItem = items[j];
@@ -473,7 +489,7 @@
                         itemData: skippedItem,
                         displayName: getLeadDisplayName(skippedItem),
                         status: 'skipped',
-                        message: 'Cancelled by user',
+                        message: skipMessage,
                         salesforceId: null,
                         milliseconds: 0
                     });
@@ -538,11 +554,17 @@
                     salesforceId: transferResult.salesforceId,
                     duplicateWarning: transferResult.duplicateWarning,
                     attachmentsTransferred: transferResult.attachmentsTransferred || 0,
-                    milliseconds
+                    milliseconds,
+                    sessionExpired: transferResult.sessionExpired || false
                 };
 
                 results.push(result);
                 if (onLeadComplete) onLeadComplete(result);
+
+                // Stop batch if session expired — remaining leads cannot be transferred
+                if (transferResult.sessionExpired) {
+                    _batchCancelled = true;
+                }
 
             } catch (error) {
                 const milliseconds = Date.now() - leadStartTime;

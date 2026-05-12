@@ -305,6 +305,14 @@ td {
     text-overflow: ellipsis;
 }
 
+/* Completeness pills */
+.completeness-pills { display:flex; align-items:center; gap:6px; padding:6px 0; flex-wrap:wrap; }
+.pills-label { font-size:11px; font-weight:600; color:#6b7280; margin-right:2px; }
+.completeness-pill { padding:3px 10px; border-radius:12px; font-size:12px; font-weight:600; cursor:pointer; border:1px solid #d1d5db; background:#f9fafb; color:#374151; transition:background .15s,color .15s; }
+.completeness-pill.active { background:#6b7280; color:#fff; border-color:#6b7280; }
+.completeness-pill.pill-complete.active { background:#16a34a; border-color:#16a34a; }
+.completeness-pill.pill-incomplete.active { background:#9333ea; border-color:#9333ea; }
+
 /* Column min-widths (no max-width - let content breathe) */
 th.col-xs, td.col-xs { min-width: 80px; }
 th.col-sm, td.col-sm { min-width: 140px; }
@@ -544,7 +552,8 @@ thead th.desc span.icon-arrow {
 }
 
 /* Input Base Styling */
-.input-group-float input {
+.input-group-float input,
+.input-group-float select {
     width: 100%;
     padding: 10px;
     border: 1px solid #ddd;
@@ -555,6 +564,11 @@ thead th.desc span.icon-arrow {
     box-sizing: border-box;
     height: 48px;
     outline: none;
+}
+
+.input-group-float select {
+    appearance: auto;
+    cursor: pointer;
 }
 
 /* Floating Label Styling */
@@ -574,7 +588,8 @@ thead th.desc span.icon-arrow {
 
 /* Move label up when input is focused or has content */
 .input-group-float input:focus + label,
-.input-group-float input:not(:placeholder-shown) + label {
+.input-group-float input:not(:placeholder-shown) + label,
+.input-group-float select + label {
     top: 0;
     font-size: 12px;
     color: var(--primary-color);
