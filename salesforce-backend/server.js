@@ -10,6 +10,7 @@ require('dotenv').config();
 const { transferLeadWithAutoFieldCreation } = require('./leadTransferService');
 const fieldConfigStorage = require('./fieldConfigStorage');
 const leadTransferStatusService = require('./leadTransferStatusService');
+const connectionStore = require('./connectionStore');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -151,6 +152,8 @@ function createConnection(sessionData) {
             connection: conn,
             lastRefresh: new Date()
         });
+        // Persist the refreshed access token so it survives a restart
+        connectionStore.saveSessions(connections);
     });
 
     return conn;
@@ -167,10 +170,15 @@ function storeConnection(sessionData, sessionId) {
         lastRefresh: new Date()
     });
     console.log(`Stored connection for session: ${key} (org: ${sessionData.organizationId})`);
+    // Persist so the session survives a server restart (no re-OAuth needed)
+    connectionStore.saveSessions(connections);
     return conn;
 }
 
 function getConnection(sessionId) {
+    // Never resolve a missing or shared-bucket key — that would let a user without
+    // a valid isolation key fall into someone else's (or a shared 'default') connection.
+    if (!sessionId || sessionId === 'default') return null;
     const connData = connections.get(sessionId);
     return connData ? connData.connection : null;
 }
@@ -182,6 +190,32 @@ function getUserInfo(sessionId) {
 
 function removeConnection(sessionId) {
     connections.delete(sessionId);
+    // Keep the persisted file in sync with the in-memory map
+    connectionStore.saveSessions(connections);
+}
+
+/**
+ * Re-hydrate the connections map from disk on startup, rebuilding live jsforce
+ * Connection objects from the persisted token data.
+ */
+async function restoreConnections() {
+    const sessions = await connectionStore.loadSessions();
+    let restored = 0;
+    for (const [key, sessionData] of Object.entries(sessions)) {
+        try {
+            const conn = createConnection(sessionData);
+            connections.set(key, {
+                ...sessionData,
+                connection: conn,
+                connectedAt: new Date(),
+                lastRefresh: new Date(),
+            });
+            restored++;
+        } catch (err) {
+            console.error(`Failed to restore connection ${key}:`, err.message);
+        }
+    }
+    if (restored) console.log(`♻️  Restored ${restored} Salesforce connection(s) from disk`);
 }
 
 // --- UTILITY FUNCTIONS ---
@@ -202,8 +236,18 @@ function validateStateCode(codes) {
 }
 
 function getCurrentOrgId(req) {
-    // X-Session-Token is sent by frontend after OAuth (works cross-domain, no cookie needed)
-    return req.headers['x-session-token'] || req.sessionID || req.headers['x-org-id'] || req.session.currentOrgId || 'default';
+    // Per-user isolation: the app sends X-Org-Id = ls_<MitarbeiterID>, which is the
+    // key the connection was stored under. Prefer it so each user only ever resolves
+    // their own SF connection. X-Session-Token / sessionID are accepted as fallbacks
+    // for older callers. Returns null when no identifying key is present — callers
+    // MUST treat null as "not connected" rather than sharing a 'default' bucket.
+    return (
+        req.headers['x-org-id'] ||
+        req.headers['x-session-token'] ||
+        req.session.currentOrgId ||
+        req.sessionID ||
+        null
+    );
 }
 
 function validateAndFixLeadData(leadData) {
@@ -587,8 +631,11 @@ app.get('/oauth/callback', async (req, res) => {
         req.session.currentOrgId = orgId;
         req.session.authenticated = true;
 
-        // Index by sessionID — each user session gets its own isolated SF connection
-        storeConnection(sessionData, req.sessionID);
+        // Index by the per-user isolation key (orgId = ls_<MitarbeiterID> sent by the
+        // app), so each LeadSuccess user owns exactly one SF connection and can never
+        // resolve another user's. Fall back to sessionID only if no key was supplied.
+        const connectionKey = (orgId && orgId !== 'default') ? orgId : req.sessionID;
+        storeConnection(sessionData, connectionKey);
 
         res.send(`
             <!DOCTYPE html>
@@ -895,7 +942,10 @@ app.post('/api/salesforce/login', async (req, res) => {
             userInfo: { id: userId, organizationId: organizationId || 'unknown' }
         };
 
-        storeConnection(sessionData, req.sessionID);
+        // Store under the per-user isolation key (ls_<MitarbeiterID>) the app sends,
+        // so a later check/leads call resolves THIS user's connection.
+        const loginKey = req.headers['x-org-id'] || organizationId || req.sessionID;
+        storeConnection(sessionData, loginKey);
         req.session.authenticated = true;
         req.session.currentOrgId = organizationId || 'unknown';
 
@@ -932,14 +982,21 @@ app.post('/api/salesforce/refresh', async (req, res) => {
         const tokens = await sfRes.json();
         const sessionData = {
             accessToken: tokens.access_token,
+            // Salesforce only returns a new refresh_token when rotation is on;
+            // otherwise keep reusing the one the client sent so the stored
+            // connection can auto-refresh again later.
+            refreshToken: tokens.refresh_token || refreshToken,
             instanceUrl: tokens.instance_url,
             organizationId: organizationId || 'unknown',
             userInfo: { organizationId: organizationId || 'unknown' }
         };
-        storeConnection(sessionData, req.sessionID);
+        // Store under the per-user isolation key (ls_<MitarbeiterID>) so the
+        // refreshed connection is the one this user's later calls resolve.
+        const refreshKey = req.headers['x-org-id'] || organizationId || req.sessionID;
+        storeConnection(sessionData, refreshKey);
         req.session.authenticated = true;
-        req.session.currentOrgId = organizationId || 'unknown';
-        console.log(`✅ Token refreshed via /api/salesforce/refresh — session: ${req.sessionID}`);
+        req.session.currentOrgId = refreshKey;
+        console.log(`✅ Token refreshed via /api/salesforce/refresh — key: ${refreshKey}`);
         res.json({
             success: true,
             sessionId: req.sessionID,
@@ -2444,6 +2501,11 @@ fieldConfigStorage.initializeStorage().then(() => {
     console.log('✅ Field configuration storage initialized');
 }).catch(error => {
     console.error('Failed to initialize field configuration storage:', error);
+});
+
+// Re-hydrate persisted Salesforce sessions so a restart doesn't force re-OAuth
+restoreConnections().catch(error => {
+    console.error('Failed to restore Salesforce connections:', error);
 });
 
 app.listen(port, () => {
