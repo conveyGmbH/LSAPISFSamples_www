@@ -27,7 +27,11 @@ function determineEnvironmentAndConfig() {
                            hostname.includes('azurestaticapps.net') ||
                            isAzure;
 
-    const isProduction = isProd || isProductionHost || port !== 3000;
+    // NOTE: do NOT treat "port !== 3000" as production — the local dev backend
+    // runs on 3001 (Next uses 3000), and that heuristic forced the production
+    // redirect URI, sending the OAuth callback to Azure instead of localhost.
+    // Rely on NODE_ENV and real Azure/host detection instead.
+    const isProduction = isProd || isProductionHost;
 
     let redirectUri;
     if (isProduction) {
@@ -2197,7 +2201,9 @@ app.get('/api/health', (req, res) => {
     res.json({
         status: 'healthy server run',
         timestamp: new Date().toISOString(),
-        connections: connections.size
+        connections: connections.size,
+        // Exposed for OAuth debugging — the redirect_uri the backend sends to Salesforce
+        redirectUri: config.salesforce.redirectUri
     });
 });
 
