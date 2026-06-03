@@ -21,7 +21,7 @@ function determineEnvironmentAndConfig() {
     const hostname = process.env.HOSTNAME || process.env.WEBSITE_HOSTNAME || '';
     const port = process.env.PORT || 3000;
 
-    const isAzure = process.env.WEBSITE_HOSTNAME || process.env.WEBSITE_SITE_NAME;
+    const isAzure = Boolean(process.env.WEBSITE_HOSTNAME || process.env.WEBSITE_SITE_NAME);
     const isProductionHost = hostname.includes('convey.de') ||
                            hostname.includes('azurewebsites.net') ||
                            hostname.includes('azurestaticapps.net') ||
@@ -31,7 +31,9 @@ function determineEnvironmentAndConfig() {
     // runs on 3001 (Next uses 3000), and that heuristic forced the production
     // redirect URI, sending the OAuth callback to Azure instead of localhost.
     // Rely on NODE_ENV and real Azure/host detection instead.
-    const isProduction = isProd || isProductionHost;
+    // Boolean() so the value is never `undefined` (|| returns the last falsy
+    // operand, which would otherwise drop isProduction from JSON responses).
+    const isProduction = Boolean(isProd || isProductionHost);
 
     let redirectUri;
     if (isProduction) {
@@ -1595,6 +1597,148 @@ app.delete('/api/files/:contentDocumentId', async (req, res) => {
     }
 });
 
+// --- DEV-ONLY: clean up Salesforce File Storage (ContentDocuments linked to Leads) ---
+// Guarded by dev mode. GET = dry-run (count + size). DELETE = actually remove.
+// Frees File Storage when an org hits its quota (the lead transfer attaches files).
+function requireDevMode(req, res, next) {
+    if (config.environment.isProduction) {
+        return res.status(403).json({ message: 'Dev-mode only endpoint' });
+    }
+    next();
+}
+
+// Collect ContentDocument ids. scope='leads' → only files linked to a Lead;
+// scope='all' → every ContentDocument in the org (dev clean-up of File Storage).
+async function collectDocIds(conn, scope) {
+    if (scope === 'all') {
+        const docs = await conn.query('SELECT Id FROM ContentDocument LIMIT 10000');
+        return (docs.records || []).map(r => r.Id);
+    }
+    // scope 'leads' (default): Leads → their ContentDocumentLinks → ContentDocumentIds
+    const docIds = new Set();
+    const leads = await conn.query('SELECT Id FROM Lead LIMIT 2000');
+    const leadIds = (leads.records || []).map(r => r.Id);
+    for (let i = 0; i < leadIds.length; i += 200) {
+        const inList = leadIds.slice(i, i + 200).map(id => `'${id}'`).join(',');
+        if (!inList) continue;
+        const links = await conn.query(
+            `SELECT ContentDocumentId FROM ContentDocumentLink WHERE LinkedEntityId IN (${inList})`
+        );
+        (links.records || []).forEach(l => docIds.add(l.ContentDocumentId));
+    }
+    return [...docIds];
+}
+
+async function sumDocBytes(conn, ids) {
+    let totalBytes = 0;
+    for (let i = 0; i < ids.length; i += 200) {
+        const inList = ids.slice(i, i + 200).map(id => `'${id}'`).join(',');
+        if (!inList) continue;
+        const cd = await conn.query(`SELECT ContentSize FROM ContentDocument WHERE Id IN (${inList})`);
+        (cd.records || []).forEach(r => { totalBytes += (r.ContentSize || 0); });
+    }
+    return totalBytes;
+}
+
+// Dry-run: how many files + total bytes. ?scope=all to count every file in the org.
+app.get('/api/salesforce/files/cleanup', requireDevMode, async (req, res) => {
+    try {
+        const conn = getConnection(getCurrentOrgId(req));
+        if (!conn) return res.status(401).json({ message: 'Not connected to Salesforce' });
+
+        const scope = req.query.scope === 'all' ? 'all' : 'leads';
+        const ids = await collectDocIds(conn, scope);
+        const totalBytes = await sumDocBytes(conn, ids);
+        res.json({ scope, count: ids.length, totalBytes, totalMB: +(totalBytes / 1048576).toFixed(1) });
+    } catch (error) {
+        console.error('File cleanup dry-run failed:', error);
+        res.status(500).json({ message: 'Dry-run failed', error: error.message });
+    }
+});
+
+// Delete: remove ContentDocuments (irreversible in SF). ?scope=all for every file.
+app.delete('/api/salesforce/files/cleanup', requireDevMode, async (req, res) => {
+    try {
+        const conn = getConnection(getCurrentOrgId(req));
+        if (!conn) return res.status(401).json({ message: 'Not connected to Salesforce' });
+
+        const scope = req.query.scope === 'all' ? 'all' : 'leads';
+        const ids = await collectDocIds(conn, scope);
+        if (ids.length === 0) return res.json({ success: true, deleted: 0, total: 0, scope });
+
+        // Use the Composite sObjects Collections API with allOrNone=false — same call
+        // that works in Postman: DELETE /composite/sobjects?ids=...&allOrNone=false.
+        // It deletes up to 200 per call and keeps going past individual failures
+        // (e.g. the asset file that throws DEPENDENCY_EXISTS).
+        const apiVersion = conn.version || '56.0';
+        let deleted = 0;
+        const errors = [];
+        const deletedIds = [];
+        for (let i = 0; i < ids.length; i += 200) {
+            const chunk = ids.slice(i, i + 200);
+            const url = `/services/data/v${apiVersion}/composite/sobjects?ids=${chunk.join(',')}&allOrNone=false`;
+            const results = await conn.request({ method: 'DELETE', url });
+            (Array.isArray(results) ? results : [results]).forEach(r => {
+                if (r.success) { deleted++; if (r.id) deletedIds.push(r.id); }
+                else errors.push(r.errors);
+            });
+        }
+
+        // CRITICAL: a normal delete moves records to the Recycle Bin, where they STILL
+        // count against File Storage (~15 days). Hard-delete them to free space now.
+        let purged = 0;
+        for (let i = 0; i < deletedIds.length; i += 200) {
+            const chunk = deletedIds.slice(i, i + 200);
+            try {
+                await conn.soap.emptyRecycleBin(chunk);
+                purged += chunk.length;
+            } catch (e) {
+                console.warn('emptyRecycleBin failed for a chunk:', e.message);
+            }
+        }
+
+        console.log(`🧹 Dev cleanup (${scope}): deleted ${deleted}/${ids.length}, purged ${purged} from recycle bin`);
+        res.json({ success: true, deleted, purged, total: ids.length, scope, errors: errors.slice(0, 5) });
+    } catch (error) {
+        console.error('File cleanup failed:', error);
+        res.status(500).json({ message: 'Cleanup failed', error: error.message });
+    }
+});
+
+// DEV-ONLY: purge already-deleted ContentDocuments still sitting in the Recycle Bin
+// (they keep counting against File Storage until hard-deleted). scanAll finds them.
+app.delete('/api/salesforce/files/recyclebin', requireDevMode, async (req, res) => {
+    try {
+        const conn = getConnection(getCurrentOrgId(req));
+        if (!conn) return res.status(401).json({ message: 'Not connected to Salesforce' });
+
+        // scanAll:true includes deleted/archived records (the recycle bin)
+        const result = await conn.query(
+            'SELECT Id FROM ContentDocument WHERE IsDeleted = true',
+            { scanAll: true }
+        );
+        const ids = (result.records || []).map(r => r.Id);
+        if (ids.length === 0) return res.json({ success: true, purged: 0 });
+
+        let purged = 0;
+        const errors = [];
+        for (let i = 0; i < ids.length; i += 200) {
+            const chunk = ids.slice(i, i + 200);
+            try {
+                await conn.soap.emptyRecycleBin(chunk);
+                purged += chunk.length;
+            } catch (e) {
+                errors.push(e.message);
+            }
+        }
+        console.log(`🗑️  Purged ${purged}/${ids.length} ContentDocuments from recycle bin`);
+        res.json({ success: true, purged, total: ids.length, errors: errors.slice(0, 5) });
+    } catch (error) {
+        console.error('Recycle bin purge failed:', error);
+        res.status(500).json({ message: 'Purge failed', error: error.message });
+    }
+});
+
 app.post('/api/salesforce/fields/check', async (req, res) => {
     try {
         const orgId = getCurrentOrgId(req);
@@ -2203,7 +2347,9 @@ app.get('/api/health', (req, res) => {
         timestamp: new Date().toISOString(),
         connections: connections.size,
         // Exposed for OAuth debugging — the redirect_uri the backend sends to Salesforce
-        redirectUri: config.salesforce.redirectUri
+        redirectUri: config.salesforce.redirectUri,
+        // Server-of-truth for dev/prod. Frontend gates dev-only tools on this.
+        isProduction: config.environment.isProduction
     });
 });
 
