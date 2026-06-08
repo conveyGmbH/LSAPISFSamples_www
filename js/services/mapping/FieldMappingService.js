@@ -1,4 +1,11 @@
 // FieldMappingService.js
+
+// Backend API base — same env detection as the controllers. Hardcoding
+// localhost:3000 broke prod (CORS from lsapisfsamples.convey.de → localhost).
+const SF_BACKEND_BASE = window.location.hostname === 'localhost'
+    ? 'http://localhost:3000'
+    : 'https://lsapisfbackend.convey.de';
+
 class FieldMappingService {
     constructor() {
         this.fieldConfig = this.loadConfig();
@@ -907,7 +914,7 @@ async bulkSaveToDatabase() {
 
             console.log(`💾 Saving ${activeFields.length} active fields to backend...`);
 
-            const response = await fetch('http://localhost:3000/api/salesforce/field-config', {
+            const response = await fetch(`${SF_BACKEND_BASE}/api/salesforce/field-config`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -941,7 +948,7 @@ async bulkSaveToDatabase() {
         try {
             console.log('📥 Loading field configuration from backend...');
 
-            const response = await fetch('http://localhost:3000/api/salesforce/field-config', {
+            const response = await fetch(`${SF_BACKEND_BASE}/api/salesforce/field-config`, {
                 method: 'GET',
                 credentials: 'include'
             });
