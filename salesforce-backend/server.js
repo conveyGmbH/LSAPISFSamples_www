@@ -189,6 +189,30 @@ function getConnection(sessionId) {
     return connData ? connData.connection : null;
 }
 
+// Resolve a connection by trying the candidate keys a caller might present, in
+// order, returning the first that maps to a stored connection. This keeps BOTH
+// clients working:
+//  - LSPortalNext sends X-Org-Id = ls_<MitarbeiterID> (its isolation key)
+//  - the WinJS portal sends X-Org-Id = the Salesforce orgId AND
+//    X-Session-Token = the express sessionID the connection was stored under
+// We never accept a missing/'default' key (no shared bucket).
+function resolveConnectionKey(req) {
+    const candidates = [
+        req.headers['x-org-id'],
+        req.headers['x-session-token'],
+        req.session && req.session.currentOrgId,
+        req.sessionID,
+    ];
+    for (const key of candidates) {
+        if (key && key !== 'default' && connections.has(key)) return key;
+    }
+    return null;
+}
+
+function getConnectionForReq(req) {
+    return getConnection(resolveConnectionKey(req));
+}
+
 function getUserInfo(sessionId) {
     const connData = connections.get(sessionId);
     return connData ? connData.userInfo : null;
@@ -1032,7 +1056,7 @@ app.get('/api/salesforce/check', async (req, res) => {
         // Check if connection exists in local connections Map
         try {
             console.log('🔎 Looking for connection in local Map...');
-            const conn = getConnection(orgId);
+            const conn = getConnectionForReq(req);
 
             if (!conn) {
                 throw new Error('Connection object is null');
@@ -1054,7 +1078,7 @@ app.get('/api/salesforce/check', async (req, res) => {
                 // If identity fails, still return connection info if we have accessToken
                 if (conn.accessToken && conn.instanceUrl) {
                     console.log('Using cached connection info (identity call failed but tokens exist)');
-                    const connData = connections.get(orgId);
+                    const connData = connections.get(resolveConnectionKey(req));
                     if (connData && connData.userInfo) {
                         return res.json({
                             connected: true,
@@ -1121,8 +1145,7 @@ app.get('/api/salesforce/check', async (req, res) => {
 
 app.get('/api/salesforce/userinfo', (req, res) => {
     try {
-        const orgId = getCurrentOrgId(req);
-        const userInfo = getUserInfo(orgId);
+        const userInfo = getUserInfo(resolveConnectionKey(req));
 
         if (!userInfo || !req.session.authenticated) {
             return res.status(401).json({ message: 'Not authenticated' });
@@ -1157,7 +1180,7 @@ app.post('/api/salesforce/refresh', async (req, res) => {
 
         // Get existing connection from local Map (supports both default and Salesforce orgId)
         console.log('🔎 Looking for existing connection in local Map...');
-        const conn = getConnection(orgId);
+        const conn = getConnectionForReq(req);
 
         if (!conn || !conn.refreshToken) {
             console.log('No refresh token found for org:', orgId);
@@ -1219,7 +1242,7 @@ app.post('/api/salesforce/refresh', async (req, res) => {
 app.get('/api/user', async (req, res) => {
     try {
         const orgId = getCurrentOrgId(req);
-        const conn = getConnection(orgId);
+        const conn = getConnectionForReq(req);
 
         if (!conn) {
             return res.status(401).json({
@@ -1255,8 +1278,10 @@ app.get('/api/user', async (req, res) => {
 
 app.post('/api/logout', (req, res) => {
     try {
-        const orgId = getCurrentOrgId(req);
-        removeConnection(orgId);
+        // Resolve the real stored key (works for both the portal's sessionID-keyed
+        // connections and the app's ls_<id> isolation key).
+        const key = resolveConnectionKey(req);
+        if (key) removeConnection(key);
 
         req.session.destroy(err => {
             if (err) {
@@ -1275,7 +1300,7 @@ app.post('/api/logout', (req, res) => {
 app.get('/api/leads', async (req, res) => {
     try {
         const orgId = getCurrentOrgId(req);
-        const conn = getConnection(orgId);
+        const conn = getConnectionForReq(req);
 
         if (!conn) {
             return res.status(401).json({ message: 'Not connected to Salesforce' });
@@ -1302,7 +1327,7 @@ app.get('/api/leads', async (req, res) => {
 app.post('/api/leads', async (req, res) => {
     try {
         const orgId = getCurrentOrgId(req);
-        const conn = getConnection(orgId);
+        const conn = getConnectionForReq(req);
 
         if (!conn) {
             return res.status(401).json({ message: 'Not connected to Salesforce' });
@@ -1367,7 +1392,7 @@ app.post('/api/leads', async (req, res) => {
 app.put('/api/leads/:id', async (req, res) => {
     try {
         const orgId = getCurrentOrgId(req);
-        const conn = getConnection(orgId);
+        const conn = getConnectionForReq(req);
 
         if (!conn) {
             return res.status(401).json({ message: 'Not connected to Salesforce' });
@@ -1412,7 +1437,7 @@ app.put('/api/leads/:id', async (req, res) => {
 app.delete('/api/leads/:id', async (req, res) => {
     try {
         const orgId = getCurrentOrgId(req);
-        const conn = getConnection(orgId);
+        const conn = getConnectionForReq(req);
 
         if (!conn) {
             return res.status(401).json({ message: 'Not connected to Salesforce' });
@@ -1447,7 +1472,7 @@ app.delete('/api/leads/:id', async (req, res) => {
 app.get('/api/leads/:id/files', async (req, res) => {
     try {
         const orgId = getCurrentOrgId(req);
-        const conn  = getConnection(orgId);
+        const conn  = getConnectionForReq(req);
         if (!conn) return res.status(401).json({ message: 'Not connected to Salesforce' });
 
         const { id } = req.params;
@@ -1481,7 +1506,7 @@ app.get('/api/leads/:id/files', async (req, res) => {
 app.post('/api/leads/files/counts', async (req, res) => {
     try {
         const orgId = getCurrentOrgId(req);
-        const conn  = getConnection(orgId);
+        const conn  = getConnectionForReq(req);
         if (!conn) return res.status(401).json({ message: 'Not connected to Salesforce' });
 
         const { leadIds } = req.body;
@@ -1509,7 +1534,7 @@ app.post('/api/leads/files/counts', async (req, res) => {
 app.get('/api/files/:contentVersionId/download', async (req, res) => {
     try {
         const orgId = getCurrentOrgId(req);
-        const conn  = getConnection(orgId);
+        const conn  = getConnectionForReq(req);
         if (!conn) return res.status(401).json({ message: 'Not connected to Salesforce' });
 
         const { contentVersionId } = req.params;
@@ -1552,7 +1577,7 @@ app.get('/api/files/:contentVersionId/download', async (req, res) => {
 app.delete('/api/leads/:id/files', async (req, res) => {
     try {
         const orgId = getCurrentOrgId(req);
-        const conn  = getConnection(orgId);
+        const conn  = getConnectionForReq(req);
         if (!conn) return res.status(401).json({ message: 'Not connected to Salesforce' });
 
         const { id } = req.params;
@@ -1581,7 +1606,7 @@ app.delete('/api/leads/:id/files', async (req, res) => {
 app.delete('/api/files/:contentDocumentId', async (req, res) => {
     try {
         const orgId = getCurrentOrgId(req);
-        const conn  = getConnection(orgId);
+        const conn  = getConnectionForReq(req);
         if (!conn) return res.status(401).json({ message: 'Not connected to Salesforce' });
 
         const { contentDocumentId } = req.params;
@@ -1643,7 +1668,7 @@ async function sumDocBytes(conn, ids) {
 // Dry-run: how many files + total bytes. ?scope=all to count every file in the org.
 app.get('/api/salesforce/files/cleanup', requireDevMode, async (req, res) => {
     try {
-        const conn = getConnection(getCurrentOrgId(req));
+        const conn = getConnectionForReq(req);
         if (!conn) return res.status(401).json({ message: 'Not connected to Salesforce' });
 
         const scope = req.query.scope === 'all' ? 'all' : 'leads';
@@ -1659,7 +1684,7 @@ app.get('/api/salesforce/files/cleanup', requireDevMode, async (req, res) => {
 // Delete: remove ContentDocuments (irreversible in SF). ?scope=all for every file.
 app.delete('/api/salesforce/files/cleanup', requireDevMode, async (req, res) => {
     try {
-        const conn = getConnection(getCurrentOrgId(req));
+        const conn = getConnectionForReq(req);
         if (!conn) return res.status(401).json({ message: 'Not connected to Salesforce' });
 
         const scope = req.query.scope === 'all' ? 'all' : 'leads';
@@ -1709,7 +1734,7 @@ app.delete('/api/salesforce/files/cleanup', requireDevMode, async (req, res) => 
 // (they keep counting against File Storage until hard-deleted). scanAll finds them.
 app.delete('/api/salesforce/files/recyclebin', requireDevMode, async (req, res) => {
     try {
-        const conn = getConnection(getCurrentOrgId(req));
+        const conn = getConnectionForReq(req);
         if (!conn) return res.status(401).json({ message: 'Not connected to Salesforce' });
 
         // scanAll:true includes deleted/archived records (the recycle bin)
@@ -1742,7 +1767,7 @@ app.delete('/api/salesforce/files/recyclebin', requireDevMode, async (req, res) 
 app.post('/api/salesforce/fields/check', async (req, res) => {
     try {
         const orgId = getCurrentOrgId(req);
-        const conn = getConnection(orgId);
+        const conn = getConnectionForReq(req);
 
         if (!conn) {
             return res.status(401).json({ message: 'Not connected to Salesforce' });
@@ -1807,7 +1832,7 @@ app.post('/api/salesforce/fields/check', async (req, res) => {
 app.post('/api/salesforce/fields/create', async (req, res) => {
     try {
         const orgId = getCurrentOrgId(req);
-        const conn = getConnection(orgId);
+        const conn = getConnectionForReq(req);
 
         if (!conn) {
             return res.status(401).json({ message: 'Not connected to Salesforce' });
@@ -1898,7 +1923,7 @@ app.post('/api/salesforce/fields/create', async (req, res) => {
 app.post('/api/leads/check-duplicate', async (req, res) => {
     try {
         const orgId = getCurrentOrgId(req);
-        const conn = getConnection(orgId);
+        const conn = getConnectionForReq(req);
 
         if (!conn) {
             return res.status(401).json({ message: 'Not connected to Salesforce' });
@@ -1960,7 +1985,7 @@ app.post('/api/leads/check-duplicate', async (req, res) => {
 app.post('/api/salesforce/leads', async (req, res) => {
     try {
         const orgId = getCurrentOrgId(req);
-        const conn = getConnection(orgId);
+        const conn = getConnectionForReq(req);
 
         if (!conn) {
             return res.status(401).json({ message: 'Not connected to Salesforce' });
@@ -2178,7 +2203,7 @@ app.post('/api/salesforce/leads', async (req, res) => {
 app.post('/api/salesforce/leads/prepare', async (req, res) => {
     try {
         const orgId = getCurrentOrgId(req);
-        const conn = getConnection(orgId);
+        const conn = getConnectionForReq(req);
 
         if (!conn) {
             return res.status(401).json({ message: 'Not connected to Salesforce' });
@@ -2268,7 +2293,7 @@ app.get('/api/leads/transfer-status/:leadId', async (req, res) => {
         }
 
         const { leadId } = req.params;
-        const conn = getConnection(orgId);
+        const conn = getConnectionForReq(req);
 
         const enhancedStatus = await leadTransferStatusService.getEnhancedLeadStatus(conn, orgId, leadId);
 
@@ -2292,7 +2317,7 @@ app.post('/api/leads/transfer-status/batch', async (req, res) => {
             return res.status(400).json({ message: 'leadIds must be an array' });
         }
 
-        const conn = getConnection(orgId);
+        const conn = getConnectionForReq(req);
         const enhancedStatuses = {};
 
         for (const leadId of leadIds) {
@@ -2508,7 +2533,7 @@ app.delete('/api/lead-field-updates/:eventId', async (req, res) => {
 app.get('/api/salesforce/analytics/overview', async (req, res) => {
     try {
         const orgId = getCurrentOrgId(req);
-        const conn = getConnection(orgId);
+        const conn = getConnectionForReq(req);
         if (!conn) return res.status(401).json({ message: 'Not connected to Salesforce' });
 
         const [totalRes, newRes, convertedRes, unreadRes] = await Promise.all([
@@ -2539,7 +2564,7 @@ app.get('/api/salesforce/analytics/overview', async (req, res) => {
 app.get('/api/salesforce/analytics/by-status', async (req, res) => {
     try {
         const orgId = getCurrentOrgId(req);
-        const conn = getConnection(orgId);
+        const conn = getConnectionForReq(req);
         if (!conn) return res.status(401).json({ message: 'Not connected to Salesforce' });
 
         const result = await conn.query('SELECT Status, COUNT(Id) cnt FROM Lead GROUP BY Status ORDER BY COUNT(Id) DESC');
@@ -2553,7 +2578,7 @@ app.get('/api/salesforce/analytics/by-status', async (req, res) => {
 app.get('/api/salesforce/analytics/by-source', async (req, res) => {
     try {
         const orgId = getCurrentOrgId(req);
-        const conn = getConnection(orgId);
+        const conn = getConnectionForReq(req);
         if (!conn) return res.status(401).json({ message: 'Not connected to Salesforce' });
 
         const result = await conn.query('SELECT LeadSource, COUNT(Id) cnt FROM Lead GROUP BY LeadSource ORDER BY COUNT(Id) DESC');
@@ -2567,7 +2592,7 @@ app.get('/api/salesforce/analytics/by-source', async (req, res) => {
 app.get('/api/salesforce/analytics/timeline', async (req, res) => {
     try {
         const orgId = getCurrentOrgId(req);
-        const conn = getConnection(orgId);
+        const conn = getConnectionForReq(req);
         if (!conn) return res.status(401).json({ message: 'Not connected to Salesforce' });
 
         const days = parseInt(req.query.days) || 30;
@@ -2584,7 +2609,7 @@ app.get('/api/salesforce/analytics/timeline', async (req, res) => {
 app.get('/api/salesforce/leads/recent', async (req, res) => {
     try {
         const orgId = getCurrentOrgId(req);
-        const conn = getConnection(orgId);
+        const conn = getConnectionForReq(req);
         if (!conn) return res.status(401).json({ message: 'Not connected to Salesforce' });
 
         const limit = parseInt(req.query.limit) || 50;
