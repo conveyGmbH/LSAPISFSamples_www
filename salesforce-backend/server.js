@@ -1276,12 +1276,35 @@ app.get('/api/user', async (req, res) => {
     }
 });
 
-app.post('/api/logout', (req, res) => {
+app.post('/api/logout', async (req, res) => {
     try {
         // Resolve the real stored key (works for both the portal's sessionID-keyed
         // connections and the app's ls_<id> isolation key).
         const key = resolveConnectionKey(req);
-        if (key) removeConnection(key);
+
+        // Revoke the token on Salesforce so the OAuth grant is fully invalidated —
+        // otherwise the refresh token stays valid and a silent re-auth is possible.
+        // Best-effort: never let a revoke failure block the local logout.
+        if (key) {
+            const connData = connections.get(key);
+            const tokenToRevoke = connData && (connData.refreshToken || connData.accessToken);
+            const instanceUrl = connData && connData.instanceUrl;
+            const loginUrl = (connData && connData.loginUrl) || config.salesforce.loginUrl;
+            if (tokenToRevoke) {
+                const revokeBase = instanceUrl || loginUrl;
+                try {
+                    await fetch(`${revokeBase}/services/oauth2/revoke`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: new URLSearchParams({ token: tokenToRevoke }).toString()
+                    });
+                    console.log(`🔒 Revoked Salesforce token for key: ${key}`);
+                } catch (revokeErr) {
+                    console.warn('Salesforce token revoke failed (continuing logout):', revokeErr.message);
+                }
+            }
+            removeConnection(key);
+        }
 
         req.session.destroy(err => {
             if (err) {
