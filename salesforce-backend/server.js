@@ -100,7 +100,11 @@ const allowedOrigins = [
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) {
+    // Allow any localhost/127.0.0.1 origin regardless of port — dev servers
+    // (live-server, vite, etc.) use random high ports, so an explicit allowlist
+    // can't cover them.
+    const isLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(origin);
+    if (allowedOrigins.includes(origin) || isLocalhost) {
       callback(null, true);
     } else if (process.env.NODE_ENV === 'development') {
       callback(null, true);
