@@ -7,7 +7,7 @@ const jsforce = require('jsforce');
 const path = require('path');
 require('dotenv').config();
 
-const { transferLeadWithAutoFieldCreation } = require('./leadTransferService');
+const { transferLeadWithAutoFieldCreation, checkFieldsExistence } = require('./leadTransferService');
 const fieldConfigStorage = require('./fieldConfigStorage');
 const leadTransferStatusService = require('./leadTransferStatusService');
 const connectionStore = require('./connectionStore');
@@ -2037,6 +2037,25 @@ app.post('/api/salesforce/leads', async (req, res) => {
 
         // Validation removed — let Salesforce return native errors (REQUIRED_FIELD_MISSING, etc.)
 
+        // Guard against non-existent target fields: Salesforce silently DROPS unknown
+        // fields on create/upsert (no native error), so a lead would look "transferred"
+        // while the mapped value was never written. We do NOT create fields automatically
+        // — the customer owns their schema. If any mapped field is missing, fail the
+        // transfer with the exact list so the customer can create it in their own org.
+        const fieldsToValidate = Object.keys(processedLeadData)
+            .filter(f => f !== externalIdField);
+        if (fieldsToValidate.length > 0) {
+            const { missing } = await checkFieldsExistence(conn, fieldsToValidate);
+            if (missing.length > 0) {
+                console.warn('🚫 Transfer blocked — fields not in Salesforce:', missing);
+                return res.status(422).json({
+                    success: false,
+                    message: `Transfer failed: the following field(s) do not exist in your Salesforce org: ${missing.join(', ')}. Please create them in Salesforce first.`,
+                    missingFields: missing
+                });
+            }
+        }
+
         // --- UPSERT MODE: if externalIdField is provided and has a value in leadData ---
         // This supports UPDATE of existing SF leads via a custom External ID field (e.g. LS_LeadId__c)
         const externalIdValue = externalIdField ? processedLeadData[externalIdField] : null;
@@ -2248,8 +2267,15 @@ app.post('/api/salesforce/leads/prepare', async (req, res) => {
         const activeFields = fieldConfigStorage.getActiveFields(orgId);
         console.log(`📋 Client has ${activeFields.length} active fields configured`);
 
-        // Use the new service to check and create fields (with active fields filter)
+        // Validate that every active mapped field exists in the customer's Salesforce
+        // org. Fields are NOT created automatically — the customer owns their schema.
         const result = await transferLeadWithAutoFieldCreation(conn, leadData, activeFields);
+
+        // Missing fields → fail the preparation so the transfer never proceeds with a
+        // field Salesforce would silently drop.
+        if (result && result.readyForTransfer === false) {
+            return res.status(422).json({ success: false, ...result });
+        }
 
         res.json(result);
 

@@ -66,77 +66,6 @@ async function checkFieldsExistence(conn, fieldNames) {
     }
 }
 
-/**
- * Create missing custom fields in Salesforce
- * @param {Object} conn - Salesforce connection
- * @param {Array} fields - Array of field objects to create
- * @returns {Promise<Object>} Creation results
- */
-async function createMissingFields(conn, fields) {
-    const results = {
-        created: [],
-        failed: [],
-        skipped: []
-    };
-
-    for (const field of fields) {
-        try {
-            const customField = {
-                fullName: `Lead.${field.apiName}`,
-                label: field.label,
-                type: 'Text',
-                length: 255,
-                required: false,
-                externalId: false,
-                unique: false
-            };
-
-            console.log(`🔧 Creating field: Lead.${field.apiName} (${customField.label})`);
-
-            const result = await conn.metadata.create('CustomField', [customField]);
-            const fieldResult = Array.isArray(result) ? result[0] : result;
-
-            if (fieldResult.success) {
-                results.created.push({
-                    apiName: field.apiName,
-                    label: customField.label,
-                    success: true
-                });
-                console.log(`✅ Field created: ${field.apiName}`);
-            } else {
-                // Check if it's a duplicate error (field already exists)
-                const isDuplicate = fieldResult.errors && fieldResult.errors.some(e =>
-                    e.statusCode === 'DUPLICATE_VALUE' || e.message.includes('already')
-                );
-
-                if (isDuplicate) {
-                    results.skipped.push({
-                        apiName: field.apiName,
-                        label: customField.label,
-                        reason: 'Field already exists'
-                    });
-                    console.log(`⏭️  Field already exists: ${field.apiName}`);
-                } else {
-                    results.failed.push({
-                        apiName: field.apiName,
-                        label: customField.label,
-                        error: fieldResult.errors ? JSON.stringify(fieldResult.errors) : 'Unknown error'
-                    });
-                    console.error(`❌ Field creation failed: ${field.apiName}`, fieldResult.errors);
-                }
-            }
-        } catch (fieldError) {
-            results.failed.push({
-                apiName: field.apiName,
-                label: field.label,
-                error: fieldError.message
-            });
-            console.error(`❌ Field creation error: ${field.apiName}`, fieldError);
-        }
-    }
-
-    return results;
-}
 
 /**
  * Transfer lead with automatic field creation
@@ -165,33 +94,19 @@ async function transferLeadWithAutoFieldCreation(conn, leadData, activeFields = 
             console.log(`✅ Existing fields (${existing.length}):`, existing);
             console.log(`❓ Missing fields (${missing.length}):`, missing);
 
-            // Step 3: Create missing fields if any
+            // Step 3: Missing fields are NOT created automatically. The customer creates
+            // their own custom fields in their Salesforce org. If an active mapped field
+            // does not exist, the transfer must fail with a clear message — otherwise
+            // Salesforce silently drops the unknown field and the lead looks "transferred"
+            // while the value was never written.
             if (missing.length > 0) {
-                const fieldsToCreate = customFieldsInData.filter(f => missing.includes(f.apiName));
-
-                console.log(`🛠️  Creating ${fieldsToCreate.length} missing field(s)...`);
-                const creationResults = await createMissingFields(conn, fieldsToCreate);
-
-                console.log(`📊 Field creation summary:`);
-                console.log(`   - Created: ${creationResults.created.length}`);
-                console.log(`   - Skipped: ${creationResults.skipped.length}`);
-                console.log(`   - Failed: ${creationResults.failed.length}`);
-
-                // Wait a bit for Salesforce to process the field creation
-                if (creationResults.created.length > 0) {
-                    console.log('⏳ Waiting 2 seconds for Salesforce to process field creation...');
-                    await new Promise(resolve => setTimeout(resolve, 2000));
-                }
-
-                // Return field creation results for the user
+                console.warn(`🚫 Transfer blocked — ${missing.length} active field(s) do not exist in Salesforce:`, missing);
                 return {
-                    step: 'field_creation',
-                    fieldsCreated: creationResults.created,
-                    fieldsSkipped: creationResults.skipped,
-                    fieldsFailed: creationResults.failed,
+                    step: 'missing_fields',
+                    readyForTransfer: false,
                     missingFields: missing,
                     existingFields: existing,
-                    readyForTransfer: creationResults.failed.length === 0
+                    message: `The following field(s) do not exist in your Salesforce org and must be created there first: ${missing.join(', ')}`
                 };
             }
         }
@@ -212,6 +127,5 @@ async function transferLeadWithAutoFieldCreation(conn, leadData, activeFields = 
 module.exports = {
     extractCustomFieldsFromLeadData,
     checkFieldsExistence,
-    createMissingFields,
     transferLeadWithAutoFieldCreation
 };
