@@ -2094,79 +2094,23 @@ app.post('/api/salesforce/leads', async (req, res) => {
             console.log(`✅ Lead ${isUpdate ? 'updated' : 'created'} via upsert: ${leadId}`);
 
         } else {
-            // CREATE MODE: find an existing lead first, then update it (instead of
-            // blocking) or create a new one.
+            // CREATE MODE: always create a NEW lead — never update or block on a
+            // pre-existing one. Per the customer (Allied Vision): every trade-show
+            // contact must count as its own lead for their statistics and sales
+            // monitoring, even if a similar lead already exists in Salesforce.
             //
-            // Matching strategy — narrow enough to avoid hitting a same-name colleague:
-            //  - If an Email is present, match on Email (the strongest unique signal).
-            //  - Otherwise fall back to LastName + FirstName + Company. FirstName is
-            //    included so two different people at the same company (e.g. two "Schmidt"
-            //    at "BMW") are not collapsed into one record.
-            const esc = (v) => String(v || '').replace(/'/g, "\\'");
-            const lastName = esc(processedLeadData.LastName);
-            const firstName = esc(processedLeadData.FirstName);
-            const company = esc(processedLeadData.Company);
-            const email = esc(processedLeadData.Email);
-
-            const whereClause = email
-                ? `Email = '${email}'`
-                : `LastName = '${lastName}' AND FirstName = '${firstName}' AND Company = '${company}'`;
-
-            const duplicateQuery = `
-                SELECT Id, FirstName, LastName, Company, Email
-                FROM Lead
-                WHERE ${whereClause}
-                LIMIT 1
-            `;
-
-            const duplicateResult = await conn.query(duplicateQuery);
-
-            if (duplicateResult.records.length > 0) {
-                // A matching lead already exists in Salesforce (same LastName + Company),
-                // possibly created years ago without an LS_LeadId__c. Instead of blocking
-                // the transfer ("Duplicate" → never imported), UPDATE the existing record
-                // so the customer's data still reaches Salesforce.
-                const existing = duplicateResult.records[0];
-                console.log(`🔄 Existing lead matched (${existing.Id}) — updating instead of blocking`);
-
-                const updateResult = await conn.sobject('Lead').update({
-                    Id: existing.Id,
-                    ...processedLeadData,
-                });
-                const uRes = Array.isArray(updateResult) ? updateResult[0] : updateResult;
-
-                if (!uRes.success) {
-                    let errorMessage = 'Failed to update existing lead in Salesforce';
-                    if (uRes.errors && uRes.errors.length > 0) {
-                        errorMessage = uRes.errors.map(e => e.message || JSON.stringify(e)).join(' | ');
-                    }
-                    console.error('SF update (dup) failed (422):', errorMessage);
-                    return res.status(422).json({ success: false, message: errorMessage });
-                }
-
-                leadId = existing.Id;
-                isUpdate = true;
-                console.log(`✅ Existing lead updated: ${leadId}`);
-                // fall through to attachments / response below (skip create)
-            } else {
-
-            // Create the lead
-            const leadResult = await conn.sobject('Lead').create(processedLeadData);
+            // We also pass the duplicate-rule override header so Salesforce's own
+            // Duplicate Rule does not block the insert — a match should still produce
+            // a new lead, not a "Duplicate" rejection.
+            const leadResult = await conn.sobject('Lead').create(
+                processedLeadData,
+                { headers: { 'Sforce-Duplicate-Rule-Header': 'allowSave=true' } }
+            );
 
             if (!leadResult.success) {
-                // Check for SF duplicate rule (DUPLICATES_DETECTED)
-                const isDuplicate = leadResult.errors && leadResult.errors.some(
-                    e => e.statusCode === 'DUPLICATES_DETECTED' || e.errorCode === 'DUPLICATES_DETECTED'
-                );
-                if (isDuplicate) {
-                    return res.status(409).json({
-                        message: 'Duplicate lead detected by Salesforce'
-                    });
-                }
-
-                // All other Salesforce errors (REQUIRED_FIELD_MISSING, STORAGE_LIMIT_EXCEEDED,
-                // INVALID_EMAIL_ADDRESS, INVALID_FIELD, etc.) are business errors — return 422
-                // so the client marks the lead as "failed" without logging a server crash.
+                // Business errors (REQUIRED_FIELD_MISSING, STORAGE_LIMIT_EXCEEDED,
+                // INVALID_EMAIL_ADDRESS, INVALID_FIELD, bad picklist value, ...) → 422
+                // so the client marks the lead "failed" without a server crash.
                 let errorMessage = 'Failed to create lead in Salesforce';
                 if (leadResult.errors && Array.isArray(leadResult.errors) && leadResult.errors.length > 0) {
                     errorMessage = leadResult.errors.map(e => e.message || JSON.stringify(e)).join(' | ');
@@ -2176,8 +2120,7 @@ app.post('/api/salesforce/leads', async (req, res) => {
             }
 
             leadId = leadResult.id;
-            console.log(`✅ Lead created with ID: ${leadId}`);
-            } // end create (no existing duplicate)
+            console.log(`✅ New lead created with ID: ${leadId}`);
         }
 
         // Handle attachments
